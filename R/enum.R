@@ -1,27 +1,4 @@
-#' Route Enumeration Functions
-#'
-#' Functions for finding alternative routes between origin-destination (OD) pairs
-#' for different cargo types and transportation modes.
 
-#' @title Setup Enumeration Directories
-#' @description Set up directories for enumeration process.
-#'
-#' @param network Character string specifying the network name.
-#' @param scenario Character string specifying the scenario name.
-#'
-#' @return A named list containing paths for:
-#' \itemize{
-#'   \item \code{link_file_path} - Path to network shapefile
-#'   \item \code{zone_file_path} - Path to zone nodes directory
-#'   \item \code{od_matrix_directory} - Path to OD matrix directory
-#'   \item \code{parameter_directory} - Path to parameters directory
-#'   \item \code{enumeration_model_run_directory} - Path to enumeration results directory
-#' }
-#'
-#' @export
-setup_enumeration_directories <- function(network, scenario) {
-  stop("Not yet implemented")
-}
 
 #' @title Get Alternative Routes
 #' @description Generate alternative routes between origin and destination nodes.
@@ -43,7 +20,7 @@ setup_enumeration_directories <- function(network, scenario) {
 #'
 #' @export
 #' @importFrom data.table data.table
-get_alternative_routes <- function(graph, orig_no, dest_no, mode, 
+get_alternative_routes <- function(graph, orig_no, dest_no, mode,
                                    overlap_threshold = 0.75, n_path = 1000) {
   stop("Not yet implemented")
 }

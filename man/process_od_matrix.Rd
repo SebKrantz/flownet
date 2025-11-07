@@ -4,7 +4,7 @@
 \alias{process_od_matrix}
 \title{Process OD Matrix}
 \usage{
-process_od_matrix(od_matrix_directory)
+process_od_matrix(od_matrix_directory, cargo_type, period = NULL)
 }
 \arguments{
 \item{od_matrix_directory}{Character string path to directory containing OD matrix CSV files.}
