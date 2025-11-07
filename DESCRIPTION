@@ -2,7 +2,8 @@ Package: mmflowr
 Type: Package
 Title: A package for enumeration and assignment in transportation modeling
 Version: 0.0.1
-Authors@R: person("Kamol", "Roy", email = "kamol.roy08@gmail.com", role = c("aut", "cre"))
+Authors@R: c(person("Sebastian", "Krantz", email = "sebastian.krantz@graduateinstitute.ch", role = c("aut", "cre")),
+             person("Kamol", "Roy", email = "kamol.roy08@gmail.com", role = c("aut", "cph")))
 Description: MMFlowR is an R package for transportation modeling, specifically designed for enumeration 
     and assignment tasks in network analysis. It provides tools for analyzing traffic flow, route 
     optimization, and transportation network modeling.
