@@ -53,7 +53,7 @@
 #' the computed probabilities.
 #'
 #' @export
-#' @importFrom collapse fselect fnrow fsubset
+#' @importFrom collapse fselect fnrow fsubset ckmatch alloc setDimnames anyv
 #' @importFrom igraph graph_from_data_frame delete_vertex_attr igraph_options distances shortest_paths
 run_assignment <- function(graph_df, od_matrix_long, directed = FALSE,
                            cost_col = "cost", mode_col = NULL,

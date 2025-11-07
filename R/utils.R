@@ -22,7 +22,7 @@
 #' converts from matrix format to long format, and filters out zero tonnage rows.
 #'
 #' @export
-#' @importFrom data.table fread rbindlist %ilike%
+#' @importFrom data.table fread %ilike%
 #' @importFrom collapse qM
 process_od_matrix <- function(od_matrix_directory, cargo_type, period = NULL) {
   files <- list.files(od_matrix_directory)
@@ -49,6 +49,8 @@ process_od_matrix <- function(od_matrix_directory, cargo_type, period = NULL) {
 #'  \item \code{TY} - Ending node Y-coordinate (latitude)
 #' }
 #' @export
+#' @importFrom sf st_geometry_type st_coordinates
+#' @importFrom collapse qDF GRP add_vars fselect ffirst flast add_stub fmutate group fmatch fifelse %+=% fmax colorder
 linestring_to_graph <- function(lines, digits = 6) {
   gt <- st_geometry_type(lines, by_geometry = FALSE)
   if(length(gt) != 1L || gt != "LINESTRING") stop("lines needs to be a sf data frame of LINESTRING's")
@@ -269,7 +271,7 @@ compute_path_sized_logit <- function(paths1, paths2, no_dups, shortest_path,
 #' geometric length for sf objects).
 #'
 #' @export
-#' @importFrom collapse fselect fsubset fnrow ss
+#' @importFrom collapse fselect fsubset fnrow ss ckmatch
 #' @importFrom igraph graph_from_data_frame delete_vertex_attr igraph_options shortest_paths
 #' @importFrom sf st_length
 #' @useDynLib mmflowr, .registration = TRUE
