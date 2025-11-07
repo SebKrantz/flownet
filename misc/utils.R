@@ -165,11 +165,11 @@ nodes_from_graph <- function(graph_df) {
 #'
 #' @export
 #' @importFrom collapse fselect
-dist_mat_from_graph <- function(graph_df, directed = FALSE, ...) {
-
-  # graph <- makegraph(graph_df |> fselect(from, to, cost), directed = directed) # directed = FALSE # cpp_simplify()
-  # nodes <- graph$dict$ref
-  # get_distance_matrix(cpp_contract(graph), from = nodes, to = nodes, algorithm = algorithm, ...)
+#' @importFrom cppRouting makegraph cpp_contract get_distance_matrix
+dist_mat_from_graph <- function(graph_df, directed = FALSE, algorithm = "mch", ...) {
+  graph <- makegraph(graph_df |> fselect(from, to, cost), directed = directed) # directed = FALSE # cpp_simplify()
+  nodes <- graph$dict$ref
+  get_distance_matrix(cpp_contract(graph), from = nodes, to = nodes, algorithm = algorithm, ...)
 }
 
 #' @title Check Path Duplicates
@@ -234,45 +234,166 @@ compute_path_sized_logit <- function(paths1, paths2, no_dups, shortest_path,
         cost, cost_ks, d_ij, beta_PSL, flow, delta_ks, final_flows)
 }
 
-
-simplify_network <- function(x, od_matrix_long, cost_col = NULL) {
-
-  if(inherits(x, "sf")) {
-    graph_df <- linestring_to_graph(x)
-    if(is.null(cost_col)) graph_df$cost <- st_length(x)
-  } else if (all(c("from", "to") %in% names(x))) graph_df <- x
-  else stop("x must be a linestring sf object or a graph data.frame with 'from' and 'to' columns")
-
-  g <- graph_df |> fselect(from, to) |> graph_from_data_frame(directed = FALSE)
-  g <- delete_vertex_attr(g, "name")
-  iopt <- igraph_options(return.vs.es = FALSE) # sparsematrices = TRUE
-  on.exit(igraph_options(iopt))
-
-  if(!all(c("from", "to", "flow") %in% names(od_matrix_long))) stop("od_matrix_long needs to have columns 'from', 'to' and 'flow'")
-  od_matrix_long %<>% fsubset(is.finite(flow) & flow > 0)
-  from <- od_matrix_long$from
-  to <- od_matrix_long$to
-
-  nodes_df <- nodes_from_graph(graph_df)
-  ckmatch(from, nodes_df$node, e = "Unknown origin nodes:")
-  ckmatch(to, nodes_df$node, e = "Unknown destination nodes:")
-
-  edges_traversed <- integer(fnrow(graph_df))
-  for (i in from) {
-    paths1 <- shortest_paths(g, from = i, to = to, weights = cost, output = "epath")$epath
-    .Call(C_mark_edges_traversed, paths1, edges_traversed)
-  }
-
-  if(inherits(x, "sf")) {
-    return(list(network = x[edges_traversed > 0, ],
-                graph_df = graph_df |> ss(edges_traversed > 0)))
-  }
-  graph_df |> ss(edges_traversed > 0)
+#' @title Get Geo Data Frame
+#' @description Convert data.table to sf spatial data frame.
+#'
+#' @param df A data.table or data.frame.
+#' @param lat_col Character string specifying the latitude column name.
+#' @param lon_col Character string specifying the longitude column name.
+#'
+#' @return An sf object with point geometry.
+#'
+#' @export
+#' @importFrom sf st_as_sf st_set_crs
+get_geo_dataframe <- function(df, lat_col, lon_col) {
+  stop("Not yet implemented")
 }
 
+#' @title Calculate Haversine Distance
+#' @description Calculate haversine distance between two points on Earth.
+#'
+#' @param lat1 Numeric vector of latitude values for first point(s).
+#' @param lon1 Numeric vector of longitude values for first point(s).
+#' @param lat2 Numeric vector of latitude values for second point(s).
+#' @param lon2 Numeric vector of longitude values for second point(s).
+#'
+#' @return Numeric vector of distances in meters.
+#'
+#' @details
+#' Uses the haversine formula to calculate great-circle distances between points
+#' on a sphere. Earth's radius is assumed to be 6371000 meters.
+#'
+#' @export
+haversine_distance <- function(lat1, lon1, lat2, lon2) {
+  stop("Not yet implemented")
+}
 
+#' @title Convert Shapefile to Graph
+#' @description Convert shapefile to routable graph (cppRouting or igraph).
+#'
+#' @param gdf An sf object with network data (linestrings).
+#' @param make_G_bidi Logical (default: TRUE). If TRUE, assumes linestrings are bidirectional.
+#' @param name Character string (default: "unnamed"). Optional name of graph.
+#'
+#' @return A graph object compatible with cppRouting or igraph.
+#'
+#' @details
+#' Validates that the shapefile contains linestring geometry and length attributes.
+#' Creates a graph with nodes and edges, optionally adding bidirectional edges.
+#'
+#' @export
+#' @importFrom sf st_geometry_type
+convert_shp2graph <- function(gdf, make_G_bidi = TRUE, name = "unnamed") {
+  stop("Not yet implemented")
+}
 
+#' @title Get Link GDF with Generalized Cost
+#' @description Calculate generalized cost for links based on cargo type and scenario.
+#'
+#' @param link_gdf An sf object with network link data.
+#' @param cargo_type Character string specifying the cargo type.
+#' @param scenario_name Character string specifying the scenario name.
+#'
+#' @return An sf object with additional columns for:
+#' \itemize{
+#'   \item \code{tariff_cost} - Tariff costs
+#'   \item \code{vot} - Value of time
+#'   \item \code{BPC_cost} - Border crossing costs
+#'   \item \code{BPC_time} - Border crossing times
+#'   \item \code{Speed} - Link speeds
+#'   \item \code{TP_Cost} - Transfer penalty costs
+#'   \item \code{TP_Time} - Transfer penalty times
+#'   \item \code{total_cost} - Total cost
+#'   \item \code{total_time} - Total time
+#'   \item \code{generalized_cost} - Generalized cost
+#' }
+#'
+#' @details
+#' Reads parameter files from the scenario directory and applies:
+#' \itemize{
+#'   \item Tariffs based on mode and length
+#'   \item Value of time assumptions
+#'   \item Border crossing costs and times
+#'   \item Speed assumptions by mode and region
+#'   \item Transfer penalty costs and times
+#' }
+#' Then calculates generalized cost as: (total_cost)/(vot*24) + (total_time/24)
+#'
+#' @export
+get_link_gdf_with_gc <- function(link_gdf, cargo_type, scenario_name) {
+  stop("Not yet implemented")
+}
 
+#' @title Calculate Bearing
+#' @description Calculate bearing angle of a line segment.
+#'
+#' @param segment An sf linestring object.
+#'
+#' @return Numeric vector of bearing angles in degrees (0-360).
+#'
+#' @details
+#' Calculates the angle from north (0 degrees) in clockwise direction.
+#'
+#' @export
+calculate_bearing <- function(segment) {
+  stop("Not yet implemented")
+}
 
+#' @title Assign Direction
+#' @description Assign cardinal direction based on bearing.
+#'
+#' @param bearing Numeric vector of bearing angles in degrees.
+#'
+#' @return Character vector of directions ("NB" for northbound, "SB" for southbound).
+#'
+#' @details
+#' \itemize{
+#'   \item 0-90 degrees or 270-360 degrees: Northbound (NB)
+#'   \item 90-270 degrees: Southbound (SB)
+#' }
+#'
+#' @export
+assign_direction <- function(bearing) {
+  stop("Not yet implemented")
+}
 
+#' @title Find Nearest Nodes
+#' @description Find nearest nodes in a graph for given coordinates using haversine distance.
+#'
+#' @param graph A graph object (from cppRouting or igraph).
+#' @param x_coords Numeric vector of longitude coordinates.
+#' @param y_coords Numeric vector of latitude coordinates.
+#' @param return_dist Logical (default: FALSE). If TRUE, return distances as well.
+#'
+#' @return If \code{return_dist = FALSE}, returns numeric vector of nearest node IDs.
+#'   If \code{return_dist = TRUE}, returns a list with:
+#'   \itemize{
+#'     \item \code{nodes} - Numeric vector of nearest node IDs
+#'     \item \code{distances} - Numeric vector of distances in meters
+#'   }
+#'
+#' @export
+find_nearest_nodes <- function(graph, x_coords, y_coords, return_dist = FALSE) {
+  stop("Not yet implemented")
+}
+
+#' @title Load Choice Parameters
+#' @description Load choice model parameters from Excel file.
+#'
+#' @param parameter_directory Character string path to directory containing parameter files.
+#'
+#' @return A list with three data.tables:
+#' \itemize{
+#'   \item \code{gen_lambda_df} - Lambda parameters by mode
+#'   \item \code{mode_lambda_df} - Upper level lambda parameters by mode
+#'   \item \code{mode_c_df} - C parameters by mode
+#' }
+#'
+#' @details
+#' Reads from \code{choice_params.xlsx} with sheets: 'lambda', 'lambda_mode', 'C'.
+#'
+#' @export
+load_choice_parameters <- function(parameter_directory) {
+  stop("Not yet implemented")
+}
 
