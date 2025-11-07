@@ -70,4 +70,35 @@ SEXP check_path_duplicates(SEXP paths1, SEXP paths2, SEXP delta_ks) {
 }
 
 
+/**
+ * Mark edges as traversed by incrementing counts in edges_traversed
+ *
+ * @param paths List of numeric/integer vectors (edge numbers for paths)
+ * @param edges_traversed Integer vector to be modified in place (must be large enough to index all edge numbers)
+ * @return The modified edges_traversed vector
+ */
+SEXP mark_edges_traversed(SEXP paths, SEXP edges_traversed) {
+
+  int n_paths = length(paths);
+  
+  // Get pointer to edges_traversed for direct indexing
+  int *edges_ptr = INTEGER(edges_traversed);
+  
+  // Iterate over each path
+  const SEXP *paths_ptr = SEXPPTR_RO(paths);
+  
+  for (int k = 0; k < n_paths; k++) {
+    int path_len = length(paths_ptr[k]);
+    if (path_len == 0) continue; // Skip empty paths
+    
+    double *path_ptr = REAL(paths_ptr[k]);
+    
+    // Increment count for each edge in the path
+    for (int i = 0; i < path_len; i++) edges_ptr[(int)path_ptr[i] - 1]++;
+  }
+  
+  return edges_traversed;
+}
+
+
 

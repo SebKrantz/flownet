@@ -235,6 +235,44 @@ compute_path_sized_logit <- function(paths1, paths2, no_dups, shortest_path,
 }
 
 
+#' @title Simplify Network
+#' @description Simplify a network by keeping only edges that are traversed by shortest paths
+#'   between origin-destination pairs in the OD matrix.
+#'
+#' @param x Either an sf object with LINESTRING geometry representing the network, or a
+#'   data.frame with columns \code{from} and \code{to} representing the graph edges.
+#' @param od_matrix_long A data.frame with columns \code{from}, \code{to}, and \code{flow}
+#'   representing the origin-destination matrix in long format.
+#' @param cost_col Character string (optional). Name of the cost column in \code{x} or
+#'   \code{graph_df}. If \code{NULL} and \code{x} is an sf object, uses \code{st_length(x)}
+#'   as the cost.
+#'
+#' @return If \code{x} is an sf object, returns a list with:
+#'   \itemize{
+#'     \item \code{network} - sf object containing only edges that were traversed
+#'     \item \code{graph_df} - data.frame with graph representation of traversed edges
+#'   }
+#'   If \code{x} is a data.frame, returns a data.frame containing only edges that were traversed.
+#'
+#' @details
+#' This function simplifies a network by:
+#' \itemize{
+#'   \item Converting the input to a graph representation (if needed)
+#'   \item Validating that all origin and destination nodes exist in the network
+#'   \item Computing shortest paths from each origin to all destinations using igraph
+#'   \item Marking all edges that are traversed by at least one shortest path
+#'   \item Returning only the subset of edges that were traversed
+#' }
+#'
+#' The function filters the OD matrix to include only rows with finite, positive flow values.
+#' All shortest paths are computed using edge costs (either from \code{cost_col} or
+#' geometric length for sf objects).
+#'
+#' @export
+#' @importFrom collapse fselect fsubset fnrow ss
+#' @importFrom igraph graph_from_data_frame delete_vertex_attr igraph_options shortest_paths
+#' @importFrom sf st_length
+#' @useDynLib mmflowr, .registration = TRUE
 simplify_network <- function(x, od_matrix_long, cost_col = NULL) {
 
   if(inherits(x, "sf")) {
@@ -259,8 +297,8 @@ simplify_network <- function(x, od_matrix_long, cost_col = NULL) {
 
   edges_traversed <- integer(fnrow(graph_df))
   for (i in from) {
-    paths1 <- shortest_paths(g, from = i, to = to, weights = cost, output = "epath")$epath
-    .Call(C_mark_edges_traversed, paths1, edges_traversed)
+    pathsi <- shortest_paths(g, from = i, to = to, weights = cost, output = "epath")$epath
+    .Call(C_mark_edges_traversed, pathsi, edges_traversed)
   }
 
   if(inherits(x, "sf")) {
