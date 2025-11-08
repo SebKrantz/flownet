@@ -11,7 +11,6 @@ run_assignment(
   cost_col = "cost",
   mode_col = NULL,
   method = "PSL",
-  lambda = -1,
   beta = -1,
   return.extra = c("graph_df", "od_matrix_long", "paths", "edges", "costs", "weights")
 )
@@ -23,8 +22,7 @@ Represents the network graph with edges between nodes.}
 \item{od_matrix_long}{A data.frame with columns \code{from}, \code{to}, and \code{flow}.
 Represents the origin-destination matrix in long format with flow values.}
 
-\item{directed}{Logical (default: FALSE). Whether the graph is directed. Currently only
-undirected graphs are supported.}
+\item{directed}{Logical (default: FALSE). Whether the graph is directed.}
 
 \item{cost_col}{Character string (default: "cost") or numeric vector. Name of the cost column
 in \code{graph_df}, or a numeric vector of edge costs with length equal to \code{nrow(graph_df)}.}
@@ -33,8 +31,6 @@ in \code{graph_df}, or a numeric vector of edge costs with length equal to \code
 
 \item{method}{Character string (default: "PSL"). Assignment method. Currently only "PSL"
 (Path-Sized Logit) is implemented.}
-
-\item{lambda}{Numeric (default: -1). Currently not used.}
 
 \item{beta}{Numeric (default: -1). Path-sized logit parameter (beta_PSL). If -1, uses a default value.}
 

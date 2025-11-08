@@ -10,14 +10,12 @@
 #'   Represents the network graph with edges between nodes.
 #' @param od_matrix_long A data.frame with columns \code{from}, \code{to}, and \code{flow}.
 #'   Represents the origin-destination matrix in long format with flow values.
-#' @param directed Logical (default: FALSE). Whether the graph is directed. Currently only
-#'   undirected graphs are supported.
+#' @param directed Logical (default: FALSE). Whether the graph is directed.
 #' @param cost_col Character string (default: "cost") or numeric vector. Name of the cost column
 #'   in \code{graph_df}, or a numeric vector of edge costs with length equal to \code{nrow(graph_df)}.
 #' @param mode_col Character string (optional). Currently not used.
 #' @param method Character string (default: "PSL"). Assignment method. Currently only "PSL"
 #'   (Path-Sized Logit) is implemented.
-#' @param lambda Numeric (default: -1). Currently not used.
 #' @param beta Numeric (default: -1). Path-sized logit parameter (beta_PSL). If -1, uses a default value.
 #' @param return.extra Character vector specifying additional results to return. Options include:
 #'   \code{"graph_df"}, \code{"od_matrix_long"}, \code{"dmat"}, \code{"paths"}, \code{"edges"},
@@ -57,7 +55,7 @@
 #' @importFrom igraph graph_from_data_frame delete_vertex_attr igraph_options distances shortest_paths
 run_assignment <- function(graph_df, od_matrix_long, directed = FALSE,
                            cost_col = "cost", mode_col = NULL,
-                           method = "PSL", lambda = -1, beta = -1,
+                           method = "PSL", beta = -1,
                            return.extra = c("graph_df", "od_matrix_long", "paths", "edges", "costs", "weights")) {
 
   cost <- if(is.character(cost_col) && length(cost_col) == 1L) graph_df[[cost_col]] else
@@ -65,8 +63,9 @@ run_assignment <- function(graph_df, od_matrix_long, directed = FALSE,
       stop("cost_col needs to be a column name in graph_df or a numeric vector matching nrow(graph_df)")
 
   # Create Graph igraph: best so far
-  g <- graph_df |> fselect(from, to) |> graph_from_data_frame(directed = FALSE)
-  g <- delete_vertex_attr(g, "name")
+  g <- graph_df |> fselect(from, to) |>
+    graph_from_data_frame(directed = directed) |>
+    delete_vertex_attr("name")
   iopt <- igraph_options(return.vs.es = FALSE) # sparsematrices = TRUE
   on.exit(igraph_options(iopt))
 
@@ -121,6 +120,7 @@ run_assignment <- function(graph_df, od_matrix_long, directed = FALSE,
     # Could still optimize calls to shortest_paths(), e.g., go to C directly.
     # We add the shortest path at the end of paths1
     paths1 <- shortest_paths(g, from = from[i], to = c(ks, to[i]), weights = cost, output = "epath")$epath
+    # TODO: What if we have directed graph
     paths2 <- shortest_paths(g, from = to[i], to = ks, weights = cost, output = "epath")$epath
     shortest_path <- paths1[[length(paths1)]]
 
@@ -145,7 +145,7 @@ run_assignment <- function(graph_df, od_matrix_long, directed = FALSE,
     # gamma_1 <- sum(cost[shortest_path] / delta_ks[shortest_path]) / d_ij
     #
     # # Now the PS-MNL
-    # prob_ks <- proportions(exp(c(cost_ks[no_dups], d_ij) + beta_PSL * c(gamma_ks, gamma_1)))
+    # prob_ks <- proportions(exp(-c(cost_ks[no_dups], d_ij) + beta_PSL * log(c(gamma_ks, gamma_1))))
     #
     # # Need to reset delta_ks
     # delta_ks[] <- 0L
@@ -156,11 +156,11 @@ run_assignment <- function(graph_df, od_matrix_long, directed = FALSE,
     # }
     # final_flows[shortest_path] <- final_flows[shortest_path] + flow[i] * prob_ks[length(prob_ks)]
     compute_path_sized_logit(paths1, paths2, no_dups, shortest_path,
-                             cost, cost_ks, d_ij, beta_PSL, flow[i],
-                             delta_ks, final_flows)
+                             cost, cost_ks, d_ij, beta,
+                             flow[i], delta_ks, final_flows)
 
     if(retvals) {
-      if(pathsl) paths[[i]] <- c(list(shortest_path), lapply(no_dups, function(k) c(paths1[[k]], paths2[[k]])))
+      if(pathsl) paths[[i]] <- c(list(as.integer(shortest_path)), lapply(no_dups, function(k) c(as.integer(paths1[[k]]), as.integer(paths2[[k]]))))
     }
   }
 

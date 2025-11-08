@@ -6,8 +6,8 @@
 
 
 SEXP compute_path_sized_logit(SEXP paths1, SEXP paths2, SEXP no_dups, SEXP shortest_path,
-                              SEXP cost, SEXP cost_ks, SEXP d_ij, SEXP beta_PSL, SEXP flow,
-                              SEXP delta_ks, SEXP final_flows) {
+                              SEXP cost, SEXP cost_ks, SEXP d_ij, SEXP beta_PSL,
+                              SEXP flow, SEXP delta_ks, SEXP final_flows) {
 
   int n_no_dups = length(no_dups);
   const SEXP *paths1_ptr = SEXPPTR_RO(paths1);
@@ -18,7 +18,7 @@ SEXP compute_path_sized_logit(SEXP paths1, SEXP paths2, SEXP no_dups, SEXP short
   double *cost_ptr = REAL(cost);
   double *cost_ks_ptr = REAL(cost_ks);
   double d_ij_val = REAL(d_ij)[0];
-  double beta_PSL_val = REAL(beta_PSL)[0];
+  double beta_PSL_val = asReal(beta_PSL);
   double flow_val = REAL(flow)[0];
   int *delta_ptr = INTEGER(delta_ks);
   double *final_flows_ptr = REAL(final_flows);
@@ -70,10 +70,10 @@ SEXP compute_path_sized_logit(SEXP paths1, SEXP paths2, SEXP no_dups, SEXP short
   double *exp_vals = (double *) R_alloc(n_no_dups + 1, sizeof(double));
   double sum_exp = 0.0;
   for (int idx = 0; idx < n_no_dups; idx++) {
-    exp_vals[idx] = exp(cost_ks_ptr[idx] + beta_PSL_val * gamma_ks[idx]);
+    exp_vals[idx] = exp(-cost_ks_ptr[idx] + beta_PSL_val * gamma_ks[idx]);
     sum_exp += exp_vals[idx];
   }
-  exp_vals[n_no_dups] = exp(d_ij_val + beta_PSL_val * gamma_1);
+  exp_vals[n_no_dups] = exp(-d_ij_val + beta_PSL_val * gamma_1);
   sum_exp += exp_vals[n_no_dups];
 
   // Normalize to get probabilities
