@@ -4,7 +4,7 @@
 \alias{dist_mat_from_graph}
 \title{Compute Distance Matrix from Graph}
 \usage{
-dist_mat_from_graph(graph_df, directed = FALSE, ...)
+dist_mat_from_graph(graph_df, directed = FALSE, cost.column = "cost", ...)
 }
 \arguments{
 \item{graph_df}{A data frame representing a graph with columns:

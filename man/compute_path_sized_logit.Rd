@@ -15,7 +15,8 @@ compute_path_sized_logit(
   beta_PSL,
   flow,
   delta_ks,
-  final_flows
+  final_flows,
+  free_delta_ks = TRUE
 )
 }
 \arguments{
@@ -40,6 +41,8 @@ compute_path_sized_logit(
 \item{delta_ks}{Integer vector used as hash table (will be modified and reset).}
 
 \item{final_flows}{Numeric vector of final flows (will be modified in place).}
+
+\item{free_delta_ks}{Logical scalar (default: TRUE). If TRUE, resets delta_ks to zero after computation.}
 }
 \value{
 Numeric vector of probabilities with length \code{length(no_dups) + 1}.
@@ -54,7 +57,7 @@ This function efficiently computes:
   \item Updates delta_ks (edge usage counts) for all paths
   \item Computes gamma correction factors for path-sized logit
   \item Computes probabilities using exponential utility with path-sized correction
-  \item Resets delta_ks to zero
+  \item Resets delta_ks to zero if \code{free_delta_ks} is TRUE
   \item Updates final_flows with weighted probabilities
 }
 }

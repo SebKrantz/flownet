@@ -4,16 +4,16 @@
 \alias{simplify_network}
 \title{Simplify Network}
 \usage{
-simplify_network(x, od_matrix_long, cost_col = NULL)
+simplify_network(x, od_matrix_long, cost.column = NULL)
 }
 \arguments{
 \item{x}{Either an sf object with LINESTRING geometry representing the network, or a
-data.frame with columns \code{from} and \code{to} representing the graph edges.}
+data.frame with columns \code{from} and \code{to} representing the graph edges. \emph{Note} that if}
 
 \item{od_matrix_long}{A data.frame with columns \code{from}, \code{to}, and \code{flow}
 representing the origin-destination matrix in long format.}
 
-\item{cost_col}{Character string (optional). Name of the cost column in \code{x} or
+\item{cost.column}{Character string (optional). Name of the cost column in \code{x} or
 \code{graph_df}. If \code{NULL} and \code{x} is an sf object, uses \code{st_length(x)}
 as the cost.}
 }
@@ -40,6 +40,6 @@ This function simplifies a network by:
 }
 
 The function filters the OD matrix to include only rows with finite, positive flow values.
-All shortest paths are computed using edge costs (either from \code{cost_col} or
+All shortest paths are computed using edge costs (either from \code{cost.column} or
 geometric length for sf objects).
 }
