@@ -1,39 +1,3 @@
-#' Utility Functions
-#'
-#' Various utility functions for network processing, OD matrix processing,
-#' graph conversion, and spatial calculations.
-#' @title Process OD Matrix
-#' @description Process OD matrix files from a directory.
-#'
-#' @param od_matrix_directory Character string path to directory containing OD matrix CSV files.
-#'
-#' @return A data.table containing processed OD matrix with columns:
-#' \itemize{
-#'   \item \code{orig} - Origin zone number
-#'   \item \code{dest} - Destination zone number
-#'   \item \code{cargo_type} - Cargo type
-#'   \item \code{tons_2019} - Tonnage for 2019
-#'   \item \code{tons_2030} - Tonnage for 2030
-#'   \item \code{tons_2040} - Tonnage for 2040
-#' }
-#'
-#' @details
-#' Processes multiple OD matrix CSV files, handles different column name formats,
-#' converts from matrix format to long format, and filters out zero tonnage rows.
-#'
-#' @export
-#' @importFrom data.table fread %ilike%
-#' @importFrom collapse qM
-process_od_matrix <- function(od_matrix_directory, cargo_type, period = NULL) {
-  files <- list.files(od_matrix_directory)
-  files <- files[files %ilike% period]
-  # cargo_type = c("Container", "Drybulk", "Liquidbulk", "General", "HighValue")
-  # period = "2019"
-  sapply(cargo_type, function(x) {
-    fread(paste(od_matrix_directory, files[files %ilike% x][1], sep = "/")) |> qM(1)
-  }, simplify = FALSE)
-}
-
 
 #' @title Convert Linestring to Graph
 #'
@@ -73,11 +37,11 @@ linestring_to_graph <- function(lines, digits = 6) {
 #'
 #' @param graph_df A data frame representing a directed graph with columns:
 #'   \code{from}, \code{to}, \code{line}, \code{FX}, \code{FY}, \code{TX}, \code{TY},
-#'   and any columns specified in \code{agg_cols}.
-#' @param agg_cols Character vector (default: "cost"). Column names to aggregate
+#'   and any columns specified in \code{cols.aggregate}.
+#' @param cols.aggregate Character vector (default: "cost"). Column names to aggregate
 #'   when collapsing duplicate edges.
-#' @param agg_func Function (default: \code{fmean}). Aggregation function to apply
-#'   to columns specified in \code{agg_cols}. Must be a collapse package function
+#' @param fun.aggregate Function (default: \code{fmean}). Aggregation function to apply
+#'   to columns specified in \code{cols.aggregate}. Must be a collapse package function
 #'   (e.g., \code{fmean}, \code{fsum}, \code{fmin}, \code{fmax}).
 #'
 #' @return A data frame representing an undirected graph with:
@@ -89,7 +53,7 @@ linestring_to_graph <- function(lines, digits = 6) {
 #'     \item \code{FY} - Starting node Y-coordinate (first value from duplicates)
 #'     \item \code{TX} - Ending node X-coordinate (first value from duplicates)
 #'     \item \code{TY} - Ending node Y-coordinate (first value from duplicates)
-#'     \item Aggregated columns as specified in \code{agg_cols}
+#'     \item Aggregated columns as specified in \code{cols.aggregate}
 #'   }
 #'
 #' @details
@@ -99,21 +63,21 @@ linestring_to_graph <- function(lines, digits = 6) {
 #'   \item Collapsing duplicate edges (same \code{from} and \code{to} nodes)
 #'   \item For spatial/identifier columns (\code{line}, \code{FX}, \code{FY}, \code{TX}, \code{TY}),
 #'     taking the first value from duplicates
-#'   \item For aggregation columns (specified in \code{agg_cols}), applying the
+#'   \item For aggregation columns (specified in \code{cols.aggregate}), applying the
 #'     specified aggregation function (e.g., mean, sum, min, max)
 #' }
 #'
 #' @export
 #' @importFrom collapse ftransform collap ffirst fmean
-create_undirected_graph <- function(graph_df, agg_cols = "cost", agg_func = fmean, ...) {
+create_undirected_graph <- function(graph_df, cols.aggregate = "cost", fun.aggregate = fmean, ...) {
   graph_df %<>% ftransform(from = pmin(from, to), to = pmax(from, to))
   g <- GRP(graph_df, ~ from + to, sort = FALSE)
-  if(last(as.character(substitute(agg_func))) %!in% .FAST_STAT_FUN)
-    agg_func <- function(x, g, ...) BY(x, g, agg_func, ...)
+  if(last(as.character(substitute(fun.aggregate))) %!in% .FAST_STAT_FUN)
+    fun.aggregate <- function(x, g, ...) BY(x, g, fun.aggregate, ...)
   res <- add_vars(g$groups,
     ffirst(get_vars(graph_df, c("line", "FX", "FY", "TX", "TY")), g, use.g.names = FALSE),
-    agg_func(get_vars(graph_df, agg_cols), g, use.g.names = FALSE)) |>
-    colorderv(c("line", "from", "FX", "FY", "to", "TX", "TY", agg_cols))
+    fun.aggregate(get_vars(graph_df, cols.aggregate), g, use.g.names = FALSE)) |>
+    colorderv(c("line", "from", "FX", "FY", "to", "TX", "TY", cols.aggregate))
   attr(res, "group.starts") <- g$group.starts
   res
 }
@@ -174,8 +138,17 @@ nodes_from_graph <- function(graph_df) {
 #'
 #' @export
 #' @importFrom collapse fselect
-dist_mat_from_graph <- function(graph_df, directed = FALSE, ...) {
+dist_mat_from_graph <- function(graph_df, directed = FALSE, cost.column = "cost", ...) {
+  cost <- if(is.character(cost.column) && length(cost.column) == 1L) graph_df[[cost.column]] else
+    if(is.numeric(cost.column) && length(cost.column) == fnrow(graph_df)) cost.column else
+    stop("cost.column needs to be a column name in graph_df or a numeric vector matching nrow(graph_df)")
 
+  # Create Igraph Graph
+  g <- graph_df |> fselect(from, to) |>
+    graph_from_data_frame(directed = directed) # |>
+    # delete_vertex_attr("name")
+
+  distances(g, mode = "out", weights = cost)
   # graph <- makegraph(graph_df |> fselect(from, to, cost), directed = directed) # directed = FALSE # cpp_simplify()
   # nodes <- graph$dict$ref
   # get_distance_matrix(cpp_contract(graph), from = nodes, to = nodes, algorithm = algorithm, ...)
@@ -221,6 +194,7 @@ check_path_duplicates <- function(paths1, paths2, delta_ks) {
 #' @param flow Numeric scalar, flow value for this OD pair.
 #' @param delta_ks Integer vector used as hash table (will be modified and reset).
 #' @param final_flows Numeric vector of final flows (will be modified in place).
+#' @param free_delta_ks Logical scalar (default: TRUE). If TRUE, resets delta_ks to zero after computation.
 #'
 #' @return Numeric vector of probabilities with length \code{length(no_dups) + 1}.
 #'   The last element corresponds to the shortest path.
@@ -231,16 +205,16 @@ check_path_duplicates <- function(paths1, paths2, delta_ks) {
 #'   \item Updates delta_ks (edge usage counts) for all paths
 #'   \item Computes gamma correction factors for path-sized logit
 #'   \item Computes probabilities using exponential utility with path-sized correction
-#'   \item Resets delta_ks to zero
+#'   \item Resets delta_ks to zero if \code{free_delta_ks} is TRUE
 #'   \item Updates final_flows with weighted probabilities
 #' }
 #'
 #' @useDynLib mmflowr, .registration = TRUE
 compute_path_sized_logit <- function(paths1, paths2, no_dups, shortest_path,
                                      cost, cost_ks, d_ij, beta_PSL,
-                                     flow, delta_ks, final_flows) {
+                                     flow, delta_ks, final_flows, free_delta_ks = TRUE) {
   .Call(C_compute_path_sized_logit, paths1, paths2, no_dups, shortest_path,
-        cost, cost_ks, d_ij, beta_PSL, flow, delta_ks, final_flows)
+        cost, cost_ks, d_ij, beta_PSL, flow, delta_ks, final_flows, free_delta_ks)
 }
 
 
@@ -249,10 +223,10 @@ compute_path_sized_logit <- function(paths1, paths2, no_dups, shortest_path,
 #'   between origin-destination pairs in the OD matrix.
 #'
 #' @param x Either an sf object with LINESTRING geometry representing the network, or a
-#'   data.frame with columns \code{from} and \code{to} representing the graph edges.
+#'   data.frame with columns \code{from} and \code{to} representing the graph edges. \emph{Note} that if
 #' @param od_matrix_long A data.frame with columns \code{from}, \code{to}, and \code{flow}
 #'   representing the origin-destination matrix in long format.
-#' @param cost_col Character string (optional). Name of the cost column in \code{x} or
+#' @param cost.column Character string (optional). Name of the cost column in \code{x} or
 #'   \code{graph_df}. If \code{NULL} and \code{x} is an sf object, uses \code{st_length(x)}
 #'   as the cost.
 #'
@@ -274,7 +248,7 @@ compute_path_sized_logit <- function(paths1, paths2, no_dups, shortest_path,
 #' }
 #'
 #' The function filters the OD matrix to include only rows with finite, positive flow values.
-#' All shortest paths are computed using edge costs (either from \code{cost_col} or
+#' All shortest paths are computed using edge costs (either from \code{cost.column} or
 #' geometric length for sf objects).
 #'
 #' @export
@@ -282,11 +256,11 @@ compute_path_sized_logit <- function(paths1, paths2, no_dups, shortest_path,
 #' @importFrom igraph graph_from_data_frame delete_vertex_attr igraph_options shortest_paths
 #' @importFrom sf st_length
 #' @useDynLib mmflowr, .registration = TRUE
-simplify_network <- function(x, od_matrix_long, cost_col = NULL) {
+simplify_network <- function(x, od_matrix_long, cost.column = NULL) {
 
   if(inherits(x, "sf")) {
     graph_df <- linestring_to_graph(x)
-    if(is.null(cost_col)) graph_df$cost <- st_length(x)
+    if(is.null(cost.column)) graph_df$cost <- st_length(x)
   } else if (all(c("from", "to") %in% names(x))) graph_df <- x
   else stop("x must be a linestring sf object or a graph data.frame with 'from' and 'to' columns")
 
