@@ -5,15 +5,15 @@
 \alias{flowr}
 \title{Transport Modeling}
 \description{
-\emph{flowr} provides efficient tools for transportation network modeling, specifically route
-enumeration and traffic assignment tasks. The package implement the path-sized logit model for
+\emph{flowr} provides efficient tools for transportation modeling, specifically route
+enumeration and traffic assignment tasks. The package implements the path-sized logit model for
 traffic assignment and provides utilities for network processing.
 
 
 \strong{Network Processing}
 
  \code{\link[=simplify_network]{simplify_network()}} --- Simplify network by keeping only traversed edges\cr
- \code{\link[=linestring_to_graph]{linestring_to_graph()}} --- Convert LINESTRING geometries to graph representation\cr
+ \code{\link[=linestrings_to_graph]{linestrings_to_graph()}} --- Convert LINESTRING geometries to graph\cr
  \code{\link[=create_undirected_graph]{create_undirected_graph()}} --- Convert directed graph to undirected\cr
 
 

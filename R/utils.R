@@ -19,7 +19,7 @@
 #' @importFrom sf st_geometry_type st_coordinates
 #' @importFrom collapse qDF GRP add_vars fselect ffirst flast add_stub fmutate group fmatch %+=% fmax colorder
 #' @importFrom data.table fifelse
-linestring_to_graph <- function(lines, digits = 6) {
+linestrings_to_graph <- function(lines, digits = 6) {
   gt <- st_geometry_type(lines, by_geometry = FALSE)
   if(length(gt) != 1L || gt != "LINESTRING") stop("lines needs to be a sf data frame of LINESTRING's")
   graph <- st_coordinates(lines) |> qDF()
@@ -265,7 +265,7 @@ compute_path_sized_logit <- function(paths1, paths2, no_dups, shortest_path,
 simplify_network <- function(x, od_matrix_long, cost.column = NULL) {
 
   if(inherits(x, "sf")) {
-    graph_df <- linestring_to_graph(x)
+    graph_df <- linestrings_to_graph(x)
     if(is.null(cost.column)) graph_df$cost <- st_length(x)
     names(od_matrix_long) %<>% tolower()
     if(!all(c("fx", "fy", "tx", "ty") %in% names(od_matrix_long)))

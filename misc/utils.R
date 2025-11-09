@@ -49,7 +49,7 @@ process_od_matrix <- function(od_matrix_directory, cargo_type, period = NULL) {
 #'  \item \code{TY} - Ending node Y-coordinate (latitude)
 #' }
 #' @export
-linestring_to_graph <- function(lines, digits = 6) {
+linestrings_to_graph <- function(lines, digits = 6) {
   gt <- st_geometry_type(lines, by_geometry = FALSE)
   if(length(gt) != 1L || gt != "LINESTRING") stop("lines needs to be a sf data frame of LINESTRING's")
   graph <- st_coordinates(lines) |> qDF()

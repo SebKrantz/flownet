@@ -2,7 +2,7 @@
 
 export(create_undirected_graph)
 export(dist_mat_from_graph)
-export(linestring_to_graph)
+export(linestrings_to_graph)
 export(nodes_from_graph)
 export(run_assignment)
 export(simplify_network)

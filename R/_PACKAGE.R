@@ -10,7 +10,7 @@
 #' \strong{Network Processing}
 #'
 #'  \code{\link[=simplify_network]{simplify_network()}} --- Simplify network by keeping only traversed edges\cr
-#'  \code{\link[=linestring_to_graph]{linestring_to_graph()}} --- Convert LINESTRING geometries to graph\cr
+#'  \code{\link[=linestrings_to_graph]{linestrings_to_graph()}} --- Convert LINESTRING geometries to graph\cr
 #'  \code{\link[=create_undirected_graph]{create_undirected_graph()}} --- Convert directed graph to undirected\cr
 #'
 #'

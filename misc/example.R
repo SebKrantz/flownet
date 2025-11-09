@@ -20,7 +20,7 @@ zone_nodes <- st_read("data/zone_nodes/network_nodes.shp")
 mapview::mapview(network_gc_cnt) + mapview::mapview(zone_nodes, col.regions = "red")
 
 graph_df <- network_gc_cnt |>
-  linestring_to_graph() |>
+  linestrings_to_graph() |>
   add_vars(cost = network_gc_cnt$generalize) |>
   create_undirected_graph()
 
