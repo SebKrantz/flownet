@@ -90,7 +90,7 @@ run_assignment <- function(graph_df, od_matrix_long,
 
 
   # Edge incidence across selected routes
-  delta_ks <- integer(length(cost))
+  delta_ks <- integer(length(cost) + 10L)
 
   # Final flows vector
   final_flows <- numeric(length(cost))
