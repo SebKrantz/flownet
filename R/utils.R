@@ -12,6 +12,9 @@
 #'  \item \code{TX} - Ending node X-coordinate (longitude)
 #'  \item \code{TY} - Ending node Y-coordinate (latitude)
 #' }
+#'
+#' @seealso \link{simplify_network} \link{flowr-package}
+#'
 #' @export
 #' @importFrom sf st_geometry_type st_coordinates
 #' @importFrom collapse qDF GRP add_vars fselect ffirst flast add_stub fmutate group fmatch %+=% fmax colorder
@@ -154,6 +157,7 @@ dist_mat_from_graph <- function(graph_df, directed = FALSE, cost.column = "cost"
   # get_distance_matrix(cpp_contract(graph), from = nodes, to = nodes, algorithm = algorithm, ...)
 }
 
+#' @noRd
 #' @title Check Path Duplicates
 #' @description Check if combined paths (from paths1 and paths2) have duplicated edges.
 #'
@@ -180,6 +184,7 @@ check_path_duplicates <- function(paths1, paths2, delta_ks) {
   .Call(C_check_path_duplicates, paths1, paths2, delta_ks)
 }
 
+#' @noRd
 #' @title Compute Path-Sized Logit
 #' @description Efficiently compute path-sized logit probabilities and update flows.
 #'
@@ -223,12 +228,13 @@ compute_path_sized_logit <- function(paths1, paths2, no_dups, shortest_path,
 #'   between origin-destination pairs in the OD matrix.
 #'
 #' @param x Either an sf object with LINESTRING geometry representing the network, or a
-#'   data.frame with columns \code{from} and \code{to} representing the graph edges. \emph{Note} that if
-#' @param od_matrix_long A data.frame with columns \code{from}, \code{to}, and \code{flow}
-#'   representing the origin-destination matrix in long format.
-#' @param cost.column Character string (optional). Name of the cost column in \code{x} or
-#'   \code{graph_df}. If \code{NULL} and \code{x} is an sf object, uses \code{st_length(x)}
-#'   as the cost.
+#'   data.frame with columns \code{from} and \code{to} representing the graph edges.
+#' @param od_matrix_long A data.frame representing the origin-destination matrix in long format.
+#' If \code{x} is a LINETRING geometry, it should have columns \code{FX}, \code{FY}, \code{TX}, \code{TY}
+#' representing the origin/destination zone centroids. If \code{x} is a graph data frame, it should have columns
+#' \code{from} and \code{to} matching nodes in \code{x}.
+#' @param cost.column Character string (optional). Name of the cost column in \code{x}.
+#' If \code{NULL} and \code{x} is an sf object, uses \code{st_length(x)} as the cost.
 #'
 #' @return If \code{x} is an sf object, returns a list with:
 #'   \itemize{
@@ -261,8 +267,14 @@ simplify_network <- function(x, od_matrix_long, cost.column = NULL) {
   if(inherits(x, "sf")) {
     graph_df <- linestring_to_graph(x)
     if(is.null(cost.column)) graph_df$cost <- st_length(x)
-  } else if (all(c("from", "to") %in% names(x))) graph_df <- x
-  else stop("x must be a linestring sf object or a graph data.frame with 'from' and 'to' columns")
+    names(od_matrix_long) %<>% tolower()
+    if(!all(c("fx", "fy", "tx", "ty") %in% names(od_matrix_long)))
+      stop("od_matrix_long needs to have columns 'FX', 'FY', 'TX' and 'TY' when x is a linestring sf object")
+  } else if (all(c("from", "to") %in% names(x))) {
+    graph_df <- x
+    if(!all(c("from", "to") %in% names(od_matrix_long))) stop("od_matrix_long needs to have columns 'from' and 'to'")
+
+  } else stop("x must be a linestring sf object or a graph data.frame with 'from' and 'to' columns")
 
   g <- graph_df |> fselect(from, to) |>
     graph_from_data_frame(directed = FALSE) |>
@@ -270,8 +282,7 @@ simplify_network <- function(x, od_matrix_long, cost.column = NULL) {
   iopt <- igraph_options(return.vs.es = FALSE) # sparsematrices = TRUE
   on.exit(igraph_options(iopt))
 
-  if(!all(c("from", "to", "flow") %in% names(od_matrix_long))) stop("od_matrix_long needs to have columns 'from', 'to' and 'flow'")
-  od_matrix_long %<>% fsubset(is.finite(flow) & flow > 0)
+  if(length(od_matrix_long[["flow"]])) od_matrix_long %<>% fsubset(is.finite(flow) & flow > 0)
   from <- od_matrix_long$from
   to <- od_matrix_long$to
 
