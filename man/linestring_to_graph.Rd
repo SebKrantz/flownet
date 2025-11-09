@@ -24,3 +24,6 @@ A data.frame representing the graph with columns:
 \description{
 Convert Linestring to Graph
 }
+\seealso{
+\link{simplify_network} \link{flowr-package}
+}

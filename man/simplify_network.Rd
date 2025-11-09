@@ -13,9 +13,8 @@ data.frame with columns \code{from} and \code{to} representing the graph edges. 
 \item{od_matrix_long}{A data.frame with columns \code{from}, \code{to}, and \code{flow}
 representing the origin-destination matrix in long format.}
 
-\item{cost.column}{Character string (optional). Name of the cost column in \code{x} or
-\code{graph_df}. If \code{NULL} and \code{x} is an sf object, uses \code{st_length(x)}
-as the cost.}
+\item{cost.column}{Character string (optional). Name of the cost column in \code{x}.
+If \code{NULL} and \code{x} is an sf object, uses \code{st_length(x)} as the cost.}
 }
 \value{
 If \code{x} is an sf object, returns a list with:
