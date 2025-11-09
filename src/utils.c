@@ -1,9 +1,9 @@
 #include <R.h>
 #include <Rinternals.h>
 
-#undef SEXPPTR_RO
+#ifndef SEXPPTR_RO
 #define SEXPPTR_RO(x) ((const SEXP *)DATAPTR_RO(x))  // to avoid overhead of looped VECTOR_ELT
-
+#endif
 
 /**
  * Check if paths have duplicated edges
