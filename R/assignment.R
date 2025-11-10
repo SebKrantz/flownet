@@ -77,7 +77,7 @@ run_assignment <- function(graph_df, od_matrix_long,
   g <- graph_df |> fselect(from, to) |>
     graph_from_data_frame(directed = directed,
                           vertices = data.frame(name = nodes))
-  if(any(return.extra, "graph")) res$graph <- g
+  if(anyv(return.extra, "graph")) res$graph <- g
 
   # Distance Matrix
   if(precompute.dmat) {
@@ -222,4 +222,30 @@ run_assignment <- function(graph_df, od_matrix_long,
   return(res)
 }
 
-
+#' @title Print Flowr Object
+#' @description Print method for objects of class \code{flowr}. Displays a summary of the flow assignment result.
+#'
+#' @param x An object of class \code{flowr}, typically returned by \code{\link{run_assignment}}.
+#' @param ... Additional arguments (currently ignored).
+#'
+#' @export
+#' @importFrom collapse fmean vlengths
+print.flowr <- function(x, ...) {
+  cat("Flowr object\n")
+  cat("Call: ", deparse(x$call), "\n")
+  if(!is.null(x$dmat) && is.matrix(x$dmat))
+    cat("Number of nodes: ", nrow(x$dmat), "\n")
+  cat("Number of edges: ", length(x$final_flows), "\n")
+  if (!is.null(x$od_pairs_used) && length(x$od_pairs_used))
+    cat("Number of simulations (OD-pairs): ", length(x$od_pairs_used), "\n")
+  else if (!is.null(x$paths) && length(x$paths))
+    cat("Number of simulations (OD-pairs): ", length(x$paths), "\nAverage number of paths per simulation: ", fmean(vlengths(x$paths)), "\n")
+  if (!is.null(x$edges) && length(x$edges))
+    cat("Average number of edges utilized per simulation: ", fmean(vlengths(x$edges)), "\n")
+  if (!is.null(x$edge_counts) && length(x$edge_counts))
+    cat("Average number of visits per edge: ", fmean(fmean(x$edge_counts)), "\n")
+  if (!is.null(x$path_costs) && length(x$path_costs))
+    cat("Average path cost: ", fmean(fmean(x$path_costs)), "\n")
+  if (!is.null(x$path_weights) && length(x$path_weights))
+    cat("Average path weight: ", fmean(fmean(x$path_weights)), "\n")
+}
