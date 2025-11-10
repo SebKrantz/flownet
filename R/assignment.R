@@ -50,7 +50,7 @@
 #' @seealso \link{flowr-package}
 #'
 #' @export
-#' @importFrom collapse fselect fnrow fsubset ckmatch alloc setDimnames anyv
+#' @importFrom collapse fselect fnrow fsubset ckmatch alloc setDimnames anyv whichv
 #' @importFrom igraph graph_from_data_frame delete_vertex_attr igraph_options distances shortest_paths
 run_assignment <- function(graph_df, od_matrix_long,
                            directed = FALSE,
@@ -198,12 +198,12 @@ run_assignment <- function(graph_df, od_matrix_long,
 
     if(retvals) {
       if(pathsl) paths[[i]] <- c(list(as.integer(shortest_path)), lapply(no_dups,
-                    function(k) c(as.integer(paths1[[k]]), as.integer(paths2[[k]]))))
+                    function(k) c(as.integer(paths1[[k]]), rev.default(as.integer(paths2[[k]])))))
       if(countsl) {
-        ei <- whichv(delta_ks, 0, invert = TRUE)
+        ei <- whichv(delta_ks, 0L, invert = TRUE)
         if(edgesl) edges[[i]] <- ei
         counts[[i]] <- delta_ks[ei]
-      } else if(edgesl) edges[[i]] <- whichv(delta_ks, 0, invert = TRUE)
+      } else if(edgesl) edges[[i]] <- whichv(delta_ks, 0L, invert = TRUE)
       if(costsl) costs[[i]] <- c(d_ij, cost_ks)
       if(weightsl) weights[[i]] <- wi
     }
