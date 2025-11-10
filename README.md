@@ -2,6 +2,8 @@
 
 **Transport Modeling: Route Enumeration and Traffic Assignment with the Path-Sized Logit**
 
+***NOTE: Package is still under development***
+
 `flowr` provides efficient tools for transportation modeling, specifically route enumeration and traffic assignment tasks. The package implements the path-sized logit (PSL) model for traffic assignment and provides powerful utilities for network processing.
 
 ## Features
@@ -31,24 +33,24 @@ install.packages("flowr", repos = NULL, type = "source")
 ```r
 library(flowr)
 
-# Convert LINESTRING network to graph
-graph_df <- network_linestrings |>
-  linestrings_to_graph() |>
-  add_vars(cost = network_linestrings$cost) |>
-  create_undirected_graph()
+# Create a small graph data frame
+graph_df <- data.frame(
+  from = c(1, 2, 2, 3),
+  to   = c(2, 3, 4, 4),
+  cost = c(5, 3, 2, 4)
+)
 
-# Prepare OD matrix (origin-destination flows)
+# Prepare OD matrix with the same node IDs as in graph_df
 od_matrix_long <- data.frame(
   from = c(1, 2, 3),
-  to = c(10, 11, 12),
-  flow = c(100, 200, 150)
+  to   = c(4, 4, 4),
+  flow = c(100, 80, 60)
 )
 
 # Run traffic assignment
 result <- run_assignment(
   graph_df = graph_df,
   od_matrix_long = od_matrix_long,
-  method = "PSL",
   beta = -1,
   detour.max = 1.5
 )
@@ -60,21 +62,22 @@ final_flows <- result$final_flows
 ### Working with Spatial Networks
 
 ```r
+library(flowr)
 # Read network from shapefile
 network <- st_read("data/network/base_network.shp")
 
-# Convert to graph
-graph_df <- network |>
-  linestrings_to_graph() |>
-  add_vars(cost = st_length(network)) |>
-  create_undirected_graph()
-
-# Simplify network by keeping only traversed edges
+# Simplify network by keeping only traversed edges along shortest paths
 simplified <- simplify_network(
   x = network,
   od_matrix_long = od_matrix_long,
-  cost.column = NULL  # Uses st_length() by default
+  cost.column = "cost"  # Uses st_length() if NULL
 )
+
+# Convert to graph
+graph_df <- simplified |>
+  linestrings_to_graph() |>
+  cbind(cost = network$cost) |>
+  create_undirected_graph()
 ```
 
 ## Main Functions
