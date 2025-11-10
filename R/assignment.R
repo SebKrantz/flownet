@@ -50,7 +50,7 @@
 #' @seealso \link{flowr-package}
 #'
 #' @export
-#' @importFrom collapse fselect fnrow fsubset ckmatch alloc setDimnames anyv whichv
+#' @importFrom collapse fselect frange funique.default ss fnrow seq_row ckmatch anyv whichv all_identical
 #' @importFrom igraph graph_from_data_frame delete_vertex_attr igraph_options distances shortest_paths
 run_assignment <- function(graph_df, od_matrix_long,
                            directed = FALSE,
@@ -63,7 +63,7 @@ run_assignment <- function(graph_df, od_matrix_long,
 
   cost <- if(is.character(cost.column) && length(cost.column) == 1L) graph_df[[cost.column]] else
     if(is.numeric(cost.column) && length(cost.column) == fnrow(graph_df)) cost.column else
-      stop("cost.column needs to be a column name in graph_df or a numeric vector matching nrow(graph_df)")
+    stop("cost.column needs to be a column name in graph_df or a numeric vector matching nrow(graph_df)")
 
   # Results object
   res <- list(call = match.call())
@@ -71,24 +71,25 @@ run_assignment <- function(graph_df, od_matrix_long,
     return.extra <- c("graph", "dmat", "paths", "edges", "costs", "weights")
 
   # Create Igraph Graph
-  if(!all(c("from", "to") %in% names(graph_df))) stop("graph_df needs to have columns 'from' and 'to'")
+  nodes <- funique.default(c(graph_df$from, graph_df$to), sort = TRUE)
+  if(nodes[1L] != 1) stop("Missing first node")
+  if(diff(frange(nodes)) >= length(nodes)) stop("graph_df is missing some nodes in from/to columns")
   g <- graph_df |> fselect(from, to) |>
-    graph_from_data_frame(directed = directed)
-  if(anyv(return.extra, "graph")) res$graph <- g
+    graph_from_data_frame(directed = directed,
+                          vertices = data.frame(name = nodes))
 
   # Distance Matrix
   if(precompute.dmat) {
     dmat <- distances(g, mode = "out", weights = cost)
     iopt <- igraph_options(return.vs.es = FALSE) # sparsematrices = TRUE
     on.exit(igraph_options(iopt))
-    if(nrow(dmat) == ncol(dmat)) stop("Distance matrix must be square")
+    if(nrow(dmat) != ncol(dmat)) stop("Distance matrix must be square")
     if(!all_identical(dimnames(dmat))) stop("Distance matrix dimensions must be equivalent")
-    dmat_rn <- as.integer(rownames(dmat))
+    if(!identical(as.integer(rownames(dmat)), nodes)) stop("Distance matrix rows/columns need to match nodes in order. This is an internal bug, please report it.")
     if(anyv(return.extra, "dmat")) res$dmat <- dmat
     dimnames(dmat) <- NULL
-  }
-  g %<>% delete_vertex_attr("name")
-
+  } else stop("precompute.dmat = FALSE is not implemented yet")
+  g <- delete_vertex_attr(g, "name")
 
   # Edge incidence across selected routes
   delta_ks <- integer(length(cost) + 10L)
@@ -102,11 +103,11 @@ run_assignment <- function(graph_df, od_matrix_long,
   od_pairs <- which(is.finite(od_matrix_long$flow) & od_matrix_long$flow > 0)
   if(length(od_pairs) != fnrow(od_matrix_long)) {
     res$od_pairs_used <- od_pairs
-    od_matrix_long %<>% ss(od_pairs, check = FALSE)
+    od_matrix_long <- ss(od_matrix_long, od_pairs, check = FALSE)
   }
-  from <- ckmatch(od_matrix_long$from, dmat_rn, e = "Unknown origin nodes in od_matrix:")
-  to <- ckmatch(od_matrix_long$to, dmat_rn, e = "Unknown destination nodes in od_matrix:")
-  flow <- od_matrix_long$from
+  from <- ckmatch(od_matrix_long$from, nodes, e = "Unknown origin nodes in od_matrix:")
+  to <- ckmatch(od_matrix_long$to, nodes, e = "Unknown destination nodes in od_matrix:")
+  flow <- od_matrix_long[["flow"]]
 
   # Return block
   retvals <- any(return.extra %in% c("paths", "edges", "counts", "costs", "weights"))
@@ -136,20 +137,19 @@ run_assignment <- function(graph_df, od_matrix_long,
   # TODO: could restrict that other nodes must be in the direction of travel and not behind destination node
   for (i in seq_row(od_matrix_long)) {
 
-    if(precompute.dmat) {
-      d_ij <- dmat[from[i], to[i]] # Shortest path cost
-      d_ikj <- dmat[from[i], ] + dmat[, to[i]] # from i to all other nodes k and from these nodes k to j (basically dmat + t(dmat)?)
-    } else {
-      d_ij <- get_distance_pair(g, from = from[i], to = to[i], weights = cost)
-      d_ikj <- get_distance_matrix(g, from = from[i], to = dmat_rn, weights = cost) +
-               get_distance_matrix(g, from = dmat_rn, to = to[i], weights = cost)
-    }
+    # if(precompute.dmat) {
+    d_ij <- dmat[from[i], to[i]] # Shortest path cost
+    d_ikj <- dmat[from[i], ] + dmat[, to[i]] # from i to all other nodes k and from these nodes k to j (basically dmat + t(dmat)?)
+    # } else {
+    #   d_ij <- get_distance_pair(g, from = from[i], to = to[i], weights = cost)
+    #   d_ikj <- get_distance_matrix(g, from = from[i], to = dmat_rn, weights = cost) +
+    #            get_distance_matrix(g, from = dmat_rn, to = to[i], weights = cost)
+    # }
     short_detour_ij <- d_ikj < detour.max * d_ij
     short_detour_ij[d_ikj < d_ij + .Machine$double.eps*1e3] <- FALSE # Exclude nodes k that are on the shortest path
     # which(d_ij == d_ikj) # These are the nodes on the direct path from i to j which yield the shortest distance.
     ks <- which(short_detour_ij)
     cost_ks <- d_ikj[ks]
-    ks <- dmat_rn[ks]
 
     # We add the shortest path at the end of paths1
     # TODO: Could still optimize calls to shortest_paths(), e.g., go to C directly.
@@ -206,6 +206,7 @@ run_assignment <- function(graph_df, od_matrix_long,
       if(costsl) costs[[i]] <- c(d_ij, cost_ks)
       if(weightsl) weights[[i]] <- wi
     }
+    .Call(C_free_delta_ks, delta_ks, no_dups, paths1, paths2, shortest_path)
   }
 
   if(retvals) {

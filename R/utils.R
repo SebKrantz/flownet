@@ -2,6 +2,7 @@
 #' @title Convert Linestring to Graph
 #'
 #' @param lines An sf data frame of LINESTRING geometries.
+#' @param digits Numeric rounding applied to coordinates (to ensure that matching points across different linestrings is not impaired by numeric precision issues). Set to \code{NA/Inf/FALSE} to disable.
 #' @return A data.frame representing the graph with columns:
 #' \itemize{
 #'  \item \code{line} - Line identifier
@@ -17,7 +18,7 @@
 #'
 #' @export
 #' @importFrom sf st_geometry_type st_coordinates
-#' @importFrom collapse qDF GRP get_vars add_vars fselect ffirst flast add_stub fmutate group fmatch %+=% fmax colorder whichNA setv unattrib
+#' @importFrom collapse qDF GRP get_vars get_vars<- add_vars fselect ffirst flast add_stub fmutate group fmatch %+=% fmax colorder whichNA setv unattrib
 linestrings_to_graph <- function(lines, digits = 6) {
   gt <- st_geometry_type(lines, by_geometry = FALSE)
   if(length(gt) != 1L || gt != "LINESTRING") stop("lines needs to be a sf data frame of LINESTRING's")
@@ -53,6 +54,7 @@ linestrings_to_graph <- function(lines, digits = 6) {
 #' @param fun.aggregate Function (default: \code{fmean}). Aggregation function to apply
 #'   to columns specified in \code{cols.aggregate}. Must be a collapse package function
 #'   (e.g., \code{fmean}, \code{fsum}, \code{fmin}, \code{fmax}).
+#' @param \dots Further arguments to pass to \code{fun.aggregate}.
 #'
 #' @return A data frame representing an undirected graph with:
 #'   \itemize{
@@ -78,17 +80,17 @@ linestrings_to_graph <- function(lines, digits = 6) {
 #' }
 #'
 #' @export
-#' @importFrom collapse ftransform collap ffirst fmean
+#' @importFrom collapse ftransform GRP BY get_vars add_vars ffirst flast.default fmean colorderv %!in% .FAST_STAT_FUN
 create_undirected_graph <- function(graph_df, cols.aggregate = "cost", fun.aggregate = fmean, ...) {
-  graph_df %<>% ftransform(from = pmin(from, to), to = pmax(from, to))
+  graph_df <- ftransform(graph_df, from = pmin(from, to), to = pmax(from, to))
   g <- GRP(graph_df, ~ from + to, sort = FALSE)
-  if(last(as.character(substitute(fun.aggregate))) %!in% .FAST_STAT_FUN) {
+  if(flast.default(as.character(substitute(fun.aggregate))) %!in% .FAST_STAT_FUN) {
     FUN <- match.fun(fun.aggregate)
     fun.aggregate <- function(x, g, ...) BY(x, g, FUN, ...)
   }
   res <- add_vars(g$groups,
     ffirst(get_vars(graph_df, c("line", "FX", "FY", "TX", "TY")), g, use.g.names = FALSE),
-    fun.aggregate(get_vars(graph_df, cols.aggregate), g, use.g.names = FALSE)) |>
+    fun.aggregate(get_vars(graph_df, cols.aggregate), g, use.g.names = FALSE, ...)) |>
     colorderv(c("line", "from", "FX", "FY", "to", "TX", "TY", cols.aggregate))
   attr(res, "group.starts") <- g$group.starts
   res
@@ -115,10 +117,11 @@ create_undirected_graph <- function(graph_df, cols.aggregate = "cost", fun.aggre
 #'
 #' @export
 #' @importFrom collapse rowbind fselect funique
+#' @importFrom stats setNames
 nodes_from_graph <- function(graph_df) {
   rowbind(graph_df |> fselect(from, FX, FY),
           graph_df |> fselect(to, TX, TY), use.names = FALSE) |>
-    set_names(c("node", "X", "Y")) |>
+    setNames(c("node", "X", "Y")) |>
     funique(cols = "node", sort = TRUE)
 }
 
@@ -129,10 +132,9 @@ nodes_from_graph <- function(graph_df) {
 #'   \code{from}, \code{to}, and \code{cost}.
 #' @param directed Logical (default: FALSE). If TRUE, treats the graph as directed;
 #'   if FALSE, treats it as undirected.
-#' @param algorithm Character string (default: "mch"). Algorithm to use for distance
-#'   computation. Options include "mch" (many-to-many with contraction hierarchies),
-#'   "dijkstra", "bi", etc. See \code{cppRouting::get_distance_matrix} for details.
-#' @param ... Additional arguments passed to \code{get_distance_matrix}.
+#' @param cost.column Character string (optional). Name of the cost column in \code{graph_df}.
+#'   Alternatively, a numeric vector of edge costs with length equal to \code{nrow(graph_df)}.
+#' @param \dots Additional arguments passed to \code{\link[igraph]{distances}()}.
 #'
 #' @return A matrix of distances between all node pairs, where rows and columns
 #'   correspond to node IDs. The matrix contains the shortest path distances
@@ -161,7 +163,7 @@ dist_mat_from_graph <- function(graph_df, directed = FALSE, cost.column = "cost"
   g <- graph_df |> fselect(from, to) |>
     graph_from_data_frame(directed = directed, vertices = vertices)
 
-  distances(g, mode = "out", weights = cost)
+  distances(g, mode = "out", weights = cost, ...)
   # graph <- makegraph(graph_df |> fselect(from, to, cost), directed = directed) # directed = FALSE # cpp_simplify()
   # nodes <- graph$dict$ref
   # get_distance_matrix(cpp_contract(graph), from = nodes, to = nodes, algorithm = algorithm, ...)
@@ -212,7 +214,7 @@ simplify_network <- function(x, od_matrix_long, cost.column = NULL) {
   if(inherits(x, "sf")) {
     graph_df <- linestrings_to_graph(x)
     if(is.null(cost.column)) graph_df$cost <- st_length(x)
-    names(od_matrix_long) %<>% tolower()
+    names(od_matrix_long) <- tolower(names(od_matrix_long))
     if(!all(c("fx", "fy", "tx", "ty") %in% names(od_matrix_long)))
       stop("od_matrix_long needs to have columns 'FX', 'FY', 'TX' and 'TY' when x is a linestring sf object")
   } else if (all(c("from", "to") %in% names(x))) {
@@ -227,7 +229,7 @@ simplify_network <- function(x, od_matrix_long, cost.column = NULL) {
   iopt <- igraph_options(return.vs.es = FALSE) # sparsematrices = TRUE
   on.exit(igraph_options(iopt))
 
-  if(length(od_matrix_long[["flow"]])) od_matrix_long %<>% fsubset(is.finite(flow) & flow > 0)
+  if(length(od_matrix_long[["flow"]])) od_matrix_long <- fsubset(od_matrix_long, is.finite(flow) & flow > 0)
   from <- od_matrix_long$from
   to <- od_matrix_long$to
 

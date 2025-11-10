@@ -8,6 +8,8 @@ linestrings_to_graph(lines, digits = 6)
 }
 \arguments{
 \item{lines}{An sf data frame of LINESTRING geometries.}
+
+\item{digits}{Numeric rounding applied to coordinates (to ensure that matching points across different linestrings is not impaired by numeric precision issues). Set to \code{NA/Inf/FALSE} to disable.}
 }
 \value{
 A data.frame representing the graph with columns:

@@ -13,11 +13,10 @@ dist_mat_from_graph(graph_df, directed = FALSE, cost.column = "cost", ...)
 \item{directed}{Logical (default: FALSE). If TRUE, treats the graph as directed;
 if FALSE, treats it as undirected.}
 
-\item{...}{Additional arguments passed to \code{get_distance_matrix}.}
+\item{cost.column}{Character string (optional). Name of the cost column in \code{graph_df}.
+Alternatively, a numeric vector of edge costs with length equal to \code{nrow(graph_df)}.}
 
-\item{algorithm}{Character string (default: "mch"). Algorithm to use for distance
-computation. Options include "mch" (many-to-many with contraction hierarchies),
-"dijkstra", "bi", etc. See \code{cppRouting::get_distance_matrix} for details.}
+\item{\dots}{Additional arguments passed to \code{\link[igraph]{distances}()}.}
 }
 \value{
 A matrix of distances between all node pairs, where rows and columns

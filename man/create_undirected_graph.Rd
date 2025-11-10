@@ -22,6 +22,8 @@ when collapsing duplicate edges.}
 \item{fun.aggregate}{Function (default: \code{fmean}). Aggregation function to apply
 to columns specified in \code{cols.aggregate}. Must be a collapse package function
 (e.g., \code{fmean}, \code{fsum}, \code{fmin}, \code{fmax}).}
+
+\item{\dots}{Further arguments to pass to \code{fun.aggregate}.}
 }
 \value{
 A data frame representing an undirected graph with:
