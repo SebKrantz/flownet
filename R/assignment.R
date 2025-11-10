@@ -164,7 +164,7 @@ run_assignment <- function(graph_df, od_matrix_long,
     # cost_ks[k] == sum(cost[paths1[[k]]]) + sum(cost[paths2[[k]]])
 
     # Get indices of paths that do not contain duplicate edges
-    no_dups <- check_path_duplicates(paths1, paths2, delta_ks)
+    no_dups <- .Call(C_check_path_duplicates, paths1, paths2, delta_ks)
 
     # Now Path-Sized Logit: Need to compute overlap between routes
     # # Number of routes in choice set that use link j
@@ -192,9 +192,8 @@ run_assignment <- function(graph_df, od_matrix_long,
     #   final_flows[paths1[[k]]] <- final_flows[paths1[[k]]] + flow[i] * prob_ks[k]
     # }
     # final_flows[shortest_path] <- final_flows[shortest_path] + flow[i] * prob_ks[length(prob_ks)]
-    wi <- compute_path_sized_logit(paths1, paths2, no_dups, shortest_path,
-                                   cost, cost_ks, d_ij, beta,
-                                   flow[i], delta_ks, final_flows, !retvals)
+    wi <- .Call(C_compute_path_sized_logit, paths1, paths2, no_dups, shortest_path,
+                cost, cost_ks, d_ij, beta, flow[i], delta_ks, final_flows, !retvals)
 
     if(retvals) {
       if(pathsl) paths[[i]] <- c(list(as.integer(shortest_path)), lapply(no_dups,

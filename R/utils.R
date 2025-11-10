@@ -149,7 +149,8 @@ nodes_from_graph <- function(graph_df) {
 #' which is particularly efficient for repeated queries.
 #'
 #' @export
-#' @importFrom collapse fselect
+#' @importFrom collapse fselect fnrow
+#' @importFrom igraph graph_from_data_frame distances
 dist_mat_from_graph <- function(graph_df, directed = FALSE, cost.column = "cost", ...) {
   cost <- if(is.character(cost.column) && length(cost.column) == 1L) graph_df[[cost.column]] else
     if(is.numeric(cost.column) && length(cost.column) == fnrow(graph_df)) cost.column else
@@ -164,71 +165,6 @@ dist_mat_from_graph <- function(graph_df, directed = FALSE, cost.column = "cost"
   # graph <- makegraph(graph_df |> fselect(from, to, cost), directed = directed) # directed = FALSE # cpp_simplify()
   # nodes <- graph$dict$ref
   # get_distance_matrix(cpp_contract(graph), from = nodes, to = nodes, algorithm = algorithm, ...)
-}
-
-#' @noRd
-#' @title Check Path Duplicates
-#' @description Check if combined paths (from paths1 and paths2) have duplicated edges.
-#'
-#' @param paths1 List of integer vectors containing edge numbers for the first part of paths.
-#' @param paths2 List of integer vectors containing edge numbers for the second part of paths.
-#' @param delta_ks Integer vector used as a hash table. Must be large enough to index all
-#'   edge numbers (i.e., length should be >= max edge number + 1).
-#'
-#' @return An integer vector of with the indices of paths for which no duplicates exist.
-#'
-#' @details
-#' For each path index k, this function combines \code{paths1[[k]]} and \code{paths2[[k]]}
-#' into a single path and checks if any edge appears more than once. The function uses
-#' \code{delta_ks} as a hash table that is cleared after checking each path.
-#'
-#' The function requires that:
-#' \itemize{
-#'   \item \code{paths1} and \code{paths2} are lists of equal length
-#'   \item Each element of \code{paths1} and \code{paths2} is an integer vector
-#'   \item \code{delta_ks} is an integer vector with length >= max edge number + 1
-#' }
-#' @useDynLib flowr, .registration = TRUE
-check_path_duplicates <- function(paths1, paths2, delta_ks) {
-  .Call(C_check_path_duplicates, paths1, paths2, delta_ks)
-}
-
-#' @noRd
-#' @title Compute Path-Sized Logit
-#' @description Efficiently compute path-sized logit probabilities and update flows.
-#'
-#' @param paths1 List of numeric vectors containing edge numbers for first part of paths.
-#' @param paths2 List of numeric vectors containing edge numbers for second part of paths.
-#' @param no_dups Integer vector of path indices (1-based) that have no duplicate edges.
-#' @param shortest_path Numeric vector of edge numbers for the shortest path.
-#' @param cost Numeric vector of edge costs.
-#' @param cost_ks Numeric vector of path costs for paths in no_dups.
-#' @param d_ij Numeric scalar, cost of shortest path.
-#' @param beta_PSL Numeric scalar, path-sized logit parameter.
-#' @param flow Numeric scalar, flow value for this OD pair.
-#' @param delta_ks Integer vector used as hash table (will be modified and reset).
-#' @param final_flows Numeric vector of final flows (will be modified in place).
-#' @param free_delta_ks Logical scalar (default: TRUE). If TRUE, resets delta_ks to zero after computation.
-#'
-#' @return Numeric vector of probabilities with length \code{length(no_dups) + 1}.
-#'   The last element corresponds to the shortest path.
-#'
-#' @details
-#' This function efficiently computes:
-#' \itemize{
-#'   \item Updates delta_ks (edge usage counts) for all paths
-#'   \item Computes gamma correction factors for path-sized logit
-#'   \item Computes probabilities using exponential utility with path-sized correction
-#'   \item Resets delta_ks to zero if \code{free_delta_ks} is TRUE
-#'   \item Updates final_flows with weighted probabilities
-#' }
-#'
-#' @useDynLib flowr, .registration = TRUE
-compute_path_sized_logit <- function(paths1, paths2, no_dups, shortest_path,
-                                     cost, cost_ks, d_ij, beta_PSL,
-                                     flow, delta_ks, final_flows, free_delta_ks = TRUE) {
-  .Call(C_compute_path_sized_logit, paths1, paths2, no_dups, shortest_path,
-        cost, cost_ks, d_ij, beta_PSL, flow, delta_ks, final_flows, free_delta_ks)
 }
 
 
