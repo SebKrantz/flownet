@@ -77,6 +77,7 @@ run_assignment <- function(graph_df, od_matrix_long,
   g <- graph_df |> fselect(from, to) |>
     graph_from_data_frame(directed = directed,
                           vertices = data.frame(name = nodes))
+  if(any(return.extra, "graph")) res$graph <- g
 
   # Distance Matrix
   if(precompute.dmat) {
@@ -149,6 +150,7 @@ run_assignment <- function(graph_df, od_matrix_long,
     short_detour_ij[d_ikj < d_ij + .Machine$double.eps*1e3] <- FALSE # Exclude nodes k that are on the shortest path
     # which(d_ij == d_ikj) # These are the nodes on the direct path from i to j which yield the shortest distance.
     ks <- which(short_detour_ij)
+    cost_ks <- d_ikj[ks]
 
     # We add the shortest path at the end of paths1
     # TODO: Could still optimize calls to shortest_paths(), e.g., go to C directly.
@@ -164,7 +166,6 @@ run_assignment <- function(graph_df, od_matrix_long,
 
     # Get indices of paths that do not contain duplicate edges
     no_dups <- .Call(C_check_path_duplicates, paths1, paths2, delta_ks)
-    cost_ks <- d_ikj[ks]
 
     # Now Path-Sized Logit: Need to compute overlap between routes
     # # Number of routes in choice set that use link j
@@ -212,9 +213,9 @@ run_assignment <- function(graph_df, od_matrix_long,
   if(retvals) {
     if(pathsl) res$paths <- paths
     if(edgesl) res$edges <- edges
-    if(countsl) res$counts <- counts
-    if(costsl) res$costs <- costs
-    if(weightsl) res$weights <- weights
+    if(countsl) res$edge_counts <- counts
+    if(costsl) res$path_costs <- costs
+    if(weightsl) res$path_weights <- weights
   }
 
   class(res) <- c("flowr", method)
