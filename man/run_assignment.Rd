@@ -14,7 +14,8 @@ run_assignment(
   detour.max = 1.5,
   angle.max = 90,
   return.extra = NULL,
-  precompute.dmat = TRUE
+  precompute.dmat = TRUE,
+  progress.bar = TRUE
 )
 }
 \arguments{
@@ -43,6 +44,8 @@ in \code{graph_df}, or a numeric vector of edge costs with length equal to \code
 Use \code{"all"} to return all available extra results.}
 
 \item{precompute.dmat}{description}
+
+\item{progress.bar}{Show progress bar?}
 }
 \value{
 A list containing:

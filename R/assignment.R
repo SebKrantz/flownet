@@ -17,6 +17,7 @@
 #' @param return.extra Character vector specifying additional results to return. Options include:
 #'   \code{"graph"}, \code{"dmat"}, \code{"paths"} (most memory intensive), \code{"edges"}, \code{"costs"}, \code{"weights"}.
 #'   Use \code{"all"} to return all available extra results.
+#' @param progress.bar Show progress bar?
 #'
 #' @param precompute.dmat description
 #'
@@ -52,6 +53,7 @@
 #' @export
 #' @importFrom collapse fselect frange funique.default ss fnrow seq_row ckmatch anyv whichv all_identical
 #' @importFrom igraph graph_from_data_frame delete_vertex_attr igraph_options distances shortest_paths
+#' @importFrom progress progress_bar
 run_assignment <- function(graph_df, od_matrix_long,
                            directed = FALSE,
                            cost.column = "cost", # mode_col = NULL,
@@ -59,7 +61,8 @@ run_assignment <- function(graph_df, od_matrix_long,
                            detour.max = 1.5,
                            angle.max = 90,
                            return.extra = NULL,
-                           precompute.dmat = TRUE) {
+                           precompute.dmat = TRUE,
+                           progress.bar = TRUE) {
 
   cost <- if(is.character(cost.column) && length(cost.column) == 1L) graph_df[[cost.column]] else
     if(is.numeric(cost.column) && length(cost.column) == fnrow(graph_df)) cost.column else
@@ -134,9 +137,20 @@ run_assignment <- function(graph_df, od_matrix_long,
       weights <- vector("list", length(flow))
     } else weightsl <- FALSE
   }
+
   # Now iterating across OD-pairs
+
+  if(progress.bar) {
+    pb <- progress_bar$new(
+      format = "  Progress [:bar] :percent eta: :eta",
+      total = fnrow(od_matrix_long), clear = FALSE, width = 60
+    )
+  }
+
   # TODO: could restrict that other nodes must be in the direction of travel and not behind destination node
   for (i in seq_row(od_matrix_long)) {
+
+    if(progress.bar) pb$tick()
 
     # if(precompute.dmat) {
     d_ij <- dmat[from[i], to[i]] # Shortest path cost
