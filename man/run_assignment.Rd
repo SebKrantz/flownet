@@ -15,7 +15,7 @@ run_assignment(
   angle.max = 90,
   return.extra = NULL,
   precompute.dmat = TRUE,
-  progress.bar = TRUE
+  verbose = TRUE
 )
 }
 \arguments{
@@ -45,7 +45,7 @@ Use \code{"all"} to return all available extra results.}
 
 \item{precompute.dmat}{description}
 
-\item{progress.bar}{Show progress bar?}
+\item{verbose}{Show progress bar?}
 }
 \value{
 A list containing:

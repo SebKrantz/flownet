@@ -17,7 +17,7 @@
 #' @param return.extra Character vector specifying additional results to return. Options include:
 #'   \code{"graph"}, \code{"dmat"}, \code{"paths"} (most memory intensive), \code{"edges"}, \code{"costs"}, \code{"weights"}.
 #'   Use \code{"all"} to return all available extra results.
-#' @param progress.bar Show progress bar?
+#' @param verbose Show progress bar?
 #'
 #' @param precompute.dmat description
 #'
@@ -52,7 +52,7 @@
 #'
 #' @export
 #' @importFrom collapse fselect frange funique.default ss fnrow seq_row ckmatch anyv whichv all_identical
-#' @importFrom igraph graph_from_data_frame delete_vertex_attr igraph_options distances shortest_paths
+#' @importFrom igraph graph_from_data_frame delete_vertex_attr igraph_options distances shortest_paths vcount ecount
 #' @importFrom progress progress_bar
 run_assignment <- function(graph_df, od_matrix_long,
                            directed = FALSE,
@@ -62,7 +62,7 @@ run_assignment <- function(graph_df, od_matrix_long,
                            angle.max = 90,
                            return.extra = NULL,
                            precompute.dmat = TRUE,
-                           progress.bar = TRUE) {
+                           verbose = TRUE) {
 
   cost <- if(is.character(cost.column) && length(cost.column) == 1L) graph_df[[cost.column]] else
     if(is.numeric(cost.column) && length(cost.column) == fnrow(graph_df)) cost.column else
@@ -82,6 +82,8 @@ run_assignment <- function(graph_df, od_matrix_long,
                           vertices = data.frame(name = nodes))
   if(anyv(return.extra, "graph")) res$graph <- g
 
+  if(verbose) cat("Created Graph with", vcount(g), "nodes and", ecount(g), "edges.\n")
+
   # Distance Matrix
   if(precompute.dmat) {
     dmat <- distances(g, mode = "out", weights = cost)
@@ -92,6 +94,7 @@ run_assignment <- function(graph_df, od_matrix_long,
     if(!identical(as.integer(rownames(dmat)), nodes)) stop("Distance matrix rows/columns need to match nodes in order. This is an internal bug, please report it.")
     if(anyv(return.extra, "dmat")) res$dmat <- dmat
     dimnames(dmat) <- NULL
+    if(verbose) cat("Computed distance matrix of dimensions", nrow(dmat), "x", ncol(dmat), "\n")
   } else stop("precompute.dmat = FALSE is not implemented yet")
   g <- delete_vertex_attr(g, "name")
 
@@ -140,17 +143,17 @@ run_assignment <- function(graph_df, od_matrix_long,
 
   # Now iterating across OD-pairs
 
-  if(progress.bar) {
+  if(verbose) {
     pb <- progress_bar$new(
-      format = "  Progress [:bar] :percent eta: :eta",
-      total = fnrow(od_matrix_long), clear = FALSE, width = 60
+      format = "Processed :current/:total OD-pairs (:percent) at :tick_rate/sec [Elapsed::elapsed | ETA::eta]", # [:bar] :percent eta: :eta",
+      total = fnrow(od_matrix_long), clear = FALSE #, # width = 60
     )
   }
 
   # TODO: could restrict that other nodes must be in the direction of travel and not behind destination node
   for (i in seq_row(od_matrix_long)) {
 
-    if(progress.bar) pb$tick()
+    if(verbose) pb$tick()
 
     # if(precompute.dmat) {
     d_ij <- dmat[from[i], to[i]] # Shortest path cost
@@ -223,6 +226,8 @@ run_assignment <- function(graph_df, od_matrix_long,
     }
     .Call(C_free_delta_ks, delta_ks, no_dups, paths1, paths2, shortest_path)
   }
+
+  if(verbose) pb$terminate()
 
   if(retvals) {
     if(pathsl) res$paths <- paths
