@@ -82,7 +82,7 @@ run_assignment <- function(graph_df, od_matrix_long,
                           vertices = data.frame(name = nodes))
   if(anyv(return.extra, "graph")) res$graph <- g
 
-  if(verbose) cat("Created Graph with", vcount(g), "nodes and", ecount(g), "edges.\n")
+  if(verbose) cat("Created graph with", vcount(g), "nodes and", ecount(g), "edges...\n")
 
   # Distance Matrix
   if(precompute.dmat) {
@@ -94,7 +94,7 @@ run_assignment <- function(graph_df, od_matrix_long,
     if(!identical(as.integer(rownames(dmat)), nodes)) stop("Distance matrix rows/columns need to match nodes in order. This is an internal bug, please report it.")
     if(anyv(return.extra, "dmat")) res$dmat <- dmat
     dimnames(dmat) <- NULL
-    if(verbose) cat("Computed distance matrix of dimensions", nrow(dmat), "x", ncol(dmat), "\n")
+    if(verbose) cat("Computed distance matrix of dimensions", nrow(dmat), "x", ncol(dmat), "...\n")
   } else stop("precompute.dmat = FALSE is not implemented yet")
   g <- delete_vertex_attr(g, "name")
 
