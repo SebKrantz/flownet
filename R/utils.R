@@ -1,4 +1,10 @@
 
+utils::globalVariables(c(
+  "from", "to", "line", "FX", "FY", "TX", "TY", "X", "Y", "cost", "flow"
+  # Add any other variable names that appear in the notes
+  # "." # Often needed if you use the data.table or magrittr pipe syntax
+))
+
 #' @title Convert Linestring to Graph
 #'
 #' @param lines An sf data frame of LINESTRING geometries.
@@ -72,7 +78,7 @@ linestrings_to_graph <- function(lines, digits = 6, keep.cols = NULL) {
 #' @seealso \link{linestrings_to_graph} \link{flowr-package}
 #'
 #' @export
-#' @importFrom sf st_linestring st_as_sfc st_as_sf
+#' @importFrom sf st_linestring st_sfc st_sf
 #' @importFrom collapse seq_row fselect add_vars
 linestrings_from_graph <- function(graph_df, crs = 4326) {
   if(!is.data.frame(graph_df)) stop("graph_df needs to be a data frame")
@@ -167,6 +173,7 @@ create_undirected_graph <- function(graph_df, cols.aggregate = "cost", fun.aggre
 #' @export
 #' @importFrom collapse rowbind fselect funique
 #' @importFrom stats setNames
+#' @importFrom sf st_as_sf
 nodes_from_graph <- function(graph_df, return.sf = FALSE, crs = 4326) {
   nodes <- rowbind(graph_df |> fselect(from, FX, FY),
                    graph_df |> fselect(to, TX, TY), use.names = FALSE) |>
