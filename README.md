@@ -93,13 +93,13 @@ graph_df <- simplified |>
 ### Network Processing
 
 - **`linestrings_to_graph()`** - Convert LINESTRING geometries to graph data frame
-- **`graph_to_linestrings()`** - Convert graph data frame to LINESTRING geometries
 - **`create_undirected_graph()`** - Convert directed graph to undirected with edge aggregation
 - **`simplify_network()`** - Simplify network by keeping only edges traversed by shortest paths
 
 ### Graph Utilities
 
 - **`nodes_from_graph()`** - Extract unique nodes with coordinates from graph
+- **`linestrings_from_graph()`** - Convert graph to LINESTRING geometries
 - **`dist_mat_from_graph()`** - Compute distance matrix for all node pairs
 
 ## Key Parameters

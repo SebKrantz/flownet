@@ -74,7 +74,7 @@ linestrings_to_graph <- function(lines, digits = 6, keep.cols = NULL) {
 #' @export
 #' @importFrom sf st_linestring st_as_sfc st_as_sf
 #' @importFrom collapse seq_row fselect add_vars
-graph_to_linestrings <- function(graph_df, crs = 4326) {
+linestrings_from_graph <- function(graph_df, crs = 4326) {
   if(!is.data.frame(graph_df)) stop("graph_df needs to be a data frame")
   if(inherits(graph_df, "sf")) stop("graph_df should not be a spatial object/data frame")
   if(!all(c("FX", "FY", "TX", "TY") %in% names(graph_df))) stop("graph_df needs to have columns FX, FY, TX and TY")

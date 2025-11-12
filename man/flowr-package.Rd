@@ -12,10 +12,9 @@ traffic assignment and provides utilities for network processing.
 
 \strong{Network Processing}
 
- \code{\link[=simplify_network]{simplify_network()}} --- Simplify network by keeping only traversed edges\cr
  \code{\link[=linestrings_to_graph]{linestrings_to_graph()}} --- Convert LINESTRING geometries to graph\cr
- \code{\link[=graph_to_linestrings]{graph_to_linestrings()}} --- Convert graph to LINESTRING geometries\cr
  \code{\link[=create_undirected_graph]{create_undirected_graph()}} --- Convert directed graph to undirected\cr
+ \code{\link[=simplify_network]{simplify_network()}} --- Simplify network by keeping only traversed edges\cr
 
 
 \strong{Traffic Assignment}
@@ -26,6 +25,7 @@ traffic assignment and provides utilities for network processing.
 \strong{Graph Utilities}
 
  \code{\link[=nodes_from_graph]{nodes_from_graph()}} --- Extract unique nodes from graph\cr
+ \code{\link[=linestrings_from_graph]{linestrings_from_graph()}} --- Convert graph to LINESTRING geometries\cr
  \code{\link[=dist_mat_from_graph]{dist_mat_from_graph()}} --- Compute distance matrix from graph\cr
 }
 \details{
