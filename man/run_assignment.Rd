@@ -11,6 +11,7 @@ run_assignment(
   cost.column = "cost",
   method = "PSL",
   beta = -1,
+  ...,
   detour.max = 1.5,
   angle.max = 90,
   return.extra = NULL,
@@ -34,6 +35,8 @@ in \code{graph_df}, or a numeric vector of edge costs with length equal to \code
 (Path-Sized Logit) is implemented.}
 
 \item{beta}{Numeric (default: -1). Path-sized logit parameter (beta_PSL).}
+
+\item{\dots}{Currently not used.}
 
 \item{detour.max}{Numeric (default: 1.5). Maximum detour factor for alternative routes (applied to shortest paths cost). This is a key parameter controlling the execution time of the algorithm: considering more routes (higher \code{detour.max}) substantially increases computation time.}
 
