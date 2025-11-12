@@ -45,6 +45,51 @@ linestrings_to_graph <- function(lines, digits = 6, keep.cols = NULL) {
   graph
 }
 
+
+#' @title Convert Graph to Linestrings
+#' @description Convert a graph data frame with node coordinates to an sf object with LINESTRING geometries.
+#'
+#' @param graph_df A data frame representing a graph with columns:
+#'   \code{FX}, \code{FY}, \code{TX}, \code{TY} (starting and ending node coordinates),
+#'   and optionally other columns to preserve.
+#' @param crs Numeric or character (default: 4326). Coordinate reference system
+#'   to assign to the output sf object.
+#'
+#' @return An sf data frame with LINESTRING geometry, containing all columns from
+#'   \code{graph_df} except \code{FX}, \code{FY}, \code{TX}, and \code{TY}. Each row
+#'   represents an edge as a LINESTRING connecting the from-node (\code{FX}, \code{FY})
+#'   to the to-node (\code{TX}, \code{TY}).
+#'
+#' @details
+#' This function is the inverse operation of \code{\link{linestrings_to_graph}}. It:
+#' \itemize{
+#'   \item Creates LINESTRING geometries from node coordinates (\code{FX}, \code{FY}, \code{TX}, \code{TY})
+#'   \item Removes the coordinate columns from the output
+#'   \item Preserves all other columns from the input graph data frame
+#'   \item Returns an sf object suitable for spatial operations and visualization
+#' }
+#'
+#' @seealso \link{linestrings_to_graph} \link{flowr-package}
+#'
+#' @export
+#' @importFrom sf st_linestring st_as_sfc st_as_sf
+#' @importFrom collapse seq_row fselect add_vars
+graph_to_linestrings <- function(graph_df, crs = 4326) {
+  if(!is.data.frame(graph_df)) stop("graph_df needs to be a data frame")
+  if(inherits(graph_df, "sf")) stop("graph_df should not be a spatial object/data frame")
+  if(!all(c("FX", "FY", "TX", "TY") %in% names(graph_df))) stop("graph_df needs to have columns FX, FY, TX and TY")
+  # Create Geometries
+  lines_list <- with(graph_df, lapply(seq_row(graph_df), function(i) {
+    matrix(c(FX[i], FY[i], TX[i], TY[i]), ncol = 2, byrow = TRUE) |>
+    st_linestring()
+  })) |> st_as_sfc(crs = crs)
+  # Create sf data frame with all columns
+  graph_df |>
+    fselect(-FX, -FY, -TX, -TY) |>
+    add_vars(geometry = lines_list) |>
+    st_as_sf(sf_column_name = "geometry", crs = crs)
+}
+
 #' @title Create Undirected Graph
 #' @description Convert a directed graph to an undirected graph by normalizing edges and aggregating duplicate connections.
 #'

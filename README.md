@@ -93,6 +93,7 @@ graph_df <- simplified |>
 ### Network Processing
 
 - **`linestrings_to_graph()`** - Convert LINESTRING geometries to graph data frame
+- **`graph_to_linestrings()`** - Convert graph data frame to LINESTRING geometries
 - **`create_undirected_graph()`** - Convert directed graph to undirected with edge aggregation
 - **`simplify_network()`** - Simplify network by keeping only edges traversed by shortest paths
 
