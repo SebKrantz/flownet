@@ -40,11 +40,8 @@ process_od_matrix <- function(od_matrix_directory, cargo_type, period = NULL) {
 #' @param lines An sf data frame of LINESTRING geometries.
 #' @return A data.frame representing the graph with columns:
 #' \itemize{
-#'  \item \code{line} - Line identifier
-#'  \item \code{from} - Starting node ID
 #'  \item \code{FX} - Starting node X-coordinate (longitude)
 #'  \item \code{FY} - Starting node Y-coordinate (latitude)
-#'  \item \code{to} - Ending node ID
 #'  \item \code{TX} - Ending node X-coordinate (longitude)
 #'  \item \code{TY} - Ending node Y-coordinate (latitude)
 #' }
@@ -147,7 +144,7 @@ nodes_from_graph <- function(graph_df) {
 #' @param algorithm Character string (default: "mch"). Algorithm to use for distance
 #'   computation. Options include "mch" (many-to-many with contraction hierarchies),
 #'   "dijkstra", "bi", etc. See \code{cppRouting::get_distance_matrix} for details.
-#' @param ... Additional arguments passed to \code{get_distance_matrix}.
+#' @param \dots Additional arguments passed to \code{get_distance_matrix}.
 #'
 #' @return A matrix of distances between all node pairs, where rows and columns
 #'   correspond to node IDs. The matrix contains the shortest path distances
