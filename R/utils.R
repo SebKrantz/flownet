@@ -148,14 +148,16 @@ create_undirected_graph <- function(graph_df, cols.aggregate = "cost", fun.aggre
 #'
 #' @param graph_df A data frame representing a graph with columns:
 #'   \code{from}, \code{to}, \code{FX}, \code{FY}, \code{TX}, \code{TY}.
+#' @param return.sf Logical. If TRUE, returns result as an \code{sf} POINT object. Default: FALSE.
+#' @param crs Coordinate reference system for sf output; default is 4326.
 #'
-#' @return A data frame with unique nodes and their coordinates:
+#' @return A data frame (or sf object if \code{return.sf = TRUE}) with unique nodes and coordinates:
 #'   \itemize{
 #'     \item \code{node} - Node ID
-#'     \item \code{X} - Node X-coordinate (longitude)
-#'     \item \code{Y} - Node Y-coordinate (latitude)
+#'     \item \code{X} - Node X-coordinate (typically longitude)
+#'     \item \code{Y} - Node Y-coordinate (typically latitude)
 #'   }
-#'   Nodes are sorted by node ID.
+#'   Result is sorted by node ID.
 #'
 #' @details
 #' This function extracts all unique nodes from both the \code{from} and \code{to}
@@ -165,11 +167,13 @@ create_undirected_graph <- function(graph_df, cols.aggregate = "cost", fun.aggre
 #' @export
 #' @importFrom collapse rowbind fselect funique
 #' @importFrom stats setNames
-nodes_from_graph <- function(graph_df) {
-  rowbind(graph_df |> fselect(from, FX, FY),
-          graph_df |> fselect(to, TX, TY), use.names = FALSE) |>
+nodes_from_graph <- function(graph_df, return.sf = FALSE, crs = 4326) {
+  nodes <- rowbind(graph_df |> fselect(from, FX, FY),
+                   graph_df |> fselect(to, TX, TY), use.names = FALSE) |>
     setNames(c("node", "X", "Y")) |>
     funique(cols = "node", sort = TRUE)
+  if(return.sf) return(st_as_sf(nodes, coords = c("X", "Y"), crs = crs))
+  nodes
 }
 
 #' @title Compute Distance Matrix from Graph
