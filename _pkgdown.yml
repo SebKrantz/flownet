@@ -1,4 +1,68 @@
 url: https://sebkrantz.github.io/flowr/
+
+home:
+  title: Transport Modeling in R
+
 template:
   bootstrap: 5
+  bootswatch: sandstone # Also good: flatly, yeti, simplex, superhero, zephyr
+  theme: ayu-dark # Or: ayu-mirage
+  math-rendering: katex
+  bslib:
+    primary: "#1e2124" # "#202224" # "#242424" # "#003254"
+    code-color: "#004573" # "#9c0027" # "#004d80" # b3002d
+    gray-dark: "#3f464d"
 
+development:
+  mode: auto
+
+navbar:
+  title: flowr
+  structure:
+    left:
+    - reference
+    - articles
+    - news
+    - blog
+    right:
+    - search
+    - github
+  components:
+    reference:
+      text: Documentation
+      href: reference/index.html
+    articles:
+      text: Vignettes
+      href: articles/index.html
+    news:
+      text: News
+      href: news/index.html
+    blog:
+      text: Blog
+      href: https://sebkrantz.github.io/Rblog/
+    github:
+      icon: fa-github
+      href: https://github.com/SebKrantz/flowr
+      aria-label: GitHub
+
+
+reference:
+- contents:
+  - flowr-package
+- title: "Network Processing"
+  desc: "Utility functions to prepare networks graphs (represented as data frames) for analysis with flowr."
+- contents:
+  - linestrings_to_graph
+  - create_undirected_graph
+  - simplify_network
+- title: "Route Choice and Traffic Assignment"
+  desc: "Run traffic assignment using path-sized logit model, including efficient built-in route choice algorithm."
+- contents:
+  - run_assignment
+  - print.flowr
+- title: "Graph Utilities"
+  desc: "Utility functions to extract information from graphs (represented as data frames)."
+- contents:
+  - nodes_from_graph
+  - linestrings_from_graph
+  - dist_mat_from_graph
