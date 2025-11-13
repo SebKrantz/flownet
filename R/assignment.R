@@ -76,7 +76,7 @@ run_assignment <- function(graph_df, od_matrix_long,
     return.extra <- c("graph", "dmat", "paths", "edges", "counts", "costs", "weights")
 
   # Create Igraph Graph
-  nodes <- funique.default(c(graph_df$from, graph_df$to), sort = TRUE)
+  nodes <- as.integer(funique.default(c(graph_df$from, graph_df$to), sort = TRUE))
   if(nodes[1L] != 1) stop("Missing first node")
   if(diff(frange(nodes)) >= length(nodes)) stop("graph_df is missing some nodes in from/to columns")
   g <- graph_df |> fselect(from, to) |>

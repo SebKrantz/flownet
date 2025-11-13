@@ -240,7 +240,7 @@ dist_mat_from_graph <- function(graph_df, directed = FALSE, cost.column = "cost"
 #' \code{from} and \code{to} matching nodes in \code{x}.
 #' @param cost.column Character string (optional). Name of the cost column in \code{x}.
 #' If \code{NULL} and \code{x} is an sf object, uses \code{st_length(x)} as the cost.
-#'
+#' @param return description
 #' @return If \code{x} is an sf object, returns a list with:
 #'   \itemize{
 #'     \item \code{network} - sf object containing only edges that were traversed
@@ -267,7 +267,8 @@ dist_mat_from_graph <- function(graph_df, directed = FALSE, cost.column = "cost"
 #' @importFrom igraph graph_from_data_frame delete_vertex_attr igraph_options shortest_paths
 #' @importFrom sf st_length
 #' @useDynLib flowr, .registration = TRUE
-simplify_network <- function(x, od_matrix_long, cost.column = NULL) {
+simplify_network <- function(x, od_matrix_long, cost.column = NULL,
+                             return = c("edges", "edge_counts", "graph_df")) {
 
   if(inherits(x, "sf")) {
     graph_df <- linestrings_to_graph(x)
@@ -300,12 +301,17 @@ simplify_network <- function(x, od_matrix_long, cost.column = NULL) {
     pathsi <- shortest_paths(g, from = i, to = to, weights = cost, output = "epath")$epath
     .Call(C_mark_edges_traversed, pathsi, edges_traversed)
   }
+  edges <- which(edges_traversed > 0L)
 
-  if(inherits(x, "sf")) {
-    return(list(network = x[edges_traversed > 0, ],
-                graph_df = graph_df |> ss(edges_traversed > 0)))
-  }
-  graph_df |> ss(edges_traversed > 0)
+  res <- list()
+  if(anyv(return, "edges")) res$edges <- edges
+  if(anyv(return, "edge_counts")) res$edge_counts <- edges_traversed
+  if(anyv(return, "graph_df")) res$graph_df <- ss(graph_df, edges, check = FALSE)
+  # if(inherits(x, "sf")) {
+  #   return(list(network = x[edges_traversed > 0, ],
+  #               graph_df = graph_df |> ss(edges_traversed > 0)))
+  # }
+  res
 }
 
 

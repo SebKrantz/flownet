@@ -4,7 +4,12 @@
 \alias{simplify_network}
 \title{Simplify Network}
 \usage{
-simplify_network(x, od_matrix_long, cost.column = NULL)
+simplify_network(
+  x,
+  od_matrix_long,
+  cost.column = NULL,
+  return = c("edges", "edge_counts", "graph_df")
+)
 }
 \arguments{
 \item{x}{Either an sf object with LINESTRING geometry representing the network, or a
@@ -17,6 +22,8 @@ representing the origin/destination zone centroids. If \code{x} is a graph data 
 
 \item{cost.column}{Character string (optional). Name of the cost column in \code{x}.
 If \code{NULL} and \code{x} is an sf object, uses \code{st_length(x)} as the cost.}
+
+\item{return}{description}
 }
 \value{
 If \code{x} is an sf object, returns a list with:
