@@ -61,12 +61,12 @@ library(flowr)
 library(sf)
 
 # Read network from shapefile and create undirected graph (optional)
-graph_df <- st_read("data/network/base_network.shp") |> 
+graph_df <- st_read("data/network.shp") |> 
   linestrings_to_graph(keep.cols = "cost") |>
   create_undirected_graph()
 
 # Read zone centroids and get nearest nodes
-od_zones <- st_read("data/zone_nodes/network_nodes.shp") |> st_centroid()
+od_zones <- st_read("data/od_zones.shp") |> st_centroid()
 nodes <- nodes_from_graph(graph_df, return.sf = TRUE)
 nearest_nodes <- st_nearest_feature(od_zones, nodes)
 
@@ -97,7 +97,7 @@ graph_df <- simplify_network(graph_df, nearest_nodes, cost.column = "cost")
 
 - **`linestrings_to_graph()`** - Convert LINESTRING geometries to graph data frame
 - **`create_undirected_graph()`** - Convert directed graph to undirected with edge aggregation
-- **`consolidate_graph()`** - Consolidate graph by removing intermediate nodes and merging connecting edges
+- **`consolidate_graph()`** - Consolidate graph by removing intermediate nodes and merging edges
 - **`simplify_network()`** - Simplify network by keeping only edges traversed by shortest paths
 
 ### Graph Utilities
@@ -113,9 +113,9 @@ library(fastverse)
 fastverse_extend(flowr, sf)
 
 # 1. Load network and OD zone nodes
-network <- st_read("data/network/base_network.shp")
-od_zones <- st_read("data/zone_nodes/network_nodes.shp")
-od_matrix <- fread("data/od_matrices/od_container_flows.csv") |> qM(1)
+network <- st_read("data/network.shp")
+od_zones <- st_read("data/od_zones.shp") |> st_centroid()
+od_matrix <- fread("data/od_container_flows.csv") |> qM(1)
 if(!all(dim(od_matrix) == nrow(od_zones))) stop("zones and OD matrix must match")
 
 # 2. Convert network to graph
