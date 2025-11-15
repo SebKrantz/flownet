@@ -9,7 +9,7 @@
 ## Features
 
 - **Path-Sized Logit Model**: Efficient traffic assignment accounting for route overlap
-- **Network Processing**: Convert LINESTRING geometries to graphs, simplify networks, and handle directed/undirected graphs
+- **Network Processing**: Convert LINESTRING geometries to graphs, consolidate graphs, simplify networks, and handle directed/undirected graphs
 - **Route Enumeration**: Efficient algorithm for finding alternative routes between origin-destination pairs
 - **High Performance**: C implementations for critical path operations
 
