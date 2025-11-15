@@ -10,6 +10,8 @@ utils::globalVariables(c(
 #' @param lines An sf data frame of LINESTRING geometries.
 #' @param digits Numeric rounding applied to coordinates (to ensure that matching points across different linestrings is not impaired by numeric precision issues). Set to \code{NA/Inf/FALSE} to disable.
 #' @param keep.cols Character vector of column names to keep from the input data frame.
+#' @param compute.length Applies \code{st_length()} to and saves it as an additional column named \code{".length"}.
+#'
 #' @return A data.frame representing the graph with columns:
 #' \itemize{
 #'  \item \code{line} - Line identifier
@@ -24,9 +26,9 @@ utils::globalVariables(c(
 #' @seealso \link{simplify_network} \link{flowr-package}
 #'
 #' @export
-#' @importFrom sf st_geometry_type st_coordinates
+#' @importFrom sf st_geometry_type st_coordinates st_length
 #' @importFrom collapse qDF GRP get_vars get_vars<- add_vars add_vars<- fselect ffirst flast add_stub fmutate group fmatch %+=% fmax colorder whichNA setv unattrib
-linestrings_to_graph <- function(lines, digits = 6, keep.cols = NULL) {
+linestrings_to_graph <- function(lines, digits = 6, keep.cols = is.atomic, compute.length = TRUE) {
   gt <- st_geometry_type(lines, by_geometry = FALSE)
   if(length(gt) != 1L || gt != "LINESTRING") stop("lines needs to be a sf data frame of LINESTRING's")
   graph <- st_coordinates(lines) |> qDF()
@@ -34,6 +36,7 @@ linestrings_to_graph <- function(lines, digits = 6, keep.cols = NULL) {
   graph <- add_vars(fselect(graph, X, Y) |> ffirst(g, na.rm = FALSE, use.g.names = FALSE) |> add_stub("F"),
                     fselect(graph, X, Y) |> flast(g, na.rm = FALSE, use.g.names = FALSE) |> add_stub("T")) |>
            add_vars(g$groups, pos = "front")
+  if(compute.length) add_vars(graph) <- list(.length = st_length(lines))
   if(is.numeric(digits) && is.finite(digits)) {
     coords <- c("FX", "FY", "TX", "TY")
     get_vars(graph, coords) <- get_vars(graph, coords) |>
@@ -227,6 +230,106 @@ dist_mat_from_graph <- function(graph_df, directed = FALSE, cost.column = "cost"
   # get_distance_matrix(cpp_contract(graph), from = nodes, to = nodes, algorithm = algorithm, ...)
 }
 
+
+consolidate_graph <- function(graph_df, directed = FALSE,
+                              drop.edges = c("loops", "multiple"),
+                              consolidate = TRUE, keep.nodes = NULL,
+                              fun.aggregate = fmean, ...,
+                              verbose = TRUE) {
+
+  .keep <- alloc(TRUE, fnrow(graph_df))
+  gft <- get_vars(graph_df, c("from", "to")) |> unclass()
+  if(anyv(drop.edges, "loops")) {
+    if(any(loop <- gft$from == gft$to)) {
+      setv(.keep, loop, FALSE, vind1 = TRUE)
+      gft <- ss(gft, .keep)
+      if(verbose) cat(sprintf("Dropped %d loop edges\n", length(.keep) - sum(.keep)))
+    }
+  }
+  if(anyv(drop.edges, "multiple")) {
+    if(any(dup <- fduplicated(gft))) {
+      .keep[.keep][dup] <- FALSE
+      gft <- ss(gft, !dup)
+      if(verbose) cat(sprintf("Dropped %d multiple edges\n", sum(dup)))
+    }
+  }
+
+  .keep <- which(.keep)
+
+  if(!consolidate) {
+    gdf <- ss(graph_df, .keep, check = FALSE)
+    attr(gdf, "keep.edges") <- .keep
+    return(gdf)
+  }
+  # TODO: How does not dropping loop or multiple edges affect the algorithm?
+
+  # Get unique ID for each edge
+  gid <- seq_row(gft)
+
+  # Get nodes that occur exactly twice. These should be eliminated from the graph.
+  nodes_rm <- unclass(fcountv(do.call(c, gft)))
+  nodes_rm <- nodes_rm[[1L]][nodes_rm$N == 2L]
+  if(length(keep.nodes)) node_rm <- node_rm[nodes_rm %!iin% keep.nodes]
+
+  # Find edges that connect these nodes
+  from_ind <- fmatch(nodes_rm, gft$from)
+  to_ind <- fmatch(nodes_rm, gft$to)
+
+  # Excluding cases where the same node is two times origin or destination (at least on directed graph)
+  if(anyNA(from_ind)) to_ind[is.na(from_ind)] <- NA
+  if(anyNA(to_ind)) {
+    nna <- whichNA(to_ind, invert = TRUE)
+    from_ind <- from_ind[nna]
+    to_ind <- to_ind[nna]
+  }
+
+  # Replace from edge ID with to edge ID and create longer edge
+  gid[from_ind] <- gid[to_ind]
+  gft$to[to_ind] <- gft$to[from_ind]
+  gft$from[from_ind] <- NA
+  while(!allNA(to_ind <- fmatch(nodes_rm, gft$to))) {
+    nna <- whichNA(to_ind, invert = TRUE)
+    from_ind <- from_ind[nna]
+    to_ind <- to_ind[nna]
+    gid[from_ind] <- gid[to_ind]
+    gft$to[to_ind] <- gft$to[from_ind]
+  }
+  ffirst(gft$from, gid, "fill", set = TRUE)
+
+  # For undirected graph, also eliminate nodes that are two times origin/destination
+  if(!directed) {
+    if(!allNA(from_ind <- fmatch(gft$from, nodes_rm))) {
+      nafr <- is.na(from_ind); gfr <- group(from_ind)
+      setv(gid, nafr, fmin(gid, gfr, "fill"), vind1 = TRUE, invert = TRUE)
+      setv(gft$from, nafr, fmin(gft$to, gfr, "fill"), vind1 = TRUE, invert = TRUE)
+      setv(gft$to, nafr, fmax(gft$to, gfr, "fill"), vind1 = TRUE, invert = TRUE)
+    }
+    if(!allNA(to_ind <- fmatch(gft$to, nodes_rm))) {
+      nato <- is.na(to_ind); gto <- group(to_ind)
+      setv(gid, nato, fmin(gid, gto, "fill"), vind1 = TRUE, invert = TRUE)
+      setv(gft$from, nato, fmin(gft$from, gto, "fill"), vind1 = TRUE, invert = TRUE)
+      setv(gft$to, nato, fmax(gft$from, gto, "fill"), vind1 = TRUE, invert = TRUE)
+    }
+  }
+  # These edges are now removed
+  # setv(gft, from_ind, NA, vind1 = TRUE)
+  # Aggregation
+  if(anyv(drop.edges, "multiple")) {
+    g <- GRP(gft, sort = TRUE)
+    gid <- fmatch(gid, gid[g$group.starts], count = TRUE)
+  } else {
+    g <- GRP(c(gft, list(.gid = gid)), sort = TRUE)
+    gid <- fmatch(gid, g$groups[[3]], count = TRUE)
+    # g$groups[[3]] <- group(g$groups[[3]])
+    g$groups <- g$groups[1:2]
+    g$group.vars <- g$group.vars[1:2]
+  }
+  gdf <- fsubset(graph_df, .keep, -from, -to)
+  gdf <- eval(substitute(collap(gdf, g, fun.aggregate, ...)))
+  attr(gdf, "keep.edges") <- .keep
+  attr(gdf, "gid") <- gid
+  gdf
+}
 
 #' @title Simplify Network
 #' @description Simplify a network by keeping only edges that are traversed by shortest paths

@@ -4,7 +4,12 @@
 \alias{linestrings_to_graph}
 \title{Convert Linestring to Graph}
 \usage{
-linestrings_to_graph(lines, digits = 6, keep.cols = NULL)
+linestrings_to_graph(
+  lines,
+  digits = 6,
+  keep.cols = is.atomic,
+  compute.length = TRUE
+)
 }
 \arguments{
 \item{lines}{An sf data frame of LINESTRING geometries.}
@@ -12,6 +17,8 @@ linestrings_to_graph(lines, digits = 6, keep.cols = NULL)
 \item{digits}{Numeric rounding applied to coordinates (to ensure that matching points across different linestrings is not impaired by numeric precision issues). Set to \code{NA/Inf/FALSE} to disable.}
 
 \item{keep.cols}{Character vector of column names to keep from the input data frame.}
+
+\item{compute.length}{Applies \code{st_length()} to and saves it as an additional column named \code{".length"}.}
 }
 \value{
 A data.frame representing the graph with columns:
