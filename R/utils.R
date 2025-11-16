@@ -105,12 +105,7 @@ linestrings_from_graph <- function(graph_df, crs = 4326) {
 #' @param graph_df A data frame representing a directed graph with columns:
 #'   \code{from}, \code{to}, \code{line}, \code{FX}, \code{FY}, \code{TX}, \code{TY},
 #'   and any columns specified in \code{cols.aggregate}.
-#' @param cols.aggregate Character vector (default: "cost"). Column names to aggregate
-#'   when collapsing duplicate edges.
-#' @param fun.aggregate Function (default: \code{fmean}). Aggregation function to apply
-#'   to columns specified in \code{cols.aggregate}. Must be a collapse package function
-#'   (e.g., \code{fmean}, \code{fsum}, \code{fmin}, \code{fmax}).
-#' @param \dots Further arguments to pass to \code{fun.aggregate}.
+#' @param \dots Arguments passed to \code{\link[collapse]{collap}()} for aggregation across duplicated (diretional) edges. The defaults are \code{FUN = fmean} for numeric columns and \code{catFUN = fmode} for categorical columns. Select columns using \code{cols} or use argument \code{custom = list(fmean = cols1, fsum = cols2, fmode = cols3)} to map different columns to specific aggregation functions. You can weight the aggregation (using \code{w = ~ weight_col}).
 #'
 #' @return A data frame representing an undirected graph with:
 #'   \itemize{
@@ -121,7 +116,7 @@ linestrings_from_graph <- function(graph_df, crs = 4326) {
 #'     \item \code{FY} - Starting node Y-coordinate (first value from duplicates)
 #'     \item \code{TX} - Ending node X-coordinate (first value from duplicates)
 #'     \item \code{TY} - Ending node Y-coordinate (first value from duplicates)
-#'     \item Aggregated columns as specified in \code{cols.aggregate}
+#'     \item Aggregated columns
 #'   }
 #'
 #' @details
@@ -131,23 +126,25 @@ linestrings_from_graph <- function(graph_df, crs = 4326) {
 #'   \item Collapsing duplicate edges (same \code{from} and \code{to} nodes)
 #'   \item For spatial/identifier columns (\code{line}, \code{FX}, \code{FY}, \code{TX}, \code{TY}),
 #'     taking the first value from duplicates
-#'   \item For aggregation columns (specified in \code{cols.aggregate}), applying the
-#'     specified aggregation function (e.g., mean, sum, min, max)
+#'   \item For aggregation columns, \code{\link[collapse]{collap}()} will be applied.
 #' }
 #'
 #' @export
-#' @importFrom collapse ftransform GRP BY get_vars add_vars ffirst flast.default fmean colorderv %!in% .FAST_STAT_FUN
-create_undirected_graph <- function(graph_df, cols.aggregate = "cost", fun.aggregate = fmean, ...) {
+#' @importFrom collapse ftransform GRP BY get_vars add_vars<- ffirst flast.default fmean colorderv %!in% .FAST_STAT_FUN
+create_undirected_graph <- function(graph_df, ...) {
   graph_df <- ftransform(graph_df, from = pmin(from, to), to = pmax(from, to))
   g <- GRP(graph_df, ~ from + to, sort = FALSE)
-  if(flast.default(as.character(substitute(fun.aggregate))) %!in% .FAST_STAT_FUN) {
-    FUN <- match.fun(fun.aggregate)
-    fun.aggregate <- function(x, g, ...) BY(x, g, FUN, ...)
+  nam <- names(graph_df)
+  agg_first <- c("line", "FX", "FY", "TX", "TY")
+  ord <- c("line", "from", "FX", "FY", "to", "TX", "TY")
+  res <- g$groups
+  if(any(nam %in% agg_first)) {
+    add_vars(res) <- ffirst(get_vars(graph_df, nam[nam %in% agg_first]), g, use.g.names = FALSE)
+    res <- colorderv(res, ord[ord %in% nam])
   }
-  res <- add_vars(g$groups,
-    ffirst(get_vars(graph_df, c("line", "FX", "FY", "TX", "TY")), g, use.g.names = FALSE),
-    fun.aggregate(get_vars(graph_df, cols.aggregate), g, use.g.names = FALSE, ...)) |>
-    colorderv(c("line", "from", "FX", "FY", "to", "TX", "TY", cols.aggregate))
+  if(any(nam %!in% ord)) {
+    add_vars(res) <- collap(get_vars(graph_df, nam[nam %!in% ord]), g, keep.by = FALSE, ...)
+  }
   attr(res, "group.starts") <- g$group.starts
   res
 }
@@ -249,10 +246,7 @@ dist_mat_from_graph <- function(graph_df, directed = FALSE, cost.column = "cost"
 #'   If FALSE, only drops edges as specified in \code{drop.edges}.
 #' @param keep.nodes Numeric vector (optional). Node IDs to preserve during consolidation,
 #'   even if they occur exactly twice. Also used to preserve nodes when dropping singleton edges.
-#' @param fun.aggregate Function (default: \code{fmean}). Aggregation function to apply
-#'   to columns when consolidating edges. Must be a collapse package function
-#'   (e.g., \code{fmean}, \code{fsum}, \code{fmin}, \code{fmax}).
-#' @param \dots Further arguments passed to \code{fun.aggregate}.
+#' @param \dots Arguments passed to \code{\link[collapse]{collap}()} for aggregation across consolidated edges. The defaults are \code{FUN = fmean} for numeric columns and \code{catFUN = fmode} for categorical columns. Select columns using \code{cols} or use argument \code{custom = list(fmean = cols1, fsum = cols2, fmode = cols3)} to map different columns to specific aggregation functions. It is highly recommended to weight the aggregation (using \code{w = ~ weight_col}) by the length/cost of the edges.
 #' @param recursive Logical (default: TRUE). If TRUE, recursively consolidates the graph
 #'   until no further consolidation is possible. This ensures that long chains of intermediate
 #'   nodes are fully consolidated in a single call.
@@ -278,8 +272,8 @@ dist_mat_from_graph <- function(graph_df, directed = FALSE, cost.column = "cost"
 #'     leading to singleton nodes (nodes that appear only once in the graph)
 #'   \item \strong{Consolidating nodes}: Removes intermediate nodes (nodes that occur exactly twice)
 #'     by merging the two edges connected through them into a single longer edge
-#'   \item \strong{Aggregating attributes}: When edges are merged, numeric attributes are aggregated
-#'     using \code{fun.aggregate} (e.g., mean, sum, min, max)
+#'   \item \strong{Aggregating attributes}: When edges are merged, attributes/columns are aggregated
+#'     using \code{\link[collapse]{collap}()}. The default aggregation is mean for numeric columns and mode for categorical columns.
 #'   \item \strong{Recursive consolidation}: If \code{recursive = TRUE}, the function continues
 #'     consolidating until no more nodes can be consolidated, ensuring complete simplification
 #' }
@@ -302,8 +296,7 @@ dist_mat_from_graph <- function(graph_df, directed = FALSE, cost.column = "cost"
 #' @importFrom stats setNames
 consolidate_graph <- function(graph_df, directed = FALSE,
                               drop.edges = c("loop", "duplicate", "single"),
-                              consolidate = TRUE, keep.nodes = NULL,
-                              fun.aggregate = fmean, ...,
+                              consolidate = TRUE, keep.nodes = NULL, ...,
                               recursive = TRUE,
                               verbose = TRUE) {
 
@@ -481,7 +474,7 @@ consolidate_graph <- function(graph_df, directed = FALSE,
     cat("Removing", fnrow(graph_df)-length(keep), "edges prior to aggregation\n")
     cat("Aggregating", fnrow(gdf), "edges down to", g$N.groups, "edges\n\n")
   }
-  gdf <- eval(substitute(collap(gdf, g, fun.aggregate, ...)))
+  gdf <- collap(gdf, g, ...)
   if(any(nam_rm[3:6] %in% nam)) {
     nodes <- nodes_from_graph(graph_df, sf = FALSE)
     if(any(nam_rm[3:4] %in% nam)) gdf <- join(gdf, setNames(nodes, c("from", "FX", "FY")), on = "from", verbose = 0L) |> colorder(from, FX, FY)
