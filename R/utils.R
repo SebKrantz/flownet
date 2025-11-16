@@ -298,7 +298,7 @@ dist_mat_from_graph <- function(graph_df, directed = FALSE, cost.column = "cost"
 #' @seealso \link{create_undirected_graph} \link{simplify_network} \link{flowr-package}
 #'
 #' @export
-#' @importFrom collapse na_rm alloc fnrow get_vars anyv setv ss seq_row fcountv fduplicated fmatch whichv whichNA allNA ffirst group fmin fmax GRP fsubset collap %!in% %!iin% join colorder GRPN qtab funique.default
+#' @importFrom collapse na_rm alloc fnrow get_vars anyv setv ss seq_row fcountv fduplicated fmatch whichv whichNA allNA ffirst group fmin fmax GRP fsubset collap %!in% %!iin% join colorder GRPN qtab funique.default %!=% %==% missing_cases
 #' @importFrom stats setNames
 consolidate_graph <- function(graph_df, directed = FALSE,
                               drop.edges = c("loop", "duplicate", "single"),
@@ -307,41 +307,38 @@ consolidate_graph <- function(graph_df, directed = FALSE,
                               recursive = TRUE,
                               verbose = TRUE) {
 
-  .keep <- seq_row(graph_df)
+  keep <- seq_row(graph_df)
   gft <- get_vars(graph_df, c("from", "to")) |> unclass()
 
   if(anyv(drop.edges, "loop") && any(loop <- gft$from == gft$to)) {
-    .keep <- .keep[!loop]
-    gft <- ss(gft, .keep, check = FALSE)
+    keep <- keep[!loop]
+    gft <- ss(gft, keep, check = FALSE)
     if(verbose) cat(sprintf("Dropped %d loop edges\n", sum(loop)))
   }
 
   if(anyv(drop.edges, "duplicate") && any(dup <- fduplicated(gft))) {
-    .keep <- .keep[!dup]
+    keep <- keep[!dup]
     gft <- ss(gft, !dup)
     if(verbose) cat(sprintf("Dropped %d duplicate edges\n", sum(dup)))
   }
 
   if(anyv(drop.edges, "single") && fnrow(gft)) {
-    degree_table <- compute_degrees(gft$from, gft$to)
-    if(fnrow(degree_table)) {
-      nodes_rm <- degree_table$node[degree_table$deg_total == 1L]
-      if(length(keep.nodes)) nodes_rm <- nodes_rm[!nodes_rm %in% keep.nodes]
+    nodes_rm <- unclass(fcountv(do.call(c, gft)))
+    if(anyv(nodes_rm$N, 1L)) {
+      nodes_rm <- nodes_rm[[1L]][nodes_rm$N == 1L]
+      if(length(keep.nodes)) nodes_rm <- nodes_rm[nodes_rm %!iin% keep.nodes]
       if(length(nodes_rm)) {
         ind <- which(gft$from %!in% nodes_rm & gft$to %!in% nodes_rm)
-        if(verbose) {
-          dropped <- fnrow(gft) - length(ind)
-          if(dropped) cat(sprintf("Dropped %d edges leading to singleton nodes\n", dropped))
-        }
-        .keep <- .keep[ind]
+        if(verbose) cat(sprintf("Dropped %d edges leading to singleton nodes\n", fnrow(gft) - length(ind)))
+        keep <- keep[ind]
         gft <- ss(gft, ind, check = FALSE)
       }
     }
   }
 
   if(!consolidate) {
-    gdf <- ss(graph_df, .keep, check = FALSE)
-    attr(gdf, "keep.edges") <- .keep
+    gdf <- ss(graph_df, keep, check = FALSE)
+    attr(gdf, "keep.edges") <- keep
     return(gdf)
   }
   # TODO: How does not dropping loop or duplicate edges affect the algorithm?
@@ -349,205 +346,168 @@ consolidate_graph <- function(graph_df, directed = FALSE,
   # Get unique ID for each edge
   gid <- seq_row(gft)
 
-  merge_linear_nodes <- function(nodes_rm) {
-    if(!length(nodes_rm)) return(FALSE)
-    from_ind <- fmatch(nodes_rm, gft$from)
-    to_ind <- fmatch(nodes_rm, gft$to)
-    valid <- !is.na(from_ind) & !is.na(to_ind)
-    if(!all(valid)) {
-      nodes_rm <- nodes_rm[valid]
+  # Early return if no nodes to consolidate
+  if(length(nodes_rm) == 0L) {
+    if(verbose) cat("No nodes to consolidate, returning graph\n")
+    gdf <- ss(graph_df, keep, check = FALSE)
+    attr(gdf, "keep.edges") <- keep
+    return(gdf)
+  }
+
+  merge_linear_nodes <- function(nodes) {
+    if(!length(nodes)) return(FALSE)
+    from_ind <- fmatch(nodes, gft$from)
+    to_ind <- fmatch(nodes, gft$to)
+    if(anyNA(from_ind) || anyNA(to_ind)) {
+      valid <- whichv(missing_cases(list(from_ind, to_ind)), FALSE)
+      if(!length(valid)) return(FALSE)
       from_ind <- from_ind[valid]
       to_ind <- to_ind[valid]
+      nodes <- nodes[valid]
     }
-    if(!length(nodes_rm)) return(FALSE)
+    gft$from[from_ind] <<- NA
     repeat {
       gid[from_ind] <<- gid[to_ind]
       gft$to[to_ind] <<- gft$to[from_ind]
-      gft$from[from_ind] <<- NA
-      to_next <- fmatch(nodes_rm, gft$to)
-      if(allNA(to_next)) break
-      valid_next <- !is.na(to_next)
-      if(!any(valid_next)) break
-      from_ind <- from_ind[valid_next]
-      nodes_rm <- nodes_rm[valid_next]
-      to_ind <- to_next[valid_next]
+      to_ind <- fmatch(nodes, gft$to)
+      if(allNA(to_ind)) break
+      valid <- whichNA(to_ind, invert = TRUE)
+      from_ind <- from_ind[valid]
+      to_ind <- to_ind[valid]
+      nodes <- nodes[valid]
     }
     ffirst(gft$from, gid, "fill", set = TRUE)
     TRUE
   }
 
   orient_undirected_nodes <- function(nodes) {
-    if(!length(nodes)) return(integer())
-    updated <- integer()
+    if(!length(nodes)) return(FALSE)
     for(node in nodes) {
-      idx_from <- whichv(gft$from, node)
-      idx_to <- whichv(gft$to, node)
-      occ_total <- length(idx_from) + length(idx_to)
-      if(occ_total != 2L) next
-      if(length(idx_from) == 2L) {
-        swap_idx <- idx_from[2L]
-        tmp <- gft$from[swap_idx]
-        gft$from[swap_idx] <<- gft$to[swap_idx]
-        gft$to[swap_idx] <<- tmp
-        updated <- c(updated, node)
-      } else if(length(idx_to) == 2L) {
-        swap_idx <- idx_to[2L]
-        tmp <- gft$to[swap_idx]
-        gft$to[swap_idx] <<- gft$from[swap_idx]
-        gft$from[swap_idx] <<- tmp
-        updated <- c(updated, node)
+      if(length(idx <- whichv(gft$from, node))) {
+        idx <- idx[2L]
+        tmp <- gft$from[idx]
+        gft$from[idx] <<- gft$to[idx]
+        gft$to[idx] <<- tmp
+      } else if(length(idx <- whichv(gft$to, node))) {
+        idx <- idx[2L]
+        tmp <- gft$to[idx]
+        gft$to[idx] <<- gft$from[idx]
+        gft$from[idx] <<- tmp
       }
     }
-    funique.default(updated)
+    TRUE
   }
 
-  consolidated_any <- FALSE
-  repeat {
-    degree_table <- compute_degrees(gft$from, gft$to)
-    if(!fnrow(degree_table)) break
+  consolidate_graph_core <- function() {
 
-    if(anyv(drop.edges, "single") && fnrow(gft)) {
-      nodes_single <- degree_table$node[degree_table$deg_total == 1L]
-      if(length(keep.nodes)) nodes_single <- nodes_single[nodes_single %!iin% keep.nodes]
-      if(length(nodes_single)) {
-        ind <- which(gft$from %!in% nodes_single & gft$to %!in% nodes_single)
-        dropped <- fnrow(gft) - length(ind)
-        if(dropped > 0L) {
-          if(verbose) cat(sprintf("Dropped %d edges leading to singleton nodes after consolidation\n", dropped))
-          .keep <- .keep[ind]
-          gid <- gid[ind]
-          gft <- ss(gft, ind, check = FALSE)
-          next
+    consolidated_any <- FALSE
+    repeat {
+      degree_table <- compute_degrees(gft$from, gft$to)
+      if(!fnrow(degree_table)) break
+
+      if(anyv(drop.edges, "single") && anyv(degree_table$deg_total, 1L)) {
+        nodes <- degree_table$node[degree_table$deg_total %==% 1L]
+        if(length(keep.nodes)) nodes <- nodes[nodes %!iin% keep.nodes]
+        if(length(nodes)) {
+          ind <- which(gft$from %!in% nodes & gft$to %!in% nodes)
+          dropped <- fnrow(gft) - length(ind)
+          if(dropped > 0L) {
+            if(verbose) cat(sprintf("Dropped %d edges leading to singleton nodes after consolidation\n", dropped))
+            keep <<- keep[ind]
+            gid <- gid[ind]
+            gft <- ss(gft, ind, check = FALSE)
+            next
+          }
         }
       }
-    }
 
-    if(!directed) {
-      nodes_deg2 <- degree_table$node[degree_table$deg_total == 2L]
-      if(length(keep.nodes)) nodes_deg2 <- nodes_deg2[nodes_deg2 %!iin% keep.nodes]
-      if(length(nodes_deg2)) {
-        idx_deg2 <- fmatch(nodes_deg2, degree_table$node)
-        needs_orientation <- nodes_deg2[degree_table$deg_from[idx_deg2] == 2L | degree_table$deg_to[idx_deg2] == 2L]
-        if(length(needs_orientation)) {
-          oriented_nodes <- orient_undirected_nodes(needs_orientation)
-          if(!length(oriented_nodes)) stop("Failed to orient undirected nodes for consolidation; please verify the input graph.")
-          degree_table <- compute_degrees(gft$from, gft$to)
-          if(!fnrow(degree_table)) break
-        }
-        nodes_deg2_linear <- degree_table$node[degree_table$deg_total == 2L & degree_table$deg_from == 1L & degree_table$deg_to == 1L]
-        if(length(keep.nodes)) nodes_deg2_linear <- nodes_deg2_linear[nodes_deg2_linear %!iin% keep.nodes]
-        if(length(nodes_deg2_linear)) {
-          if(!merge_linear_nodes(nodes_deg2_linear)) stop("Failed to consolidate oriented undirected nodes; please verify the graph topology.")
-          consolidated_any <- TRUE
-          if(verbose) cat(sprintf("Consolidated %d intermediate nodes\n", length(nodes_deg2_linear)))
-          if(!recursive) break
-          next
-        } else if(length(needs_orientation)) next
+      if(!anyv(degree_table$deg_total, 2L)) break
+
+      if(!directed) {
+        nodes <- degree_table$node[degree_table$deg_total %==% 2L]
+        if(length(keep.nodes)) nodes <- nodes[nodes %!iin% keep.nodes]
+        if(!length(nodes)) break
+        idx <- fmatch(nodes, degree_table$node)
+        need_orientation <- nodes[degree_table$deg_from[idx] == 2L | degree_table$deg_to[idx] == 2L]
+        if(length(need_orientation)) if(!orient_undirected_nodes(need_orientation)) stop("Failed to orient undirected nodes for consolidation; please verify the input graph.")
+        if(!merge_linear_nodes(nodes)) stop("Failed to consolidate oriented undirected nodes; please verify the graph topology.")
+        consolidated_any <- TRUE
+        if(verbose) cat(sprintf("Consolidated %d intermediate nodes\n", length(nodes)))
+        if(!recursive) break
+        next
       }
+
+      nodes <- degree_table$node[degree_table$deg_from == 1L & degree_table$deg_to == 1L]
+      if(length(keep.nodes)) nodes <- nodes[nodes %!iin% keep.nodes]
+      if(!length(nodes)) break
+      if(!merge_linear_nodes(nodes)) stop("Failed to consolidate eligible nodes; please verify the graph topology.")
+      consolidated_any <- TRUE
+      if(verbose) cat(sprintf("Consolidated %d intermediate nodes\n", length(nodes)))
+      if(!recursive) break
     }
 
-    nodes_linear <- degree_table$node[degree_table$deg_from == 1L & degree_table$deg_to == 1L]
-    if(length(keep.nodes)) nodes_linear <- nodes_linear[nodes_linear %!iin% keep.nodes]
-    total_nodes <- length(nodes_linear)
-    if(total_nodes == 0L) break
-    if(!merge_linear_nodes(nodes_linear)) stop("Failed to consolidate eligible nodes; please verify the graph topology.")
-    consolidated_any <- TRUE
-    if(verbose) cat(sprintf("Consolidated %d intermediate nodes\n", total_nodes))
-    if(!recursive) break
-  }
+    if(!consolidated_any) return(NULL)
 
-  if(!consolidated_any) {
-    if(verbose) cat("No nodes to consolidate, returning graph\n")
-    gdf <- ss(graph_df, .keep, check = FALSE)
-    attr(gdf, "keep.edges") <- .keep
-    return(gdf)
-  }
-  # These edges are now removed
-  # setv(gft, from_ind, NA, vind1 = TRUE)
-  # Aggregation
-  if(anyv(drop.edges, "duplicate")) {
-    g <- GRP(gft, sort = TRUE)
-    gid <- fmatch(gid, gid[g$group.starts], count = TRUE)
-  } else {
-    g <- GRP(c(gft, list(.gid = gid)), sort = TRUE)
-    gid <- fmatch(gid, g$groups[[3]], count = TRUE)
-    # g$groups[[3]] <- group(g$groups[[3]])
+    # Grouping
+    if(anyv(drop.edges, "duplicate")) return(GRP(gft, sort = TRUE))
+    g <- GRP(c(gft, list(gid = gid)), sort = TRUE)
     g$groups <- g$groups[1:2]
     g$group.vars <- g$group.vars[1:2]
+    g
   }
-  nam_rm <- c("from", "to", "FX", "FY", "TX", "TY", "line")
-  nam <- names(graph_df)
-  gdf <- ss(graph_df, .keep, nam[nam %!iin% nam_rm])
-  if(verbose) cat("Aggregating down from", fnrow(gdf), "edges to", g$N.groups, "edges\n")
+
+  g <- consolidate_graph_core()
+  if(is.null(g)) {
+    if(verbose) cat("No nodes to consolidate, returning graph\n")
+    gdf <- ss(graph_df, keep, check = FALSE)
+    attr(gdf, "keep.edges") <- keep
+    return(gdf)
+  }
+
+  if(recursive) {
+    prev_fnrow <- fnrow(gft)
+    gft <- g$groups
+    while(prev_fnrow > (nrow_gft <- fnrow(gft))) {
+      prev_fnrow <- nrow_gft
+      gid <- seq_row(gft)
+      tmp <- consolidate_graph_core()
+      if(is.null(tmp)) break
+      g <- tmp
+      gft <- g$groups
+    }
+  }
+
+  # Aggregation and joining coordinates
+  gdf <- ss(graph_df, keep, setdiff(names(graph_df), c("from", "to", "FX", "FY", "TX", "TY", "line")), check = FALSE)
   gdf <- eval(substitute(collap(gdf, g, fun.aggregate, ...)))
-
-  if(anyv(drop.edges, "single") && fnrow(gdf)) {
-    gft_final <- get_vars(gdf, c("from", "to")) |> unclass()
-    degree_table_final <- compute_degrees(gft_final$from, gft_final$to)
-    if(fnrow(degree_table_final)) {
-      nodes_single_final <- degree_table_final$node[degree_table_final$deg_total == 1L]
-      if(length(keep.nodes)) nodes_single_final <- nodes_single_final[!nodes_single_final %in% keep.nodes]
-      if(length(nodes_single_final)) {
-        ind_final <- which(gft_final$from %!in% nodes_single_final & gft_final$to %!in% nodes_single_final)
-        dropped_final <- fnrow(gdf) - length(ind_final)
-        if(dropped_final > 0L) {
-          if(verbose) cat(sprintf("Dropped %d edges leading to singleton nodes after aggregation\n", dropped_final))
-          gdf <- ss(gdf, ind_final, check = FALSE)
-          gid <- gid[ind_final]
-        }
-      }
-    }
-  }
-
-  if(recursive && fnrow(gdf)) {
-    prev_fnrow <- fnrow(gdf) + 1L
-    while(prev_fnrow > (nrow_gdf <- fnrow(gdf))) {
-      prev_fnrow <- nrow_gdf
-      gdf <- consolidate_graph(gdf, directed = directed,
-                               drop.edges = drop.edges,
-                               consolidate = TRUE,
-                               keep.nodes = keep.nodes,
-                               fun.aggregate = fun.aggregate, ...,
-                               recursive = FALSE,
-                               verbose = verbose)
-    }
-  }
-
-  if(verbose) {
-    cat("Node Counts Table:\n")
-    print(qtab(GRPN(c(gdf$from, gdf$to)), dnn = NULL))
-  }
-
   if(any(nam_rm[3:6] %in% nam)) {
-    if(verbose) cat("Joining node coordinates back to consolidated graph\n")
-    nodes <- nodes_from_graph(graph_df, sf = FALSE)
+    nodes <- nodes_from_graph(graph_df, return.sf = FALSE)
     if(any(nam_rm[3:4] %in% nam)) gdf <- join(gdf, setNames(nodes, c("from", "FX", "FY")), on = "from", verbose = 0L) |> colorder(from, FX, FY)
     if(any(nam_rm[5:6] %in% nam)) gdf <- join(gdf, setNames(nodes, c("to", "TX", "TY")), on = "to", verbose = 0L) |> colorder(to, TX, TY, pos = "after")
   }
-
   add_vars(gdf, pos = "front") <- list(line = seq_row(gdf))
-  attr(gdf, "keep.edges") <- .keep
-  attr(gdf, "gid") <- gid
+  attr(gdf, "keep.edges") <- keep
+  attr(gdf, "group.id") <- g$group.id
   gdf
 }
 
 # Helper for consolidate_graph()
 compute_degrees <- function(from_vec, to_vec) {
-  nodes <- na_rm(funique.default(c(from_vec, to_vec)))
+  nodes <- funique.default(c(from_vec, to_vec))
   deg_from <- integer(length(nodes))
   deg_to <- integer(length(nodes))
   if(length(nodes)) {
     if(length(from_vec)) {
-      counts_from <- unclass(fcountv(from_vec))
-      idx_from <- fmatch(nodes, counts_from[[1L]], nomatch = 0L)
-      has_from <- idx_from > 0L
-      if(any(has_from)) deg_from[has_from] <- counts_from$N[idx_from[has_from]]
+      counts <- unclass(fcountv(from_vec))
+      idx <- fmatch(nodes, counts[[1L]], nomatch = 0L)
+      has <- idx %!=% 0L
+      if(length(has)) setv(deg_from, has, counts$N[idx[has]], vind1 = TRUE)
     }
     if(length(to_vec)) {
-      counts_to <- unclass(fcountv(to_vec))
-      idx_to <- fmatch(nodes, counts_to[[1L]], nomatch = 0L)
-      has_to <- idx_to > 0L
-      if(any(has_to)) deg_to[has_to] <- counts_to$N[idx_to[has_to]]
+      counts <- unclass(fcountv(to_vec))
+      idx <- fmatch(nodes, counts[[1L]], nomatch = 0L)
+      has <- idx %!=% 0L
+      if(length(has)) setv(deg_to, has, counts$N[idx[has]], vind1 = TRUE)
     }
   }
   list(
