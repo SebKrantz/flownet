@@ -7,18 +7,17 @@
 create_undirected_graph(graph_df, ...)
 }
 \arguments{
-\item{graph_df}{A data frame representing a directed graph with columns:
-\code{from}, \code{to}, \code{line}, \code{FX}, \code{FY}, \code{TX}, \code{TY},
-and any columns specified in \code{cols.aggregate}.}
+\item{graph_df}{A data frame representing a directed graph including columns:
+\code{from}, \code{to}, and (optionally) \code{line}, \code{FX}, \code{FY}, \code{TX}, \code{TY}.}
 
 \item{\dots}{Arguments passed to \code{\link[collapse]{collap}()} for aggregation across duplicated (diretional) edges. The defaults are \code{FUN = fmean} for numeric columns and \code{catFUN = fmode} for categorical columns. Select columns using \code{cols} or use argument \code{custom = list(fmean = cols1, fsum = cols2, fmode = cols3)} to map different columns to specific aggregation functions. You can weight the aggregation (using \code{w = ~ weight_col}).}
 }
 \value{
 A data frame representing an undirected graph with:
   \itemize{
+    \item \code{line} - Line identifier (first value from duplicates)
     \item \code{from} - Starting node ID (normalized to be < \code{to})
     \item \code{to} - Ending node ID (normalized to be > \code{from})
-    \item \code{line} - Line identifier (first value from duplicates)
     \item \code{FX} - Starting node X-coordinate (first value from duplicates)
     \item \code{FY} - Starting node Y-coordinate (first value from duplicates)
     \item \code{TX} - Ending node X-coordinate (first value from duplicates)

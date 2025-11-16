@@ -103,6 +103,7 @@ graph_df <- simplify_network(graph_df, nearest_nodes, cost.column = "cost")
 ### Graph Utilities
 
 - **`nodes_from_graph()`** - Extract unique nodes with coordinates from graph
+- **`normalize_graph()`** - Normalize node IDs to consecutive integers starting from 1
 - **`linestrings_from_graph()`** - Convert graph to LINESTRING geometries
 - **`dist_mat_from_graph()`** - Compute distance matrix for all node pairs
 
