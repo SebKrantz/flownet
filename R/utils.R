@@ -27,7 +27,7 @@ utils::globalVariables(c(
 #'
 #' @export
 #' @importFrom sf st_geometry_type st_coordinates st_length
-#' @importFrom collapse qDF GRP get_vars get_vars<- add_vars add_vars<- fselect ffirst flast add_stub fmutate group fmatch %+=% fmax colorder whichNA setv unattrib
+#' @importFrom collapse qDF GRP get_vars get_vars<- add_vars add_vars<- fselect ffirst flast add_stub fmutate group fmatch %+=% fmax colorder whichNA setv unattrib ss
 linestrings_to_graph <- function(lines, digits = 6, keep.cols = is.atomic, compute.length = TRUE) {
   gt <- st_geometry_type(lines, by_geometry = FALSE)
   if(length(gt) != 1L || gt != "LINESTRING") stop("lines needs to be a sf data frame of LINESTRING's")
@@ -129,7 +129,7 @@ linestrings_from_graph <- function(graph_df, crs = 4326) {
 #' }
 #'
 #' @export
-#' @importFrom collapse ftransform GRP BY get_vars add_vars<- ffirst flast.default fmean colorderv %!in% .FAST_STAT_FUN
+#' @importFrom collapse ftransform GRP get_vars add_vars add_vars<- ffirst colorderv %!in% collap
 create_undirected_graph <- function(graph_df, ...) {
   graph_df <- ftransform(graph_df, from = pmin(from, to), to = pmax(from, to))
   g <- GRP(graph_df, ~ from + to, sort = FALSE)
@@ -333,7 +333,7 @@ normalize_graph <- function(graph_df) {
 #' @seealso \link{create_undirected_graph} \link{simplify_network} \link{flowr-package}
 #'
 #' @export
-#' @importFrom collapse na_rm alloc fnrow get_vars anyv setv ss seq_row fcountv fduplicated fmatch whichv whichNA allNA ffirst group fmin fmax GRP fsubset collap %!in% %!iin% join colorder GRPN qtab funique.default %!=% %==% missing_cases
+#' @importFrom collapse fnrow get_vars anyv setv ss seq_row fcountv fduplicated fmatch whichv whichNA allNA ffirst GRP collap %!in% %!iin% join colorder funique.default %!=% %==% missing_cases
 #' @importFrom stats setNames
 consolidate_graph <- function(graph_df, directed = FALSE,
                               drop.edges = c("loop", "duplicate", "single"),
@@ -589,7 +589,7 @@ compute_degrees <- function(from_vec, to_vec) {
 #' geometric length for sf objects).
 #'
 #' @export
-#' @importFrom collapse fselect fsubset fnrow ss ckmatch
+#' @importFrom collapse fselect fsubset fnrow ss ckmatch anyv
 #' @importFrom igraph graph_from_data_frame delete_vertex_attr igraph_options shortest_paths
 #' @importFrom sf st_length
 #' @useDynLib flowr, .registration = TRUE
