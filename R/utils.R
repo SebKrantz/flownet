@@ -519,6 +519,7 @@ consolidate_graph <- function(graph_df, directed = FALSE,
   }
 
   if(any(nam_rm[3:6] %in% nam)) {
+    if(verbose) cat("Joining node coordinates back to consolidated graph\n")
     nodes <- nodes_from_graph(graph_df, return.sf = FALSE)
     if(any(nam_rm[3:4] %in% nam)) gdf <- join(gdf, setNames(nodes, c("from", "FX", "FY")), on = "from", verbose = 0L) |> colorder(from, FX, FY)
     if(any(nam_rm[5:6] %in% nam)) gdf <- join(gdf, setNames(nodes, c("to", "TX", "TY")), on = "to", verbose = 0L) |> colorder(to, TX, TY, pos = "after")
