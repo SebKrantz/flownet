@@ -64,6 +64,7 @@ reference:
 - title: "Graph Utilities"
   desc: "Utility functions to extract information from graphs (represented using data frames)."
 - contents:
+  - normalize_graph
   - nodes_from_graph
   - linestrings_from_graph
   - dist_mat_from_graph
