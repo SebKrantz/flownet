@@ -191,7 +191,7 @@ nodes_from_graph <- function(graph_df, sf = FALSE, crs = 4326) {
 #'   if FALSE, treats it as undirected.
 #' @param cost.column Character string (optional). Name of the cost column in \code{graph_df}.
 #'   Alternatively, a numeric vector of edge costs with length equal to \code{nrow(graph_df)}.
-#' @param \dots Additional arguments passed to \code{\link[igraph]{distances}()}.
+#' @param \dots Additional arguments passed to \code{\link[igraph]{distances}()}, such as \code{v} (from) and \code{to} to compute paths between specific nodes.
 #'
 #' @return A matrix of distances between all node pairs, where rows and columns
 #'   correspond to node IDs. The matrix contains the shortest path distances
