@@ -191,7 +191,7 @@ nodes_from_graph <- function(graph_df, sf = FALSE, crs = 4326) {
 #'   if FALSE, treats it as undirected.
 #' @param cost.column Character string (optional). Name of the cost column in \code{graph_df}.
 #'   Alternatively, a numeric vector of edge costs with length equal to \code{nrow(graph_df)}.
-#' @param \dots Additional arguments passed to \code{\link[igraph]{distances}()}.
+#' @param \dots Additional arguments passed to \code{\link[igraph]{distances}()}, such as \code{v} (from) and \code{to} to compute paths between specific nodes.
 #'
 #' @return A matrix of distances between all node pairs, where rows and columns
 #'   correspond to node IDs. The matrix contains the shortest path distances
@@ -341,8 +341,9 @@ consolidate_graph <- function(graph_df, directed = FALSE,
                               recursive = TRUE,
                               verbose = TRUE) {
 
-  keep <- seq_row(graph_df)
-  gft <- get_vars(graph_df, c("from", "to")) |> unclass()
+  if(length(attr(graph_df, "group.starts"))) attr(graph_df, "group.starts") <- NULL
+  keep <- seq_row(graph_df) # Global variable tracking utilized edges
+  gft <- get_vars(graph_df, c("from", "to")) |> unclass() # Local variable representing the current graph worked on
 
   if(anyv(drop.edges, "loop") && any(loop <- gft$from == gft$to)) {
     keep <- keep[!loop]
@@ -371,71 +372,72 @@ consolidate_graph <- function(graph_df, directed = FALSE,
   }
 
   if(!consolidate) {
-    gdf <- ss(graph_df, keep, check = FALSE)
-    attr(gdf, "keep.edges") <- keep
-    return(gdf)
+    res <- ss(graph_df, keep, check = FALSE)
+    attr(res, "keep.edges") <- keep
+    return(res)
   }
   # TODO: How does not dropping loop or duplicate edges affect the algorithm?
-
-  # Get unique ID for each edge
-  gid <- seq_row(gft)
 
   # Early return if no nodes to consolidate
   if(length(nodes_rm) == 0L) {
     if(verbose) cat("No nodes to consolidate, returning graph\n")
-    gdf <- ss(graph_df, keep, check = FALSE)
-    attr(gdf, "keep.edges") <- keep
-    return(gdf)
+    res <- ss(graph_df, keep, check = FALSE)
+    attr(res, "keep.edges") <- keep
+    return(res)
   }
 
-  merge_linear_nodes <- function(nodes) {
-    if(!length(nodes)) return(FALSE)
-    from_ind <- fmatch(nodes, gft$from)
-    to_ind <- fmatch(nodes, gft$to)
-    if(anyNA(from_ind) || anyNA(to_ind)) {
-      valid <- whichv(missing_cases(list(from_ind, to_ind)), FALSE)
-      if(!length(valid)) return(FALSE)
-      from_ind <- from_ind[valid]
-      to_ind <- to_ind[valid]
-      nodes <- nodes[valid]
-    }
-    gft$from[from_ind] <<- NA
-    repeat {
-      gid[from_ind] <<- gid[to_ind]
-      gft$to[to_ind] <<- gft$to[from_ind]
-      to_ind <- fmatch(nodes, gft$to)
-      if(allNA(to_ind)) break
-      valid <- whichNA(to_ind, invert = TRUE)
-      from_ind <- from_ind[valid]
-      to_ind <- to_ind[valid]
-      nodes <- nodes[valid]
-    }
-    ffirst(gft$from, gid, "fill", set = TRUE)
-    TRUE
-  }
+  consolidate_graph_core <- function(gdf, gft) {
 
-  orient_undirected_nodes <- function(nodes) {
-    if(!length(nodes)) return(FALSE)
-    for(node in nodes) {
-      if(length(idx <- whichv(gft$from, node))) {
-        idx <- idx[2L]
-        tmp <- gft$from[idx]
-        gft$from[idx] <<- gft$to[idx]
-        gft$to[idx] <<- tmp
-      } else if(length(idx <- whichv(gft$to, node))) {
-        idx <- idx[2L]
-        tmp <- gft$to[idx]
-        gft$to[idx] <<- gft$from[idx]
-        gft$from[idx] <<- tmp
-      }
-    }
-    TRUE
-  }
-
-  consolidate_graph_core <- function() {
-
+    if(fnrow(gdf) != fnrow(gft)) stop("Internal length mismatch! Please report this as a bug!")
+    keepl <- gid <- seq_row(gft)  # Local variable mapping current edges to groups
     consolidated_any <- FALSE
+
+    merge_linear_nodes <- function(nodes) {
+      if(!length(nodes)) return(FALSE)
+      from_ind <- fmatch(nodes, gft$from)
+      to_ind <- fmatch(nodes, gft$to)
+      if(anyNA(from_ind) || anyNA(to_ind)) {
+        valid <- whichv(missing_cases(list(from_ind, to_ind)), FALSE)
+        if(!length(valid)) return(FALSE)
+        from_ind <- from_ind[valid]
+        to_ind <- to_ind[valid]
+        nodes <- nodes[valid]
+      }
+      gft$from[from_ind] <<- NA
+      repeat {
+        gid[from_ind] <<- gid[to_ind]
+        gft$to[to_ind] <<- gft$to[from_ind]
+        to_ind <- fmatch(nodes, gft$to)
+        if(allNA(to_ind)) break
+        valid <- whichNA(to_ind, invert = TRUE)
+        from_ind <- from_ind[valid]
+        to_ind <- to_ind[valid]
+        nodes <- nodes[valid]
+      }
+      ffirst(gft$from, gid, "fill", set = TRUE)
+      TRUE
+    }
+
+    orient_undirected_nodes <- function(nodes) {
+      if(!length(nodes)) return(FALSE)
+      for(node in nodes) {
+        if(length(idx <- whichv(gft$from, node))) {
+          idx <- idx[2L]
+          tmp <- gft$from[idx]
+          gft$from[idx] <<- gft$to[idx]
+          gft$to[idx] <<- tmp
+        } else if(length(idx <- whichv(gft$to, node))) {
+          idx <- idx[2L]
+          tmp <- gft$to[idx]
+          gft$to[idx] <<- gft$from[idx]
+          gft$from[idx] <<- tmp
+        }
+      }
+      TRUE
+    }
+
     repeat {
+
       degree_table <- compute_degrees(gft$from, gft$to)
       if(!fnrow(degree_table)) break
 
@@ -447,9 +449,11 @@ consolidate_graph <- function(graph_df, directed = FALSE,
           dropped <- fnrow(gft) - length(ind)
           if(dropped > 0L) {
             if(verbose) cat(sprintf("Dropped %d edges leading to singleton nodes\n", dropped))
-            keep <<- keep[ind]
-            gid <<- gid[ind]
-            gft <<- ss(gft, ind, check = FALSE)
+            gft <- ss(gft, ind, check = FALSE)
+            keepl <- keepl[ind]
+            gid <- gid[ind]
+            keep <<- keep[ind] # keep is global
+            group.id <<- group.id[ind] # group.id is global
             next
           }
         }
@@ -478,53 +482,58 @@ consolidate_graph <- function(graph_df, directed = FALSE,
     if(!consolidated_any) return(NULL)
 
     # Grouping
-    if(anyv(drop.edges, "duplicate")) return(GRP(gft, sort = TRUE))
-    g <- GRP(c(gft, list(gid = gid)), sort = TRUE)
-    g$groups <- g$groups[1:2]
-    g$group.vars <- g$group.vars[1:2]
-    g
+    if(anyv(drop.edges, "duplicate")) {
+      g <- GRP(gft, sort = TRUE)
+    } else {
+      g <- GRP(c(gft, list(gid = gid)), sort = TRUE)
+      g$groups <- g$groups[1:2]
+      g$group.vars <- g$group.vars[1:2]
+    }
+    group.id <<- g$group.id # Global
+
+    if(fnrow(gdf) != length(keepl)) gdf <- ss(gdf, keepl, check = FALSE)
+    if(verbose) cat("Aggregating", length(keepl), "edges down to", g$N.groups, "edges\n")
+    return(list(gdf = collap(gdf, g, keep.by = FALSE, ...),
+                gft = g$groups))
   }
 
-  g <- consolidate_graph_core()
-  if(is.null(g)) {
+  nam <- names(graph_df)
+  nam_rm <- c("from", "to", "FX", "FY", "TX", "TY", "line")
+  res <- ss(graph_df, keep, nam[nam %!iin% nam_rm], check = FALSE)
+  group.id <- seq_row(res) # For returning attributes if only one iteration
+  res <- consolidate_graph_core(res, gft)
+
+  if(is.null(res)) {
     if(verbose) cat("No nodes to consolidate, returning graph\n")
-    gdf <- ss(graph_df, keep, check = FALSE)
-    attr(gdf, "keep.edges") <- keep
-    return(gdf)
+    res <- ss(graph_df, keep, check = FALSE)
+    attr(res, "keep.edges") <- keep
+    return(res)
   }
 
+  iter <- 1L # For returning attributes if only one iteration
   if(recursive) {
     prev_fnrow <- fnrow(gft)
-    gft <- g$groups
-    while(prev_fnrow > (nrow_gft <- fnrow(gft))) {
-      prev_fnrow <- nrow_gft
-      gid <- seq_row(gft)
-      tmp <- consolidate_graph_core()
+    while(prev_fnrow > (nrow_gdf <- fnrow(res$gdf))) {
+      prev_fnrow <- nrow_gdf
+      tmp <- consolidate_graph_core(res$gdf, res$gft)
       if(is.null(tmp)) break
-      g <- tmp
-      gft <- g$groups
+      iter <- iter + 1L # Needs to be here
+      res <- tmp
     }
   }
 
-  # Aggregation and joining coordinates
-  nam <- names(graph_df)
-  nam_rm <- c("from", "to", "FX", "FY", "TX", "TY", "line")
-  gdf <- ss(graph_df, keep, nam[nam %!iin% nam_rm], check = FALSE)
-  if(verbose) {
-    cat("\nSUMMARY:\n")
-    cat("Removing", fnrow(graph_df)-length(keep), "edges prior to aggregation\n")
-    cat("Aggregating", fnrow(gdf), "edges down to", g$N.groups, "edges\n\n")
-  }
-  gdf <- collap(gdf, g, ...)
+  res <- add_vars(res$gdf, res$gft, pos = "front")
   if(any(nam_rm[3:6] %in% nam)) {
     nodes <- nodes_from_graph(graph_df, sf = FALSE)
-    if(any(nam_rm[3:4] %in% nam)) gdf <- join(gdf, setNames(nodes, c("from", "FX", "FY")), on = "from", verbose = 0L) |> colorder(from, FX, FY)
-    if(any(nam_rm[5:6] %in% nam)) gdf <- join(gdf, setNames(nodes, c("to", "TX", "TY")), on = "to", verbose = 0L) |> colorder(to, TX, TY, pos = "after")
+    if(any(nam_rm[3:4] %in% nam)) res <- join(res, setNames(nodes, c("from", "FX", "FY")), on = "from", verbose = 0L) |> colorder(from, FX, FY)
+    if(any(nam_rm[5:6] %in% nam)) res <- join(res, setNames(nodes, c("to", "TX", "TY")), on = "to", verbose = 0L) |> colorder(to, TX, TY, pos = "after")
   }
-  add_vars(gdf, pos = "front") <- list(line = seq_row(gdf))
-  attr(gdf, "keep.edges") <- keep
-  attr(gdf, "group.id") <- g$group.id
-  gdf
+  add_vars(res, pos = "front") <- list(line = seq_row(res))
+  if(iter == 1L) {
+    attr(res, "keep.edges") <- keep
+    attr(res, "group.id") <- group.id
+  }
+  res
 }
 
 # Helper for consolidate_graph()

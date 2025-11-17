@@ -16,7 +16,7 @@ if FALSE, treats it as undirected.}
 \item{cost.column}{Character string (optional). Name of the cost column in \code{graph_df}.
 Alternatively, a numeric vector of edge costs with length equal to \code{nrow(graph_df)}.}
 
-\item{\dots}{Additional arguments passed to \code{\link[igraph]{distances}()}.}
+\item{\dots}{Additional arguments passed to \code{\link[igraph]{distances}()}, such as \code{v} (from) and \code{to} to compute paths between specific nodes.}
 }
 \value{
 A matrix of distances between all node pairs, where rows and columns
