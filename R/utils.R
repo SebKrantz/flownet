@@ -358,8 +358,9 @@ consolidate_graph <- function(graph_df, directed = FALSE,
   }
 
   if(anyv(drop.edges, "single") && fnrow(gft)) {
-    nodes_rm <- unclass(fcountv(do.call(c, gft)))
-    if(anyv(nodes_rm$N, 1L)) {
+    repeat {
+      nodes_rm <- unclass(fcountv(do.call(c, gft)))
+      if(!anyv(nodes_rm$N, 1L)) break
       nodes_rm <- nodes_rm[[1L]][nodes_rm$N == 1L]
       if(length(keep.nodes)) nodes_rm <- nodes_rm[nodes_rm %!iin% keep.nodes]
       if(length(nodes_rm)) {
@@ -368,6 +369,7 @@ consolidate_graph <- function(graph_df, directed = FALSE,
         keep <- keep[ind]
         gft <- ss(gft, ind, check = FALSE)
       }
+      if(!recursive) break
     }
   }
 
@@ -377,14 +379,6 @@ consolidate_graph <- function(graph_df, directed = FALSE,
     return(res)
   }
   # TODO: How does not dropping loop or duplicate edges affect the algorithm?
-
-  # Early return if no nodes to consolidate
-  if(length(nodes_rm) == 0L) {
-    if(verbose) cat("No nodes to consolidate, returning graph\n")
-    res <- ss(graph_df, keep, check = FALSE)
-    attr(res, "keep.edges") <- keep
-    return(res)
-  }
 
   consolidate_graph_core <- function(gdf, gft) {
 
