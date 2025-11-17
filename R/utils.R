@@ -27,7 +27,7 @@ utils::globalVariables(c(
 #'
 #' @export
 #' @importFrom sf st_geometry_type st_coordinates st_length
-#' @importFrom collapse qDF GRP get_vars get_vars<- add_vars add_vars<- fselect ffirst flast add_stub fmutate group fmatch %+=% fmax colorder whichNA setv unattrib
+#' @importFrom collapse qDF GRP get_vars get_vars<- add_vars add_vars<- fselect ffirst flast add_stub fmutate group fmatch %+=% fmax colorder whichNA setv unattrib ss
 linestrings_to_graph <- function(lines, digits = 6, keep.cols = is.atomic, compute.length = TRUE) {
   gt <- st_geometry_type(lines, by_geometry = FALSE)
   if(length(gt) != 1L || gt != "LINESTRING") stop("lines needs to be a sf data frame of LINESTRING's")
@@ -102,16 +102,15 @@ linestrings_from_graph <- function(graph_df, crs = 4326) {
 #' @title Create Undirected Graph
 #' @description Convert a directed graph to an undirected graph by normalizing edges and aggregating duplicate connections.
 #'
-#' @param graph_df A data frame representing a directed graph with columns:
-#'   \code{from}, \code{to}, \code{line}, \code{FX}, \code{FY}, \code{TX}, \code{TY},
-#'   and any columns specified in \code{cols.aggregate}.
+#' @param graph_df A data frame representing a directed graph including columns:
+#'   \code{from}, \code{to}, and (optionally) \code{line}, \code{FX}, \code{FY}, \code{TX}, \code{TY}.
 #' @param \dots Arguments passed to \code{\link[collapse]{collap}()} for aggregation across duplicated (diretional) edges. The defaults are \code{FUN = fmean} for numeric columns and \code{catFUN = fmode} for categorical columns. Select columns using \code{cols} or use argument \code{custom = list(fmean = cols1, fsum = cols2, fmode = cols3)} to map different columns to specific aggregation functions. You can weight the aggregation (using \code{w = ~ weight_col}).
 #'
 #' @return A data frame representing an undirected graph with:
 #'   \itemize{
+#'     \item \code{line} - Line identifier (first value from duplicates)
 #'     \item \code{from} - Starting node ID (normalized to be < \code{to})
 #'     \item \code{to} - Ending node ID (normalized to be > \code{from})
-#'     \item \code{line} - Line identifier (first value from duplicates)
 #'     \item \code{FX} - Starting node X-coordinate (first value from duplicates)
 #'     \item \code{FY} - Starting node Y-coordinate (first value from duplicates)
 #'     \item \code{TX} - Ending node X-coordinate (first value from duplicates)
@@ -130,7 +129,7 @@ linestrings_from_graph <- function(graph_df, crs = 4326) {
 #' }
 #'
 #' @export
-#' @importFrom collapse ftransform GRP BY get_vars add_vars<- ffirst flast.default fmean colorderv %!in% .FAST_STAT_FUN
+#' @importFrom collapse ftransform GRP get_vars add_vars add_vars<- ffirst colorderv %!in% collap
 create_undirected_graph <- function(graph_df, ...) {
   graph_df <- ftransform(graph_df, from = pmin(from, to), to = pmax(from, to))
   g <- GRP(graph_df, ~ from + to, sort = FALSE)
@@ -227,6 +226,48 @@ dist_mat_from_graph <- function(graph_df, directed = FALSE, cost.column = "cost"
   # get_distance_matrix(cpp_contract(graph), from = nodes, to = nodes, algorithm = algorithm, ...)
 }
 
+#' @title Normalize Graph Node IDs
+#' @description Normalize node IDs in a graph to be consecutive integers starting from 1.
+#'   This is useful for ensuring compatibility with graph algorithms that require sequential node IDs.
+#'
+#' @param graph_df A data frame representing a graph with columns:
+#'   \code{from} and \code{to} (node IDs).
+#'
+#' @return A data frame with the same structure as \code{graph_df}, but with \code{from}
+#'   and \code{to} columns remapped to consecutive integer IDs starting from 1.
+#'   All other columns are preserved unchanged.
+#'
+#' @details
+#' This function:
+#' \itemize{
+#'   \item Extracts all unique node IDs from both \code{from} and \code{to} columns
+#'   \item Sorts them in ascending order
+#'   \item Remaps the original node IDs to sequential integers (1, 2, 3, ...)
+#'   \item Updates both \code{from} and \code{to} columns with the normalized IDs
+#' }
+#'
+#' Normalization is useful when:
+#' \itemize{
+#'   \item Node IDs are non-consecutive (e.g., 1, 5, 10, 20)
+#'   \item Node IDs are non-numeric or contain gaps
+#'   \item Graph algorithms require sequential integer node IDs starting from 1
+#' }
+#'
+#' Note: This function only normalizes the node IDs; it does not modify the graph structure
+#' or any other attributes. The mapping preserves the relative ordering of nodes.
+#'
+#' @seealso \link{nodes_from_graph} \link{flowr-package}
+#'
+#' @export
+#' @importFrom collapse funique.default get_vars get_vars<- fmatch
+normalize_graph <- function(graph_df) {
+  id_cols <- c("from", "to")
+  if(!all(id_cols %in% names(graph_df))) stop("graph_df must have columns 'from' and 'to'")
+  nodes <- funique.default(c(graph_df$from, graph_df$to), sort = TRUE)
+  get_vars(graph_df, id_cols) <- lapply(get_vars(graph_df, id_cols), fmatch, nodes)
+  graph_df
+}
+
 
 #' @title Consolidate Graph
 #' @description Consolidate a graph by removing intermediate nodes (nodes that occur exactly twice) and optionally dropping loop, duplicate, and singleton edges. This simplifies the network topology while preserving connectivity.
@@ -292,7 +333,7 @@ dist_mat_from_graph <- function(graph_df, directed = FALSE, cost.column = "cost"
 #' @seealso \link{create_undirected_graph} \link{simplify_network} \link{flowr-package}
 #'
 #' @export
-#' @importFrom collapse na_rm alloc fnrow get_vars anyv setv ss seq_row fcountv fduplicated fmatch whichv whichNA allNA ffirst group fmin fmax GRP fsubset collap %!in% %!iin% join colorder GRPN qtab funique.default %!=% %==% missing_cases
+#' @importFrom collapse fnrow get_vars anyv setv ss seq_row fcountv fduplicated fmatch whichv whichNA allNA ffirst GRP collap %!in% %!iin% join colorder funique.default %!=% %==% missing_cases
 #' @importFrom stats setNames
 consolidate_graph <- function(graph_df, directed = FALSE,
                               drop.edges = c("loop", "duplicate", "single"),
@@ -548,7 +589,7 @@ compute_degrees <- function(from_vec, to_vec) {
 #' geometric length for sf objects).
 #'
 #' @export
-#' @importFrom collapse fselect fsubset fnrow ss ckmatch
+#' @importFrom collapse fselect fsubset fnrow ss ckmatch anyv
 #' @importFrom igraph graph_from_data_frame delete_vertex_attr igraph_options shortest_paths
 #' @importFrom sf st_length
 #' @useDynLib flowr, .registration = TRUE

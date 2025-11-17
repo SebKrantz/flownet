@@ -62,7 +62,7 @@ library(sf)
 
 # Read network from shapefile and create undirected graph (optional)
 graph_df <- st_read("data/network.shp") |> 
-  linestrings_to_graph(keep.cols = "cost") |>
+  linestrings_to_graph() |>
   create_undirected_graph()
 
 # Read zone centroids and get nearest nodes
@@ -103,6 +103,7 @@ graph_df <- simplify_network(graph_df, nearest_nodes, cost.column = "cost")
 ### Graph Utilities
 
 - **`nodes_from_graph()`** - Extract unique nodes with coordinates from graph
+- **`normalize_graph()`** - Normalize node IDs to consecutive integers starting from 1
 - **`linestrings_from_graph()`** - Convert graph to LINESTRING geometries
 - **`dist_mat_from_graph()`** - Compute distance matrix for all node pairs
 
@@ -120,7 +121,7 @@ if(!all(dim(od_matrix) == nrow(od_zones))) stop("zones and OD matrix must match"
 
 # 2. Convert network to graph
 graph_df <- network |>
-  linestrings_to_graph(keep.cols = "cost") |>
+  linestrings_to_graph() |>
   create_undirected_graph()
 
 # 3. Map zones to nearest network nodes
