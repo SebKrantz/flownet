@@ -341,8 +341,8 @@ consolidate_graph <- function(graph_df, directed = FALSE,
                               recursive = TRUE,
                               verbose = TRUE) {
 
-  keep <- seq_row(graph_df)
-  gft <- get_vars(graph_df, c("from", "to")) |> unclass()
+  keep <- seq_row(graph_df) # Global variable tracking utilized edges
+  gft <- get_vars(graph_df, c("from", "to")) |> unclass() # Local variable representing the current graph worked on
 
   if(anyv(drop.edges, "loop") && any(loop <- gft$from == gft$to)) {
     keep <- keep[!loop]
@@ -371,21 +371,18 @@ consolidate_graph <- function(graph_df, directed = FALSE,
   }
 
   if(!consolidate) {
-    gdf <- ss(graph_df, keep, check = FALSE)
-    attr(gdf, "keep.edges") <- keep
-    return(gdf)
+    res <- ss(graph_df, keep, check = FALSE)
+    attr(res, "keep.edges") <- keep
+    return(res)
   }
   # TODO: How does not dropping loop or duplicate edges affect the algorithm?
-
-  # Get unique ID for each edge
-  gid <- seq_row(gft)
 
   # Early return if no nodes to consolidate
   if(length(nodes_rm) == 0L) {
     if(verbose) cat("No nodes to consolidate, returning graph\n")
-    gdf <- ss(graph_df, keep, check = FALSE)
-    attr(gdf, "keep.edges") <- keep
-    return(gdf)
+    res <- ss(graph_df, keep, check = FALSE)
+    attr(res, "keep.edges") <- keep
+    return(res)
   }
 
   merge_linear_nodes <- function(nodes) {
@@ -432,10 +429,13 @@ consolidate_graph <- function(graph_df, directed = FALSE,
     TRUE
   }
 
-  consolidate_graph_core <- function() {
+  consolidate_graph_core <- function(gdf, gft) {
 
+    gid <- seq_row(gft)  # Local variable mapping current edges to groups
     consolidated_any <- FALSE
+
     repeat {
+
       degree_table <- compute_degrees(gft$from, gft$to)
       if(!fnrow(degree_table)) break
 
@@ -447,15 +447,17 @@ consolidate_graph <- function(graph_df, directed = FALSE,
           dropped <- fnrow(gft) - length(ind)
           if(dropped > 0L) {
             if(verbose) cat(sprintf("Dropped %d edges leading to singleton nodes\n", dropped))
-            keep <<- keep[ind]
-            gid <<- gid[ind]
-            gft <<- ss(gft, ind, check = FALSE)
+            gft <- ss(gft, ind, check = FALSE)
+            gid <- seq_along(ind)
+            keep <<- keep[ind] # keep is global
+            group.id <<- group.id[ind] # group.id is global
             next
           }
         }
       }
 
       if(!anyv(degree_table$deg_total, 2L)) break
+
 
       if(directed) {
         nodes <- degree_table$node[degree_table$deg_from == 1L & degree_table$deg_to == 1L]
@@ -478,53 +480,58 @@ consolidate_graph <- function(graph_df, directed = FALSE,
     if(!consolidated_any) return(NULL)
 
     # Grouping
-    if(anyv(drop.edges, "duplicate")) return(GRP(gft, sort = TRUE))
-    g <- GRP(c(gft, list(gid = gid)), sort = TRUE)
-    g$groups <- g$groups[1:2]
-    g$group.vars <- g$group.vars[1:2]
-    g
+    if(anyv(drop.edges, "duplicate")) {
+      g <- GRP(gft, sort = TRUE)
+    } else {
+      g <- GRP(c(gft, list(gid = gid)), sort = TRUE)
+      g$groups <- g$groups[1:2]
+      g$group.vars <- g$group.vars[1:2]
+    }
+
+    if(verbose) cat("Aggregating", fnrow(gdf), "edges down to", g$N.groups, "edges\n\n")
+    group.id <<- g$group.id
+    return(list(gdf = collap(gdf, g, keep.by = FALSE, ...),
+                gft = g$groups))
   }
 
-  g <- consolidate_graph_core()
-  if(is.null(g)) {
+  nam <- names(graph_df)
+  nam_rm <- c("from", "to", "FX", "FY", "TX", "TY", "line")
+  res <- ss(graph_df, keep, nam[nam %!iin% nam_rm], check = FALSE)
+  group.id <- seq_row(res) # For returning attributes if only one iteration
+  res <- consolidate_graph_core(res, gft)
+
+  if(is.null(res)) {
     if(verbose) cat("No nodes to consolidate, returning graph\n")
-    gdf <- ss(graph_df, keep, check = FALSE)
-    attr(gdf, "keep.edges") <- keep
-    return(gdf)
+    res <- ss(graph_df, keep, check = FALSE)
+    attr(res, "keep.edges") <- keep
+    return(res)
   }
 
+  iter <- 1L # For returning attributes if only one iteration
   if(recursive) {
     prev_fnrow <- fnrow(gft)
-    gft <- g$groups
-    while(prev_fnrow > (nrow_gft <- fnrow(gft))) {
-      prev_fnrow <- nrow_gft
-      gid <- seq_row(gft)
-      tmp <- consolidate_graph_core()
+    while(prev_fnrow > (nrow_gdf <- fnrow(res$gdf))) {
+      prev_fnrow <- nrow_gdf
+      tmp <- consolidate_graph_core(res$gdf, res$gft)
       if(is.null(tmp)) break
-      g <- tmp
-      gft <- g$groups
+      iter <- iter + 1L # Needs to be here
+      res <- tmp
     }
   }
 
-  # Aggregation and joining coordinates
-  nam <- names(graph_df)
-  nam_rm <- c("from", "to", "FX", "FY", "TX", "TY", "line")
-  gdf <- ss(graph_df, keep, nam[nam %!iin% nam_rm], check = FALSE)
-  if(verbose) {
-    cat("\nSUMMARY:\n")
-    cat("Removing", fnrow(graph_df)-length(keep), "edges prior to aggregation\n")
-    cat("Aggregating", fnrow(gdf), "edges down to", g$N.groups, "edges\n\n")
-  }
-  gdf <- collap(gdf, g, ...)
+  result <- res$gft
   if(any(nam_rm[3:6] %in% nam)) {
     nodes <- nodes_from_graph(graph_df, sf = FALSE)
-    if(any(nam_rm[3:4] %in% nam)) gdf <- join(gdf, setNames(nodes, c("from", "FX", "FY")), on = "from", verbose = 0L) |> colorder(from, FX, FY)
-    if(any(nam_rm[5:6] %in% nam)) gdf <- join(gdf, setNames(nodes, c("to", "TX", "TY")), on = "to", verbose = 0L) |> colorder(to, TX, TY, pos = "after")
+    if(any(nam_rm[3:4] %in% nam)) result <- join(result, setNames(nodes, c("from", "FX", "FY")), on = "from", verbose = 0L) |> colorder(from, FX, FY)
+    if(any(nam_rm[5:6] %in% nam)) result <- join(result, setNames(nodes, c("to", "TX", "TY")), on = "to", verbose = 0L) |> colorder(to, TX, TY, pos = "after")
   }
-  add_vars(gdf, pos = "front") <- list(line = seq_row(gdf))
-  attr(gdf, "keep.edges") <- keep
-  attr(gdf, "group.id") <- g$group.id
-  gdf
+  if(length(unclass(res$gdf))) add_vars(result) <- res$gdf
+  add_vars(result, pos = "front") <- list(line = seq_row(result))
+  if(iter == 1L) {
+    attr(result, "keep.edges") <- keep
+    attr(result, "group.id") <- group.id
+  }
+  result
 }
 
 # Helper for consolidate_graph()
