@@ -333,13 +333,15 @@ normalize_graph <- function(graph_df) {
 #' @seealso \link{create_undirected_graph} \link{simplify_network} \link{flowr-package}
 #'
 #' @export
-#' @importFrom collapse fnrow get_vars anyv setv ss seq_row fcountv fduplicated fmatch whichv whichNA allNA ffirst GRP collap %!in% %!iin% join colorderv funique.default %!=% %==% missing_cases qtab
+#' @importFrom collapse fnrow get_vars anyv setv ss seq_row fcountv fduplicated fmatch whichv whichNA allNA ffirst GRP collap %!in% %!iin% join colorderv funique.default %!=% %==% missing_cases qtab flast
 #' @importFrom stats setNames
 consolidate_graph <- function(graph_df, directed = FALSE,
                               drop.edges = c("loop", "duplicate", "single"),
                               consolidate = TRUE, keep.nodes = NULL, ...,
                               recursive = "full",
                               verbose = TRUE) {
+
+  if(verbose) namg <- flast(as.character(substitute(graph_df)))
 
   reci <- switch(as.character(recursive), none =, `FALSE` = 0L, partial = 1L, full =, `TRUE` = 2L,
                  stop("recursive needs to be one of 'none'/FALSE, 'partial', or 'full'/TRUE"))
@@ -349,6 +351,12 @@ consolidate_graph <- function(graph_df, directed = FALSE,
   nam <- names(graph_df)
   nam_rm <- c("from", "to", "FX", "FY", "TX", "TY", "line")
   nam_keep <- nam[nam %!iin% nam_rm]
+
+  if(verbose) {
+    cat(sprintf("Consolidating %s graph %s with %d edges using %s recursion\n", if(directed) "directed" else "undirected", namg, fnrow(graph_df), as.character(recursive)))
+    print(qtab(fcountv(c(graph_df$from, graph_df$to))$N, dnn = "Initial node degrees:"))
+    cat("\n")
+  }
 
   res <- consolidate_graph_core(graph_df, directed = directed,
                                 drop.edges = drop.edges,
@@ -377,7 +385,10 @@ consolidate_graph <- function(graph_df, directed = FALSE,
 
   if(length(attr(res, ".early.return"))) attr(res, ".early.return") <- NULL
 
-  if(verbose) print(qtab(fcountv(c(res$from, res$to))$N, dnn = "Final node counts:"))
+  if(verbose) {
+    cat(sprintf("\nConsolidated %s graph %s from %d edges to %d edges (%s%%)\n", if(directed) "directed" else "undirected", namg, fnrow(graph_df), fnrow(res), as.character(signif(100*fnrow(res)/fnrow(graph_df), 3))))
+    print(qtab(fcountv(c(res$from, res$to))$N, dnn = "Final node degrees:"))
+  }
 
   if(any(nam_rm[3:6] %in% nam)) {
     nodes <- nodes_from_graph(graph_df, sf = FALSE)
@@ -543,11 +554,11 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
       idx <- fmatch(nodes, degree_table$node)
       need_orientation <- nodes[degree_table$deg_from[idx] == 2L | degree_table$deg_to[idx] == 2L]
       if(length(need_orientation)) {
-        if(!orient_undirected_nodes(need_orientation)) stop("Failed to orient undirected nodes for consolidation; please verify the input graph.")
-        if(verbose) cat(sprintf("Oriented %d undirected intermediate nodes\n", length(need_orientation)))
+        if(!orient_undirected_nodes(need_orientation)) stop("Failed to orient undirected edges for consolidation; please verify the input graph.")
+        if(verbose) cat(sprintf("Oriented %d undirected intermediate edges\n", length(need_orientation)))
       }
     }
-    if(!merge_linear_nodes(nodes)) stop("Failed to consolidate oriented undirected nodes; please verify the graph topology.")
+    if(!merge_linear_nodes(nodes)) stop("Failed to consolidate oriented undirected edges; please verify the graph topology.")
     consolidated_any <- TRUE
     if(verbose) cat(sprintf("Consolidated %d intermediate nodes\n", length(nodes)))
     if(reci == 0L) break
