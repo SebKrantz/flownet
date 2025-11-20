@@ -285,6 +285,7 @@ normalize_graph <- function(graph_df) {
 #' @param consolidate Logical (default: TRUE). If TRUE, consolidates the graph by removing
 #'   intermediate nodes (nodes that occur exactly twice) and merging connecting edges.
 #'   If FALSE, only drops edges as specified in \code{drop.edges}.
+#' @param by Link characteristics to preserve/not consolidate across, passed as a one-sided formula or character vector of column names. Typically this includes attributes like \emph{mode}, \emph{type}, or \emph{capacity} to ensure that only edges with the same characteristics are consolidated.
 #' @param keep.nodes Numeric vector (optional). Node IDs to preserve during consolidation,
 #'   even if they occur exactly twice. Also used to preserve nodes when dropping singleton edges.
 #' @param \dots Arguments passed to \code{\link[collapse]{collap}()} for aggregation across consolidated edges. The defaults are \code{FUN = fmean} for numeric columns and \code{catFUN = fmode} for categorical columns. Select columns using \code{cols} or use argument \code{custom = list(fmean = cols1, fsum = cols2, fmode = cols3)} to map different columns to specific aggregation functions. It is highly recommended to weight the aggregation (using \code{w = ~ weight_col}) by the length/cost of the edges.
@@ -333,11 +334,11 @@ normalize_graph <- function(graph_df) {
 #' @seealso \link{create_undirected_graph} \link{simplify_network} \link{flowr-package}
 #'
 #' @export
-#' @importFrom collapse fnrow get_vars anyv setv ss seq_row fcountv fduplicated fmatch whichv whichNA allNA ffirst GRP collap %!in% %!iin% join colorderv funique.default %!=% %==% missing_cases qtab flast
+#' @importFrom collapse fnrow get_vars anyv setv ss seq_row fcountv fduplicated fmatch whichv whichNA allNA ffirst GRP collap %!in% %!iin% join colorderv funique.default %!=% %==% missing_cases qtab flast fndistinct.default radixorderv groupv na_rm
 #' @importFrom stats setNames
 consolidate_graph <- function(graph_df, directed = FALSE,
                               drop.edges = c("loop", "duplicate", "single"),
-                              consolidate = TRUE, keep.nodes = NULL, ...,
+                              consolidate = TRUE, by = NULL, keep.nodes = NULL, ...,
                               recursive = "full",
                               verbose = TRUE) {
 
@@ -346,10 +347,15 @@ consolidate_graph <- function(graph_df, directed = FALSE,
   reci <- switch(as.character(recursive), none =, `FALSE` = 0L, partial = 1L, full =, `TRUE` = 2L,
                  stop("recursive needs to be one of 'none'/FALSE, 'partial', or 'full'/TRUE"))
 
+  if(length(by)) {
+    if(is.call(by)) by <- all.vars(by)
+    if(!is.character(by)) stop("by needs to be a character vector or a formula of column names")
+  }
+
   if(length(attr(graph_df, "group.starts"))) attr(graph_df, "group.starts") <- NULL
 
   nam <- names(graph_df)
-  nam_rm <- c("from", "to", "FX", "FY", "TX", "TY", "line")
+  nam_rm <- c("from", "to", "FX", "FY", "TX", "TY", "line", by)
   nam_keep <- nam[nam %!iin% nam_rm]
 
   if(verbose) {
@@ -361,6 +367,7 @@ consolidate_graph <- function(graph_df, directed = FALSE,
   res <- consolidate_graph_core(graph_df, directed = directed,
                                 drop.edges = drop.edges,
                                 consolidate = consolidate,
+                                by = by,
                                 keep.nodes = keep.nodes,
                                 reci = reci, nam_keep = nam_keep,
                                 verbose = verbose, ...)
@@ -377,6 +384,7 @@ consolidate_graph <- function(graph_df, directed = FALSE,
       res <- consolidate_graph_core(res, directed = directed,
                                     drop.edges = drop.edges,
                                     consolidate = consolidate,
+                                    by = by,
                                     keep.nodes = keep.nodes,
                                     reci = reci, nam_keep = nam_keep,
                                     verbose = verbose, ...)
@@ -406,11 +414,18 @@ consolidate_graph <- function(graph_df, directed = FALSE,
 # Corec function that can be called recursively
 consolidate_graph_core <- function(graph_df, directed = FALSE,
                               drop.edges = c("loop", "duplicate", "single"),
-                              consolidate = TRUE, keep.nodes = NULL, ...,
+                              consolidate = TRUE, by = NULL, keep.nodes = NULL, ...,
                               reci, nam_keep, verbose = TRUE) {
 
   keep <- seq_row(graph_df) # Global variable tracking utilized edges
-  gft <- get_vars(graph_df, c("from", "to")) |> unclass() # Local variable representing the current graph worked on
+  gft <- get_vars(graph_df, c("from", "to", by)) |> unclass() # Local variable representing the current graph worked on
+
+  if(length(by)) {
+    by_id <- groupv(get_vars(graph_df, by))
+    # We keep nodes where there are changes (e.g., different mode).
+    keep.nodes <- funique.default(c(keep.nodes,
+     as.integer(names(which(fndistinct.default(c(by_id, by_id), c(graph_df$from, graph_df$to), na.rm = FALSE) > 1L)))))
+  }
 
   if(anyv(drop.edges, "loop") && length(loop <- gft$from %==% gft$to)) {
     keep <- keep[-loop]
@@ -436,14 +451,14 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
         if(verbose) cat(sprintf("Dropped %d edges leading to singleton nodes\n", fnrow(gft) - length(ind)))
         keep <- keep[ind]
         gft <- ss(gft, ind, check = FALSE)
-      }
+      } else break
       if(reci == 0L) break
     }
   }
 
   if(!consolidate) {
     res <- ss(graph_df, keep, check = FALSE)
-    if(rec < 2L) attr(res, "keep.edges") <- keep
+    if(reci < 2L) attr(res, "keep.edges") <- keep
     attr(res, ".early.return") <- TRUE
     return(res)
   }
@@ -577,8 +592,8 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
     g <- GRP(gft, sort = TRUE)
   } else {
     g <- GRP(c(gft, list(gid = gid)), sort = TRUE)
-    g$groups <- g$groups[1:2]
-    g$group.vars <- g$group.vars[1:2]
+    g$groups <- g$groups[seq_along(gft)]
+    g$group.vars <- g$group.vars[seq_along(gft)]
   }
 
   # Aggregation

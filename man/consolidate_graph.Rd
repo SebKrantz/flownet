@@ -9,6 +9,7 @@ consolidate_graph(
   directed = FALSE,
   drop.edges = c("loop", "duplicate", "single"),
   consolidate = TRUE,
+  by = NULL,
   keep.nodes = NULL,
   ...,
   recursive = "full",
@@ -32,6 +33,8 @@ Set to \code{NULL} to keep all edges.}
 \item{consolidate}{Logical (default: TRUE). If TRUE, consolidates the graph by removing
 intermediate nodes (nodes that occur exactly twice) and merging connecting edges.
 If FALSE, only drops edges as specified in \code{drop.edges}.}
+
+\item{by}{Link characteristics to preserve/not consolidate across, passed as a one-sided formula or character vector of column names. Typically this includes attributes like \emph{mode}, \emph{type}, or \emph{capacity} to ensure that only edges with the same characteristics are consolidated.}
 
 \item{keep.nodes}{Numeric vector (optional). Node IDs to preserve during consolidation,
 even if they occur exactly twice. Also used to preserve nodes when dropping singleton edges.}
