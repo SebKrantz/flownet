@@ -155,7 +155,7 @@ run_assignment <- function(graph_df, od_matrix_long,
   # TODO: could restrict that other nodes must be in the direction of travel and not behind destination node
   for (i in seq_row(od_matrix_long)) {
 
-    if(verbose && i %% 50L == 0L) pb$tick(50L)
+    if(verbose && i %% 10L == 0L) pb$tick(10L)
 
     # if(precompute.dmat) {
     d_ij <- dmat[from[i], to[i]] # Shortest path cost
@@ -229,7 +229,7 @@ run_assignment <- function(graph_df, od_matrix_long,
   }
 
   if(verbose) {
-    if(i %% 50L != 0L) pb$tick(i %% 50L)
+    if(i %% 10L != 0L) pb$tick(i %% 10L)
     pb$terminate()
   }
 
