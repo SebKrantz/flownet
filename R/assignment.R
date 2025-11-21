@@ -52,7 +52,7 @@
 #' @seealso \link{flowr-package}
 #'
 #' @export
-#' @importFrom collapse fselect frange funique.default ss fnrow seq_row ckmatch anyv whichv all_identical
+#' @importFrom collapse fselect funique.default ss fnrow seq_row ckmatch anyv whichv setDimnames
 #' @importFrom igraph graph_from_data_frame delete_vertex_attr igraph_options distances shortest_paths vcount ecount
 #' @importFrom progress progress_bar
 run_assignment <- function(graph_df, od_matrix_long,
@@ -76,13 +76,21 @@ run_assignment <- function(graph_df, od_matrix_long,
     return.extra <- c("graph", "dmat", "paths", "edges", "counts", "costs", "weights")
 
   # Create Igraph Graph
-  nodes <- as.integer(funique.default(c(graph_df$from, graph_df$to), sort = TRUE))
-  if(nodes[1L] != 1) stop("Missing first node")
-  if(diff(frange(nodes)) >= length(nodes)) stop("graph_df is missing some nodes in from/to columns")
-  g <- graph_df |> fselect(from, to) |>
+  from_node <- as.integer(graph_df$from)
+  to_node <- as.integer(graph_df$to)
+  nodes <- funique.default(c(from_node, to_node), sort = TRUE)
+  if(anyv(return.extra, "graph")) {
+    res$graph <- graph_from_data_frame(data.frame(from = from_node, to = to_node),
+                                       directed = directed,
+                                       vertices = data.frame(name = nodes))
+  }
+  # Internally use normalized graph node indices
+  from_node <- fmatch(from_node, nodes)
+  to_node <- fmatch(to_node, nodes)
+  g <- data.frame(from = from_node, to = to_node) |>
     graph_from_data_frame(directed = directed,
-                          vertices = data.frame(name = nodes))
-  if(anyv(return.extra, "graph")) res$graph <- g
+                          vertices = data.frame(name = seq_along(nodes))) |>
+    delete_vertex_attr("name")
 
   if(verbose) cat("Created graph with", vcount(g), "nodes and", ecount(g), "edges...\n")
 
@@ -92,13 +100,10 @@ run_assignment <- function(graph_df, od_matrix_long,
     iopt <- igraph_options(return.vs.es = FALSE) # sparsematrices = TRUE
     on.exit(igraph_options(iopt))
     if(nrow(dmat) != ncol(dmat)) stop("Distance matrix must be square")
-    if(!all_identical(dimnames(dmat))) stop("Distance matrix dimensions must be equivalent")
-    if(!identical(as.integer(rownames(dmat)), nodes)) stop("Distance matrix rows/columns need to match nodes in order. This is an internal bug, please report it.")
-    if(anyv(return.extra, "dmat")) res$dmat <- dmat
+    if(anyv(return.extra, "dmat")) res$dmat <- setDimnames(dmat, list(nodes, nodes))
     dimnames(dmat) <- NULL
     if(verbose) cat("Computed distance matrix of dimensions", nrow(dmat), "x", ncol(dmat), "...\n")
   } else stop("precompute.dmat = FALSE is not implemented yet")
-  g <- delete_vertex_attr(g, "name")
 
   # Edge incidence across selected routes
   delta_ks <- integer(length(cost) + 10L)
