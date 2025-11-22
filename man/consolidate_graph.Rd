@@ -51,7 +51,7 @@ and consolidation progress.}
 \value{
 A data frame representing the consolidated graph with:
   \itemize{
-    \item \code{line} - Line identifier (added as first column)
+    \item \code{edge} - Edge identifier (added as first column)
     \item All columns from \code{graph_df} (aggregated if consolidation occurred),
       excluding \code{from}, \code{to}, and optionally \code{FX}, \code{FY}, \code{TX}, \code{TY}
       (which are re-added if present in original)
@@ -62,7 +62,7 @@ A data frame representing the consolidated graph with:
   }
 }
 \description{
-Consolidate a graph by removing intermediate nodes (nodes that occur exactly twice) and optionally dropping loop, duplicate, and singleton edges. This simplifies the network topology while preserving connectivity.
+Consolidate a graph by removing intermediate nodes (nodes that occur exactly twice) and optionally dropping loop, duplicate, and singleton edges (leading to dead ends). This simplifies the network topology while preserving connectivity.
 }
 \details{
 This function simplifies a graph by:

@@ -1,6 +1,6 @@
 
 utils::globalVariables(c(
-  "from", "to", "line", "FX", "FY", "TX", "TY", "X", "Y", "cost", "flow"
+  "from", "to", "edge", "FX", "FY", "TX", "TY", "X", "Y", "cost", "flow"
   # Add any other variable names that appear in the notes
   # "." # Often needed if you use the data.table or magrittr pipe syntax
 ))
@@ -14,7 +14,7 @@ utils::globalVariables(c(
 #'
 #' @return A data.frame representing the graph with columns:
 #' \itemize{
-#'  \item \code{line} - Line identifier
+#'  \item \code{edge} - Edge identifier
 #'  \item \code{from} - Starting node ID
 #'  \item \code{FX} - Starting node X-coordinate (longitude)
 #'  \item \code{FY} - Starting node Y-coordinate (latitude)
@@ -32,7 +32,7 @@ linestrings_to_graph <- function(lines, digits = 6, keep.cols = is.atomic, compu
   gt <- st_geometry_type(lines, by_geometry = FALSE)
   if(length(gt) != 1L || gt != "LINESTRING") stop("lines needs to be a sf data frame of LINESTRING's")
   graph <- st_coordinates(lines) |> qDF()
-  g <- GRP(list(line = graph$L1), return.order = FALSE)
+  g <- GRP(list(edge = graph$L1), return.order = FALSE)
   graph <- add_vars(fselect(graph, X, Y) |> ffirst(g, na.rm = FALSE, use.g.names = FALSE) |> add_stub("F"),
                     fselect(graph, X, Y) |> flast(g, na.rm = FALSE, use.g.names = FALSE) |> add_stub("T")) |>
            add_vars(g$groups, pos = "front")
@@ -45,7 +45,7 @@ linestrings_to_graph <- function(lines, digits = 6, keep.cols = is.atomic, compu
   graph <- graph |>
     fmutate(from = unattrib(group(FX, FY)),
             to = from[fmatch(list(TX, TY), list(FX, FY))]) |>
-    colorder(line, from, FX, FY, to, TX, TY)
+    colorder(edge, from, FX, FY, to, TX, TY)
   if(anyNA(graph$to)) {
     miss <- whichNA(graph$to)
     setv(graph$to, miss, group(ss(graph, miss, c("TX", "TY"), check = FALSE)) %+=% fmax(graph$from), vind1 = TRUE)
@@ -103,12 +103,12 @@ linestrings_from_graph <- function(graph_df, crs = 4326) {
 #' @description Convert a directed graph to an undirected graph by normalizing edges and aggregating duplicate connections.
 #'
 #' @param graph_df A data frame representing a directed graph including columns:
-#'   \code{from}, \code{to}, and (optionally) \code{line}, \code{FX}, \code{FY}, \code{TX}, \code{TY}.
+#'   \code{from}, \code{to}, and (optionally) \code{edge}, \code{FX}, \code{FY}, \code{TX}, \code{TY}.
 #' @param \dots Arguments passed to \code{\link[collapse]{collap}()} for aggregation across duplicated (diretional) edges. The defaults are \code{FUN = fmean} for numeric columns and \code{catFUN = fmode} for categorical columns. Select columns using \code{cols} or use argument \code{custom = list(fmean = cols1, fsum = cols2, fmode = cols3)} to map different columns to specific aggregation functions. You can weight the aggregation (using \code{w = ~ weight_col}).
 #'
 #' @return A data frame representing an undirected graph with:
 #'   \itemize{
-#'     \item \code{line} - Line identifier (first value from duplicates)
+#'     \item \code{edge} - Edge identifier (first value from duplicates)
 #'     \item \code{from} - Starting node ID (normalized to be < \code{to})
 #'     \item \code{to} - Ending node ID (normalized to be > \code{from})
 #'     \item \code{FX} - Starting node X-coordinate (first value from duplicates)
@@ -123,7 +123,7 @@ linestrings_from_graph <- function(graph_df, crs = 4326) {
 #' \itemize{
 #'   \item Normalizing edge directions so that \code{from < to} for all edges
 #'   \item Collapsing duplicate edges (same \code{from} and \code{to} nodes)
-#'   \item For spatial/identifier columns (\code{line}, \code{FX}, \code{FY}, \code{TX}, \code{TY}),
+#'   \item For spatial/identifier columns (\code{edge}, \code{FX}, \code{FY}, \code{TX}, \code{TY}),
 #'     taking the first value from duplicates
 #'   \item For aggregation columns, \code{\link[collapse]{collap}()} will be applied.
 #' }
@@ -134,8 +134,8 @@ create_undirected_graph <- function(graph_df, ...) {
   graph_df <- ftransform(graph_df, from = pmin(from, to), to = pmax(from, to))
   g <- GRP(graph_df, ~ from + to, sort = FALSE)
   nam <- names(graph_df)
-  agg_first <- c("line", "FX", "FY", "TX", "TY")
-  ord <- c("line", "from", "FX", "FY", "to", "TX", "TY")
+  agg_first <- c("edge", "FX", "FY", "TX", "TY")
+  ord <- c("edge", "from", "FX", "FY", "to", "TX", "TY")
   res <- g$groups
   if(any(nam %in% agg_first)) {
     add_vars(res) <- ffirst(get_vars(graph_df, nam[nam %in% agg_first]), g, use.g.names = FALSE)
@@ -270,7 +270,7 @@ normalize_graph <- function(graph_df) {
 
 
 #' @title Consolidate Graph
-#' @description Consolidate a graph by removing intermediate nodes (nodes that occur exactly twice) and optionally dropping loop, duplicate, and singleton edges. This simplifies the network topology while preserving connectivity.
+#' @description Consolidate a graph by removing intermediate nodes (nodes that occur exactly twice) and optionally dropping loop, duplicate, and singleton edges (leading to dead ends). This simplifies the network topology while preserving connectivity.
 #'
 #' @param graph_df A data frame representing a graph with columns:
 #'   \code{from} and \code{to} (node IDs), and optionally other columns to preserve.
@@ -297,7 +297,7 @@ normalize_graph <- function(graph_df) {
 #'
 #' @return A data frame representing the consolidated graph with:
 #'   \itemize{
-#'     \item \code{line} - Line identifier (added as first column)
+#'     \item \code{edge} - Edge identifier (added as first column)
 #'     \item All columns from \code{graph_df} (aggregated if consolidation occurred),
 #'       excluding \code{from}, \code{to}, and optionally \code{FX}, \code{FY}, \code{TX}, \code{TY}
 #'       (which are re-added if present in original)
@@ -355,7 +355,7 @@ consolidate_graph <- function(graph_df, directed = FALSE,
   if(length(attr(graph_df, "group.starts"))) attr(graph_df, "group.starts") <- NULL
 
   nam <- names(graph_df)
-  nam_rm <- c("from", "to", "FX", "FY", "TX", "TY", "line", by)
+  nam_rm <- c("from", "to", "FX", "FY", "TX", "TY", "edge", by)
   nam_keep <- nam[nam %!iin% nam_rm]
 
   if(verbose) {
@@ -403,7 +403,7 @@ consolidate_graph <- function(graph_df, directed = FALSE,
     if(any(nam_rm[3:4] %in% nam)) res <- join(res, setNames(nodes, c("from", "FX", "FY")), on = "from", verbose = 0L)
     if(any(nam_rm[5:6] %in% nam)) res <- join(res, setNames(nodes, c("to", "TX", "TY")), on = "to", verbose = 0L)
   }
-  add_vars(res, pos = "front") <- list(line = seq_row(res))
+  add_vars(res, pos = "front") <- list(edge = seq_row(res))
 
   # Reordering columns
   res <- colorderv(res, radixorderv(fmatch(names(res), nam)))

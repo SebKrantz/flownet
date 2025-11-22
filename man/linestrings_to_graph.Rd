@@ -23,7 +23,7 @@ linestrings_to_graph(
 \value{
 A data.frame representing the graph with columns:
 \itemize{
- \item \code{line} - Line identifier
+ \item \code{edge} - Edge identifier
  \item \code{from} - Starting node ID
  \item \code{FX} - Starting node X-coordinate (longitude)
  \item \code{FY} - Starting node Y-coordinate (latitude)
