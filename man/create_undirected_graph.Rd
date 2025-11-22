@@ -8,14 +8,14 @@ create_undirected_graph(graph_df, ...)
 }
 \arguments{
 \item{graph_df}{A data frame representing a directed graph including columns:
-\code{from}, \code{to}, and (optionally) \code{line}, \code{FX}, \code{FY}, \code{TX}, \code{TY}.}
+\code{from}, \code{to}, and (optionally) \code{edge}, \code{FX}, \code{FY}, \code{TX}, \code{TY}.}
 
 \item{\dots}{Arguments passed to \code{\link[collapse]{collap}()} for aggregation across duplicated (diretional) edges. The defaults are \code{FUN = fmean} for numeric columns and \code{catFUN = fmode} for categorical columns. Select columns using \code{cols} or use argument \code{custom = list(fmean = cols1, fsum = cols2, fmode = cols3)} to map different columns to specific aggregation functions. You can weight the aggregation (using \code{w = ~ weight_col}).}
 }
 \value{
 A data frame representing an undirected graph with:
   \itemize{
-    \item \code{line} - Line identifier (first value from duplicates)
+    \item \code{edge} - Edge identifier (first value from duplicates)
     \item \code{from} - Starting node ID (normalized to be < \code{to})
     \item \code{to} - Ending node ID (normalized to be > \code{from})
     \item \code{FX} - Starting node X-coordinate (first value from duplicates)
@@ -33,7 +33,7 @@ This function converts a directed graph to an undirected graph by:
 \itemize{
   \item Normalizing edge directions so that \code{from < to} for all edges
   \item Collapsing duplicate edges (same \code{from} and \code{to} nodes)
-  \item For spatial/identifier columns (\code{line}, \code{FX}, \code{FY}, \code{TX}, \code{TY}),
+  \item For spatial/identifier columns (\code{edge}, \code{FX}, \code{FY}, \code{TX}, \code{TY}),
     taking the first value from duplicates
   \item For aggregation columns, \code{\link[collapse]{collap}()} will be applied.
 }

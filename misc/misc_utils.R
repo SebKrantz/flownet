@@ -50,7 +50,7 @@ linestrings_to_graph <- function(lines, digits = 6) {
   gt <- st_geometry_type(lines, by_geometry = FALSE)
   if(length(gt) != 1L || gt != "LINESTRING") stop("lines needs to be a sf data frame of LINESTRING's")
   graph <- st_coordinates(lines) |> qDF()
-  g <- GRP(list(line = graph$L1), return.order = FALSE)
+  g <- GRP(list(edge = graph$L1), return.order = FALSE)
   graph <- add_vars(fselect(graph, X, Y) |> ffirst(g, na.rm = FALSE, use.g.names = FALSE) |> add_stub("F"),
                     fselect(graph, X, Y) |> flast(g, na.rm = FALSE, use.g.names = FALSE) |> add_stub("T")) |>
            add_vars(g$groups, pos = "front")
@@ -59,14 +59,14 @@ linestrings_to_graph <- function(lines, digits = 6) {
     fmutate(from = unclass(group(FX, FY)),
             to = from[fmatch(list(TX, TY), list(FX, FY))],
             to = fifelse(is.na(to), unclass(group(TX, TY)) %+=% fmax(to), to)) |>
-    colorder(line, from, FX, FY, to, TX, TY)
+    colorder(edge, from, FX, FY, to, TX, TY)
 }
 
 #' @title Create Undirected Graph
 #' @description Convert a directed graph to an undirected graph by normalizing edges and aggregating duplicate connections.
 #'
 #' @param graph_df A data frame representing a directed graph with columns:
-#'   \code{from}, \code{to}, \code{line}, \code{FX}, \code{FY}, \code{TX}, \code{TY},
+#'   \code{from}, \code{to}, \code{edge}, \code{FX}, \code{FY}, \code{TX}, \code{TY},
 #'   and any columns specified in \code{agg_cols}.
 #' @param agg_cols Character vector (default: "cost"). Column names to aggregate
 #'   when collapsing duplicate edges.
@@ -78,7 +78,7 @@ linestrings_to_graph <- function(lines, digits = 6) {
 #'   \itemize{
 #'     \item \code{from} - Starting node ID (normalized to be < \code{to})
 #'     \item \code{to} - Ending node ID (normalized to be > \code{from})
-#'     \item \code{line} - Line identifier (first value from duplicates)
+#'     \item \code{edge} - Line identifier (first value from duplicates)
 #'     \item \code{FX} - Starting node X-coordinate (first value from duplicates)
 #'     \item \code{FY} - Starting node Y-coordinate (first value from duplicates)
 #'     \item \code{TX} - Ending node X-coordinate (first value from duplicates)
@@ -91,7 +91,7 @@ linestrings_to_graph <- function(lines, digits = 6) {
 #' \itemize{
 #'   \item Normalizing edge directions so that \code{from < to} for all edges
 #'   \item Collapsing duplicate edges (same \code{from} and \code{to} nodes)
-#'   \item For spatial/identifier columns (\code{line}, \code{FX}, \code{FY}, \code{TX}, \code{TY}),
+#'   \item For spatial/identifier columns (\code{edge}, \code{FX}, \code{FY}, \code{TX}, \code{TY}),
 #'     taking the first value from duplicates
 #'   \item For aggregation columns (specified in \code{agg_cols}), applying the
 #'     specified aggregation function (e.g., mean, sum, min, max)
@@ -102,7 +102,7 @@ linestrings_to_graph <- function(lines, digits = 6) {
 create_undirected_graph <- function(graph_df, agg_cols = "cost", agg_func = fmean) {
   graph_df |>
     ftransform(from = pmin(from, to), to = pmax(from, to)) |>
-    collap( ~ from + to, custom = list(c("line", "FX", "FY", "TX", "TY"), agg_cols) |>
+    collap( ~ from + to, custom = list(c("edge", "FX", "FY", "TX", "TY"), agg_cols) |>
               setNames(c("ffirst", deparse(substitute(agg_func)))), sort = FALSE)
 }
 
@@ -323,7 +323,7 @@ get_link_gdf_with_gc <- function(link_gdf, cargo_type, scenario_name) {
 }
 
 #' @title Calculate Bearing
-#' @description Calculate bearing angle of a line segment.
+#' @description Calculate bearing angle of a edge segment.
 #'
 #' @param segment An sf linestring object.
 #'
