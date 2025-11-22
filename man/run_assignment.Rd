@@ -49,9 +49,9 @@ in \code{graph_df}, or a numeric vector of edge costs with length equal to \code
 \code{"graph"}, \code{"dmat"}, \code{"paths"} (most memory intensive), \code{"edges"}, \code{"counts"}, \code{"costs"}, and \code{"weights"}.
 Use \code{"all"} to return all available extra results.}
 
-\item{precompute.dmat}{description}
+\item{precompute.dmat}{Should distance matrices be precomputed or computed on the fly. The former is more memory intensive but dramatically speeds up the OD-iterations.}
 
-\item{verbose}{Show progress bar?}
+\item{verbose}{Show progress bar and intermediate steps completion status?}
 
 \item{x}{An object of class \code{flowr}, typically returned by \code{\link{run_assignment}}.}
 }
