@@ -54,6 +54,7 @@
 #' @export
 #' @importFrom collapse fselect funique.default ss fnrow seq_row ckmatch anyv whichv setDimnames %+=%
 #' @importFrom igraph V graph_from_data_frame delete_vertex_attr igraph_options distances shortest_paths vcount ecount
+#' @importFrom geodist geodist_vec
 #' @importFrom progress progress_bar
 run_assignment <- function(graph_df, od_matrix_long,
                            directed = FALSE,
@@ -94,12 +95,25 @@ run_assignment <- function(graph_df, od_matrix_long,
 
   if(verbose) cat("Created graph with", vcount(g), "nodes and", ecount(g), "edges...\n")
 
+  geol <- is.finite(angle.max) && angle.max > 0 && angle.max < 180
+  if(geol) {
+    nodes_df <- nodes_from_graph(graph_df, sf = FALSE)
+    X <- nodes_df$X
+    Y <- nodes_df$Y
+  }
+
   # Distance Matrix
   if(precompute.dmat) {
     dmat <- distances(g, mode = "out", weights = cost)
     if(nrow(dmat) != ncol(dmat)) stop("Distance matrix must be square")
     if(anyv(return.extra, "dmat")) res$dmat <- setDimnames(dmat, list(nodes, nodes))
     dimnames(dmat) <- NULL
+    if(geol) {
+      if(!all(c("FX", "FY", "TX", "TY") %in% names(graph_df))) {
+        geol <- FALSE
+        message("graph_df needs to have columns FX, FY, TX and TY to compute angle-based detour restrictions")
+      } else dmat_geo <- geodist_vec(X, Y, measure = "haversine")
+    }
     if(verbose) cat("Computed distance matrix of dimensions", nrow(dmat), "x", ncol(dmat), "...\n")
   } else v <- V(g)
 
@@ -167,12 +181,24 @@ run_assignment <- function(graph_df, od_matrix_long,
     if(precompute.dmat) {
       d_ij <- dmat[from[i], to[i]] # Shortest path cost
       d_ikj <- dmat[from[i], ] + dmat[, to[i]] # from i to all other nodes k and from these nodes k to j (basically dmat + t(dmat)?)
+      if(geol) {
+        b <- dmat_geo[from[i], ]
+        a <- b[to[i]]
+        theta <- acos((a^2 + b^2 - dmat_geo[, to[i]]^2)/(2*a*b)) * 180 / pi # Angle between a and b
+      }
     } else {
       d_ikj <- drop(distances(g, from[i], v, mode = "out", weights = cost))
       d_ij <- d_ikj[to[i]]
       d_ikj %+=% distances(g, v, to[i], mode = "out", weights = cost)
+      if(geol) {
+        b <- drop(geodist_vec(X[from[i]], Y[from[i]], X, Y, measure = "haversine"))
+        a <- b[to[i]]
+        c <- drop(geodist_vec(X, Y, X[to[i]], Y[to[i]], measure = "haversine"))
+        theta <- acos((a^2 + b^2 - c^2)/(2*a*b)) * 180 / pi # Angle between a and b
+      }
     }
-    short_detour_ij <- d_ikj < detour.max * d_ij
+    short_detour_ij <- if(geol) d_ikj < detour.max * d_ij & b < a & theta < angle.max else
+                                d_ikj < detour.max * d_ij
     short_detour_ij[d_ikj < d_ij + .Machine$double.eps*1e3] <- FALSE # Exclude nodes k that are on the shortest path
     # which(d_ij == d_ikj) # These are the nodes on the direct path from i to j which yield the shortest distance.
     ks <- which(short_detour_ij)
