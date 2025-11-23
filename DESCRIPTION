@@ -15,6 +15,8 @@ Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.3.2
 NeedsCompilation: yes
+Depends: 
+    R (>= 3.5)
 Imports:
     collapse (>= 2.1.5),
     igraph (>= 2.1.4),
@@ -26,5 +28,3 @@ Suggests:
     knitr,
     rmarkdown
 URL: https://sebkrantz.github.io/flowr/
-Depends: 
-    R (>= 3.5)
