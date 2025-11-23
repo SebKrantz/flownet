@@ -102,7 +102,7 @@
 #' @source
 #' Internal dataset for transport modeling in the GCC region.
 #'
-#' @seealso \code{\link{network_gcc}}, \code{\link[=run_assignment]{run_assignment()}}, \link{flowr-package}
+#' @seealso \code{\link{network_gcc}}, \code{\link[=melt_od_matrix]{melt_od_matrix()}}, \code{\link[=run_assignment]{run_assignment()}}, \link{flowr-package}
 #'
 #' @examples
 #' data(od_matrices_gcc)
@@ -117,6 +117,10 @@
 #' 
 #' # View flows from node 1
 #' od_matrices_gcc$container["1", ]
+#' 
+#' # Convert matrix to long format for use with run_assignment()
+#' od_matrix_long <- melt_od_matrix(od_matrices_gcc$container)
+#' head(od_matrix_long)
 #'
 "od_matrices_gcc"
 
