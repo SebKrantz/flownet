@@ -1,0 +1,124 @@
+#' Multimodal Transport Network for the Gulf Cooperation Council (GCC) Region
+#'
+#' @name network_gcc
+#' @description
+#' A spatial dataset providing a multimodal transport network for the Gulf Cooperation Council (GCC) region,
+#' including existing and planned links with generalized cost estimates. The network combines link cost and time
+#' with border-passing costs (bpc) and times, and transfer penalties (tp) at intermodal terminals.
+#'
+#' @format
+#' A Simple feature collection (sf object) with 2800 LINESTRING features and 18 fields:
+#' \describe{
+#'   \item{id}{Numeric. Unique link identifier (1 to 2907).}
+#'   \item{numlanes}{Numeric. Number of lanes (0 or 1).}
+#'   \item{length_km}{Numeric. Link length in kilometers. Range: 0 to 6967.57 km, median: 7.59 km.}
+#'   \item{region}{Character. Regional classification: "GCC", "Turkey", "TENTEC", or "Others".}
+#'   \item{country}{Character. Country or region name (20 distinct values including "Turkey", "Europe", "Israel",
+#'   "Saudi Arabia", "Africa", "Iraq", "Asia", "United Arab Emirates", "Oman", "Yemen", etc.).}
+#'   \item{project}{Numeric. Project indicator (0 or 1, mostly 1).}
+#'   \item{mode}{Character. Transport mode: "Rail", "HGV" (Heavy Goods Vehicle), "Maritime", or "CONNECT".}
+#'   \item{tariff}{Numeric. Tariff rate (0.01 to 0.15, 2.11\% NAs).}
+#'   \item{tariff_cost}{Numeric. Tariff cost in monetary units. Range: 0 to 521.52, median: 0.78.}
+#'   \item{bpc_cost}{Numeric. Border-passing cost (bpc) in monetary units. Mostly 0, maximum: 4.}
+#'   \item{bpc_time}{Numeric. Border-passing time (bpc) in hours. Mostly 0, maximum: 6.}
+#'   \item{speed}{Numeric. Link speed in km/h. Range: 15 to 45, median: 25.}
+#'   \item{tp_cost}{Numeric. Transfer penalty cost at intermodal terminals in monetary units. Range: 0 to 36, mostly 0.}
+#'   \item{tp_time}{Numeric. Transfer penalty time at intermodal terminals in hours. Range: 0 to 48, mostly 0.}
+#'   \item{link_time}{Numeric. Link travel time in hours. Range: 0 to 278.7, median: 0.25.}
+#'   \item{total_cost}{Numeric. Total cost combining tariff_cost, bpc_cost, and tp_cost. Range: 0 to 521.52, median: 1.27.}
+#'   \item{total_time}{Numeric. Total time combining link_time, bpc_time, and tp_time. Range: 0 to 278.7, median: 0.43.}
+#'   \item{generalized_cost}{Numeric. Generalized cost metric combining total_cost and total_time. Range: 0 to 47.6, median: 0.13.}
+#'   \item{geometry}{LINESTRING. Spatial geometry in WGS 84 (EPSG:4326) coordinate reference system.}
+#' }
+#'
+#' @details
+#' The dataset represents a comprehensive multimodal transport network covering the GCC region and surrounding areas.
+#' Links are classified by transport mode (Rail, HGV, Maritime, CONNECT) and include both existing infrastructure
+#' and planned projects. Generalized costs are computed by combining:
+#' \itemize{
+#'   \item Link-level costs and times (tariff_cost, link_time)
+#'   \item Border-passing costs and times (bpc_cost, bpc_time) for cross-border links
+#'   \item Transfer penalties (tp_cost, tp_time) at intermodal terminals
+#' }
+#'
+#' The network spans a bounding box from approximately 17°N to 31°N latitude and 32°E to 56°E longitude,
+#' covering the GCC countries (Saudi Arabia, United Arab Emirates, Oman, Yemen, etc.) as well as Turkey,
+#' parts of Europe, Africa, and Asia.
+#'
+#' @usage
+#' data(network_gcc)
+#'
+#' @source
+#' Internal dataset for transport modeling in the GCC region.
+#'
+#' @seealso \link{flowr-package}
+#'
+#' @examples
+#' library(sf)
+#' head(network_gcc)
+#' summary(network_gcc)
+#'
+#' \dontrun{
+#' plot(network_gcc["mode"])
+#' }
+#'
+"network_gcc"
+
+#' Origin-Destination Matrices for the Gulf Cooperation Council (GCC) Region in 2019
+#'
+#' @name od_matrices_gcc
+#' @description
+#' A list of origin-destination (OD) matrices for the GCC region, containing 2019 trade flows
+#' for five different cargo types. Each matrix represents flows from origin nodes (rows)
+#' to destination nodes (columns) in tons.
+#'
+#' @format
+#' A list of 5 numeric matrices, each with dimensions 115 x 115:
+#' \describe{
+#'   \item{container}{Numeric matrix. Container cargo flows (tons) between 115 nodes.}
+#'   \item{dry_bulk}{Numeric matrix. Dry bulk cargo flows (tons) between 115 nodes.}
+#'   \item{general}{Numeric matrix. General cargo flows (tons) between 115 nodes.}
+#'   \item{high_value}{Numeric matrix. High-value cargo flows (tons) between 115 nodes.}
+#'   \item{liquid_bulk}{Numeric matrix. Liquid bulk cargo flows (tons) between 115 nodes.}
+#' }
+#'
+#' Each matrix has:
+#' \itemize{
+#'   \item Rows and columns named with node IDs (character strings "1", "2", "3", ..., "115")
+#'   \item Values representing trade flows in tons from origin node (row) to destination node (column)
+#'   \item Zero values indicating no direct flow between node pairs
+#' }
+#'
+#' @details
+#' The matrices correspond to the node structure of the \code{\link{network_gcc}} network dataset.
+#' Node IDs in the matrices match the node identifiers used in the network. These OD matrices
+#' can be used with \code{\link[=run_assignment]{run_assignment()}} for traffic assignment
+#' modeling across the GCC transport network.
+#'
+#' @usage
+#' data(od_matrices_gcc)
+#'
+#' @source
+#' Internal dataset for transport modeling in the GCC region.
+#'
+#' @seealso \code{\link{network_gcc}}, \code{\link[=melt_od_matrix]{melt_od_matrix()}}, \code{\link[=run_assignment]{run_assignment()}}, \link{flowr-package}
+#'
+#' @examples
+#' str(od_matrices_gcc)
+#' 
+#' # Access individual cargo type matrices
+#' od_matrices_gcc$container
+#' od_matrices_gcc$dry_bulk
+#' 
+#' # Check dimensions
+#' dim(od_matrices_gcc$container)
+#' 
+#' # View flows from node 1
+#' od_matrices_gcc$container["1", ]
+#' 
+#' # Convert matrix to long format for use with run_assignment()
+#' od_matrix_long <- melt_od_matrix(od_matrices_gcc$container)
+#' head(od_matrix_long)
+#'
+"od_matrices_gcc"
+

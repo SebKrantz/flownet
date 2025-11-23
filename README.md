@@ -22,8 +22,9 @@ remotes::install_github("SebKrantz/flowr")
 
 ## Dependencies
 
-- `collapse` (>= 2.0.0) - Fast data transformations
-- `igraph` (>= 1.3.0) - Graph operations and shortest path algorithms
+- `collapse` (>= 2.1.5) - Fast data transformations
+- `igraph` (>= 2.1.4) - Graph operations and shortest path algorithms
+- `geodist` (>= 0.1.1) - Fast geodesic distance computations
 - `sf` (>= 1.0.0) - Spatial data handling
 
 ## Quick Start

@@ -1,7 +1,7 @@
 Package: flowr
 Type: Package
 Title: Transport Modeling: Route Enumeration and Traffic Assignment with the Path-Sized Logit
-Version: 0.0.1
+Version: 0.1.0
 Authors@R: c(person("Sebastian", "Krantz", email = "sebastian.krantz@graduateinstitute.ch", role = c("aut", "cre")),
              person("Kamol", "Roy", email = "kamol.roy08@gmail.com", role = c("ctb", "cph")))
 Description: Efficient tools for transport modeling, specifically route enumeration 
@@ -15,10 +15,13 @@ Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.3.2
 NeedsCompilation: yes
+Depends: 
+    R (>= 3.5)
 Imports:
     collapse (>= 2.1.5),
     igraph (>= 2.1.4),
     sf (>= 1.0.0),
+    geodist (>= 0.1.1),
     progress (>= 1.2.3)
 Suggests:
     testthat (>= 3.0.0),
