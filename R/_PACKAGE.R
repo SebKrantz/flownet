@@ -28,9 +28,15 @@
 #'  \code{\link[=dist_mat_from_graph]{dist_mat_from_graph()}} --- Compute distance matrix from graph\cr
 #'
 #'
+#' \strong{OD Matrix Utilities}
+#'
+#'  \code{\link[=melt_od_matrix]{melt_od_matrix()}} --- Convert origin-destination matrix to long format\cr
+#'
+#'
 #' \strong{Data}
 #'
 #'  \code{\link{network_gcc}} --- Multimodal transport network for the Gulf Cooperation Council (GCC) region\cr
+#'  \code{\link{od_matrices_gcc}} --- Origin-destination matrices for five cargo types in the GCC region\cr
 #'
 #' @details
 #' The package uses efficient C implementations for critical path operations and leverages:
