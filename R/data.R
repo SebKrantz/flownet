@@ -55,7 +55,6 @@
 #'
 #' @examples
 #' library(sf)
-#' data(network_gcc)
 #' head(network_gcc)
 #' summary(network_gcc)
 #'
@@ -105,7 +104,6 @@
 #' @seealso \code{\link{network_gcc}}, \code{\link[=melt_od_matrix]{melt_od_matrix()}}, \code{\link[=run_assignment]{run_assignment()}}, \link{flowr-package}
 #'
 #' @examples
-#' data(od_matrices_gcc)
 #' str(od_matrices_gcc)
 #' 
 #' # Access individual cargo type matrices

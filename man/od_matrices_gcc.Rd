@@ -39,7 +39,6 @@ can be used with \code{\link[=run_assignment]{run_assignment()}} for traffic ass
 modeling across the GCC transport network.
 }
 \examples{
-data(od_matrices_gcc)
 str(od_matrices_gcc)
 
 # Access individual cargo type matrices

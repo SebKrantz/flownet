@@ -56,7 +56,6 @@ parts of Europe, Africa, and Asia.
 }
 \examples{
 library(sf)
-data(network_gcc)
 head(network_gcc)
 summary(network_gcc)
 
