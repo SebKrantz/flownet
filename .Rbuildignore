@@ -1,6 +1,6 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
-data
+data$
 ^\.DS_Store$
 ^\.DS\_Store$
 .DS_Store

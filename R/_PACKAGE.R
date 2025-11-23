@@ -27,10 +27,16 @@
 #'  \code{\link[=linestrings_from_graph]{linestrings_from_graph()}} --- Convert graph to LINESTRING geometries\cr
 #'  \code{\link[=dist_mat_from_graph]{dist_mat_from_graph()}} --- Compute distance matrix from graph\cr
 #'
+#'
+#' \strong{Data}
+#'
+#'  \code{\link{network_gcc}} --- Multimodal transport network for the Gulf Cooperation Council (GCC) region\cr
+#'
 #' @details
 #' The package uses efficient C implementations for critical path operations and leverages:
 #' \itemize{
-#'   \item \code{collapse} - Fast data transformations
+#'   \item \code{collapse} - Fast data transformation
+#'   \item \code{geodist} - Fast geodesic distance computations
 #'   \item \code{igraph} - Graph operations and shortest path algorithms
 #' }
 #'

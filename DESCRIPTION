@@ -26,3 +26,5 @@ Suggests:
     knitr,
     rmarkdown
 URL: https://sebkrantz.github.io/flowr/
+Depends: 
+    R (>= 3.5)
