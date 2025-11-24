@@ -339,7 +339,7 @@ normalize_graph <- function(graph_df) {
 #' @seealso \link{create_undirected_graph} \link{simplify_network} \link{flowr-package}
 #'
 #' @export
-#' @importFrom collapse fnrow get_vars anyv setv ss seq_row fcountv fduplicated fmatch whichv whichNA allNA ffirst GRP collap %!in% %!iin% join colorderv funique.default %!=% %==% missing_cases qtab flast varying radixorderv groupv na_rm
+#' @importFrom collapse fnrow get_vars anyv setv ss seq_row fcountv fduplicated fmatch whichv whichNA allNA ffirst GRP collap %iin% %!in% %!iin% join colorderv funique.default %!=% %==% missing_cases qtab flast varying radixorderv groupv na_rm
 #' @importFrom stats setNames
 consolidate_graph <- function(graph_df, directed = FALSE,
                               drop.edges = c("loop", "duplicate", "single"),
@@ -383,6 +383,7 @@ consolidate_graph <- function(graph_df, directed = FALSE,
   }
 
   if(reci == 2L && fnrow(res)) {
+    nam_keep <- nam_keep[nam_keep %iin% names(res)]
     prev_fnrow <- fnrow(graph_df)
     while(prev_fnrow > (nrow_res <- fnrow(res))) {
       prev_fnrow <- nrow_res
