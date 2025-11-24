@@ -62,7 +62,7 @@ A list of class \code{"flowr"} containing:
   \itemize{
     \item \code{call} - The function call
     \item \code{final_flows} - Numeric vector of assigned flows for each edge (same length as \code{nrow(graph_df)})
-    \item \code{od_pairs_used} - (if applicable) Indices of OD pairs with valid flows
+    \item \code{od_pairs_used} - Indices of OD pairs with valid flows
     \item Additional elements as specified in \code{return.extra}:
       \itemize{
         \item \code{graph} - The igraph graph object

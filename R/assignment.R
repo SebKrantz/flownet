@@ -28,7 +28,7 @@
 #'   \itemize{
 #'     \item \code{call} - The function call
 #'     \item \code{final_flows} - Numeric vector of assigned flows for each edge (same length as \code{nrow(graph_df)})
-#'     \item \code{od_pairs_used} - (if applicable) Indices of OD pairs with valid flows
+#'     \item \code{od_pairs_used} - Indices of OD pairs with valid flows
 #'     \item Additional elements as specified in \code{return.extra}:
 #'       \itemize{
 #'         \item \code{graph} - The igraph graph object
@@ -180,10 +180,8 @@ run_assignment <- function(graph_df, od_matrix_long,
   # Process/Check OD Matrix
   if(!all(c("from", "to", "flow") %in% names(od_matrix_long))) stop("od_matrix_long needs to have columns 'from', 'to' and 'flow'")
   od_pairs <- which(is.finite(od_matrix_long$flow) & od_matrix_long$flow > 0)
-  if(length(od_pairs) != fnrow(od_matrix_long)) {
-    res$od_pairs_used <- od_pairs
-    od_matrix_long <- ss(od_matrix_long, od_pairs, check = FALSE)
-  }
+  res$od_pairs_used <- od_pairs
+  if(length(od_pairs) != fnrow(od_matrix_long)) od_matrix_long <- ss(od_matrix_long, od_pairs, check = FALSE)
   from <- ckmatch(od_matrix_long$from, nodes, e = "Unknown origin nodes in od_matrix:")
   to <- ckmatch(od_matrix_long$to, nodes, e = "Unknown destination nodes in od_matrix:")
   flow <- od_matrix_long[["flow"]]
@@ -251,6 +249,10 @@ run_assignment <- function(graph_df, od_matrix_long,
     short_detour_ij[d_ikj < d_ij + .Machine$double.eps*1e3] <- FALSE # Exclude nodes k that are on the shortest path
     # which(d_ij == d_ikj) # These are the nodes on the direct path from i to j which yield the shortest distance.
     ks <- which(short_detour_ij)
+    if(length(ks) == 0L) {
+      res$od_pairs_used[i] <- NA_integer_
+      next
+    }
     cost_ks <- d_ikj[ks]
 
     # We add the shortest path at the end of paths1
@@ -266,6 +268,10 @@ run_assignment <- function(graph_df, od_matrix_long,
 
     # Get indices of paths that do not contain duplicate edges
     no_dups <- .Call(C_check_path_duplicates, paths1, paths2, delta_ks)
+    if(length(no_dups) == 0L) {
+      res$od_pairs_used[i] <- NA_integer_
+      next
+    }
 
     # Now Path-Sized Logit: Need to compute overlap between routes
     # # Number of routes in choice set that use link j
@@ -315,7 +321,17 @@ run_assignment <- function(graph_df, od_matrix_long,
     pb$terminate()
   }
 
-  if(retvals) {
+  if(anyNA(res$od_pairs_used)) {
+    nmiss_od <- whichNA(res$od_pairs_used, invert = TRUE)
+    res$od_pairs_used <- na_rm(res$od_pairs_used)
+    if(retvals) {
+      if(pathsl) res$paths <- paths[nmiss_od]
+      if(edgesl) res$edges <- edges[nmiss_od]
+      if(countsl) res$edge_counts <- counts[nmiss_od]
+      if(costsl) res$path_costs <- costs[nmiss_od]
+      if(weightsl) res$path_weights <- weights[nmiss_od]
+    }
+  } else if(retvals) {
     if(pathsl) res$paths <- paths
     if(edgesl) res$edges <- edges
     if(countsl) res$edge_counts <- counts
