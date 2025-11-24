@@ -1,0 +1,353 @@
+---
+title: "Introduction to flowr"
+author: "Sebastian Krantz, Kamol Roy"
+date: "`r Sys.Date()`"
+output: 
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 2
+vignette: >
+  %\VignetteIndexEntry{Introduction to flowr}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 5,
+  eval = TRUE
+)
+```
+
+## Introduction
+
+The `flowr` package provides efficient tools for transportation modeling, specifically route enumeration and traffic assignment tasks. The package implements the **path-sized logit (PSL) model** for traffic assignment, which accounts for route overlap when assigning traffic flows to network edges. This makes it particularly suitable for modeling transport networks where multiple alternative routes may share common segments.
+
+### Key Features
+
+- **Path-Sized Logit Model**: Efficient traffic assignment accounting for route overlap
+- **Network Processing**: Convert LINESTRING geometries to graphs, consolidate graphs, simplify networks, and handle directed/undirected graphs
+- **Route Enumeration**: Efficient algorithm for finding alternative routes between origin-destination pairs
+- **High Performance**: C implementations for critical path operations
+
+The package leverages several high-performance R packages:
+- `collapse` (>= 2.1.5) - Fast data transformations
+- `igraph` (>= 2.1.4) - Graph operations and shortest path algorithms
+- `geodist` (>= 0.1.1) - Fast geodesic distance computations
+- `sf` (>= 1.0.0) - Spatial data handling
+
+## Getting Started
+
+Let's start by loading the required packages and exploring the example datasets included with `flowr`:
+
+```{r load-packages}
+library(fastverse)
+fastverse_extend(flowr, sf, mapview)
+```
+
+The package includes three example datasets for the Gulf Cooperation Council (GCC) region:
+
+- **`network_gcc`**: A multimodal transport network with 2,800 LINESTRING features representing rail, HGV (Heavy Goods Vehicle), maritime, and CONNECT links. Each link includes attributes such as length, mode, speed, costs, times, and generalized cost.
+
+- **`zones_gcc`**: Zone locations and descriptions for origin-destination matrix locations in the GCC region.
+
+- **`od_matrices_gcc`**: A list of origin-destination matrices for five cargo types (container, drybulk, general, highvalue, liquidbulk) across multiple years (2019, 2030, 2040).
+
+Let's examine the network structure:
+
+```{r examine-data}
+# View network structure
+str(network_gcc, max.level = 1)
+
+# View available OD matrices
+names(od_matrices_gcc)
+
+# View zone information
+head(zones_gcc)
+```
+
+## Basic Workflow Example
+
+This section demonstrates a complete workflow from network preparation to traffic assignment and visualization. We'll use the container flows from the GCC dataset.
+
+### Step 1: Visualize the Network
+
+First, let's visualize the network to understand its structure:
+
+```{r visualize-network}
+mapview(network_gcc, zcol = "mode", layer.name = "Network Mode")
+```
+
+### Step 2: Convert Network to Graph
+
+The `linestrings_to_graph()` function converts LINESTRING geometries to a graph data frame format required for traffic assignment:
+
+```{r convert-to-graph}
+# Load Graph
+graph <- linestrings_to_graph(network_gcc)
+head(graph)
+```
+
+The resulting graph data frame contains:
+- `edge`: Edge identifier
+- `from`, `to`: Node IDs
+- `FX`, `FY`, `TX`, `TY`: Node coordinates
+- All original columns from the network (length_km, mode, generalized_cost, etc.)
+
+### Step 3: Extract Nodes and Map Zones
+
+We need to map the zone centroids to the nearest network nodes:
+
+```{r extract-nodes}
+# Extract nodes with spatial coordinates
+nodes <- nodes_from_graph(graph, sf = TRUE)
+
+# Map zones to nearest nodes
+nearest_nodes <- nodes$node[st_nearest_feature(zones_gcc, nodes)]
+```
+
+### Step 4: Process OD Matrix
+
+The `melt_od_matrix()` function converts the origin-destination matrix to long format, which is required by `run_assignment()`. We use the `nodes` argument to map zone-based OD matrices to graph node IDs:
+
+```{r process-od}
+# Process OD Matrix
+od_matrix_long <- melt_od_matrix(od_matrices_gcc$container, nodes = nearest_nodes)
+head(od_matrix_long)
+```
+
+The resulting data frame contains columns `from`, `to`, and `flow`, with only positive, finite flow values.
+
+### Step 5: Run Traffic Assignment
+
+Now we can run the traffic assignment using the path-sized logit model. The `run_assignment()` function:
+
+- Enumerates alternative routes for each OD pair
+- Computes path probabilities accounting for route overlap
+- Assigns flows to network edges
+
+In many applications, the default settings (`beta = 1`, `detour.max = 1.5`, `angle.max = 90`) already provide a good trade-off between behavioral realism and computational cost.
+
+```{r run-assignment}
+# Run Traffic Assignment
+result <- run_assignment(graph, od_matrix_long, cost = "generalized_cost",
+                         return.extra = "all")
+print(result)
+```
+
+Key parameters:
+- `cost`: The cost column to use for route computation (here "generalized_cost")
+- `return.extra`: Additional results to return ("all" returns everything)
+- `beta`: Path-sized logit parameter (default: 1)
+- `detour.max`: Maximum detour factor for alternative routes (default: 1.5)
+- `angle.max`: Maximum detour angle in degrees (default: 90)
+
+### Step 6: Visualize Results
+
+Finally, we can visualize the assigned flows on the network:
+
+```{r visualize-results}
+# Add flows to network for visualization
+network_gcc$final_flows_log10 <- log10(result$final_flows+1)
+
+mapview(network_gcc, zcol = "final_flows_log10",
+        layer.name = "Container Flows (Log10)") +
+mapview(zones_gcc, alpha = 0, cex = 3,
+        col.regions = "red", alpha.regions = 0.8,
+        layer.name = "Zone Nodes")
+```
+
+## Advanced Workflow with Network Consolidation
+
+For large networks, it's often beneficial to consolidate the graph by removing intermediate nodes and merging edges. This simplifies the network topology while preserving connectivity, which can significantly improve computational performance.
+
+### Step 1: Create Undirected Graph
+
+First, we convert the directed graph to an undirected graph. This is useful when transport links can be traversed in both directions:
+
+```{r create-undirected}
+# Load Graph and create undirected version
+graph <- linestrings_to_graph(network_gcc) |>
+  create_undirected_graph(by = ~ project + mode)
+
+nodes <- nodes_from_graph(graph, sf = TRUE)
+```
+
+The `by` argument ensures that edges are only aggregated if they share the same `project` and `mode` characteristics.
+
+### Step 2: Map Zones to Nodes
+
+```{r map-zones-advanced}
+# Map Zones to Nodes
+nearest_nodes <- nodes$node[st_nearest_feature(zones_gcc, nodes)]
+```
+
+### Step 3: Consolidate Graph
+
+The `consolidate_graph()` function removes intermediate nodes (nodes that occur exactly twice) and merges connecting edges. This is particularly useful for simplifying network topology:
+
+```{r consolidate-graph}
+# Consolidate Graph
+graph_cons <- consolidate_graph(graph, by = ~ project + mode, w = ~ length_km, 
+                                keep = nearest_nodes,
+                                custom = list(fsum_uw = .c(tariff_cost, tp_cost, tp_time, 
+                                                           link_time, total_cost, total_time, 
+                                                           generalized_cost),
+                                              fmean = .c(speed, tariff),
+                                              fmode = .c(numlanes, region, country)))
+```
+
+Key arguments:
+- `by`: Link characteristics to preserve during consolidation (project + mode)
+- `w`: Weight column for aggregation (length_km)
+- `keep`: Node IDs to preserve (zone nodes)
+- `custom`: Custom aggregation functions for different column types
+  - `fsum_uw`: Unweighted sum for cost/time columns
+  - `fmean`: Mean for speed and tariff
+  - `fmode`: Mode for categorical variables
+
+### Step 4: Compare Original vs Consolidated Network
+
+Let's visualize the difference between the original and consolidated networks:
+
+```{r compare-networks}
+mapview(linestrings_from_graph(graph), color = "dodgerblue4",
+        layer.name = "Original") +
+mapview(linestrings_from_graph(graph_cons), color = "orange",
+        layer.name = "Consolidated") +
+mapview(zones_gcc, alpha = 0, cex = 3,
+        col.regions = "red", alpha.regions = 0.8,
+        layer.name = "Zone Nodes")
+```
+
+The consolidated network typically has fewer edges while maintaining connectivity between important nodes (zones).
+
+### Step 5: Process OD Matrix and Run Assignment
+
+```{r run-assignment-consolidated}
+# Process OD Matrix
+od_matrix_long <- melt_od_matrix(od_matrices_gcc$container, nodes = nearest_nodes)
+
+# Run Traffic Assignment on consolidated graph
+result <- run_assignment(graph_cons, od_matrix_long, cost = "generalized_cost",
+                         return.extra = "all")
+print(result)
+```
+
+### Step 6: Visualize Results
+
+```{r visualize-consolidated}
+# Add flows to consolidated graph for visualization
+graph_cons$final_flows_log10 <- log10(result$final_flows+1)
+
+mapview(linestrings_from_graph(graph_cons), zcol = "final_flows_log10",
+        layer.name = "Container Flows (Log10)") +
+mapview(zones_gcc, alpha = 0, cex = 3,
+        col.regions = "red", alpha.regions = 0.8,
+        layer.name = "Zone Nodes")
+```
+
+## Key Concepts and Functions
+
+### Path-Sized Logit Model
+
+The **Path-Sized Logit (PSL)** model is a discrete choice model used for traffic assignment that overcomes the independence of irrelevant alternatives (IIA) property of the standard Multinomial Logit (MNL) model. In transport networks, alternative routes often overlap significantly, sharing common edges. The MNL model treats these overlapping routes as independent, leading to an overestimation of flow on shared segments.
+
+The PSL model introduces a **correction term** (path-size factor) to the utility function of each route, penalizing paths that share links with other alternatives.
+
+#### Probability Formula
+
+The probability $P_k$ of choosing route $k$ from the set of alternative routes $K$ is given by:
+
+$$P_k = \frac{e^{V_k}}{\sum_{j \in K} e^{V_j}}$$
+
+where $V_k$ is the deterministic utility of route $k$, defined in `flowr` as:
+
+$$V_k = -C_k + \beta_{PSL} \ln(PS_k)$$
+
+Here:
+- $C_k$ is the generalized cost of route $k$.
+- $\beta_{PSL}$ is the path-sized logit parameter (controlled by the `beta` argument).
+- $PS_k$ is the **Path-Size factor** for route $k$.
+
+#### The Correction Term: Path-Size Factor ($PS_k$)
+
+The Path-Size factor $PS_k$ quantifies the uniqueness of route $k$. It is defined as the ratio of the length (or cost) of the links in path $k$ to the number of alternatives sharing those links. The formula implemented in `flowr` is:
+
+$$PS_k = \frac{1}{C_k} \sum_{a \in \Gamma_k} \frac{c_a}{\delta_a}$$
+
+Where:
+- $\Gamma_k$ is the set of edges in path $k$.
+- $c_a$ is the cost of edge $a$.
+- $C_k = \sum_{a \in \Gamma_k} c_a$ is the total cost of path $k$.
+- $\delta_a$ is the number of alternative routes in the choice set $K$ that use edge $a$.
+
+**Interpretation:**
+- If a path is completely unique ($\delta_a = 1$ for all edges), then $PS_k = 1$ and $\ln(PS_k) = 0$. The utility reduces to the standard MNL utility ($V_k = -C_k$).
+- If a path shares edges with many other routes ($\delta_a > 1$), then $PS_k < 1$ and $\ln(PS_k) < 0$.
+- The term $\beta_{PSL} \ln(PS_k)$ acts as a correction. Since $\ln(PS_k)$ is negative for overlapping routes, a **positive** $\beta_{PSL}$ (default 1) is required to ensure that overlapping paths have lower utility (penalization).
+
+This formulation ensures that the model assigns lower probabilities to routes that are largely duplicates of others, distributing flow more realistically across truly distinct alternatives. In practice, a value of $\beta_{PSL} = 1$ is a sensible default; higher values strengthen the penalization of overlapping routes and lower values make the model behave more like a standard MNL.
+
+### Network Processing Functions
+
+**`linestrings_to_graph()`**: Converts LINESTRING geometries to a graph data frame format. This is typically the first step when working with spatial network data.
+
+**`create_undirected_graph()`**: Converts a directed graph to an undirected graph by normalizing edge directions and aggregating duplicate connections. Useful when transport links can be traversed in both directions.
+
+**`consolidate_graph()`**: Simplifies network topology by removing intermediate nodes and merging connecting edges. This can significantly reduce computational complexity while preserving connectivity.
+
+**`simplify_network()`**: Simplifies the network by keeping only edges traversed by shortest paths between specified nodes. Useful for reducing network size when only certain OD pairs are of interest.
+
+### Graph Utilities
+
+**`nodes_from_graph()`**: Extracts unique nodes with coordinates from a graph. Essential for mapping zone centroids to network nodes.
+
+**`linestrings_from_graph()`**: Converts a graph data frame back to LINESTRING geometries. Useful for visualization and spatial operations.
+
+**`normalize_graph()`**: Normalizes node IDs to consecutive integers starting from 1. This can improve performance with some graph algorithms.
+
+**`distances_from_graph()`**: Computes a distance matrix for all node pairs using the graph structure.
+
+### OD Matrix Utilities
+
+**`melt_od_matrix()`**: Converts an origin-destination matrix to long format with columns `from`, `to`, and `flow`. This format is required by `run_assignment()`.
+
+### Traffic Assignment
+
+**`run_assignment()`**: The core function for traffic assignment. Key parameters:
+
+- **`beta`** (default: 1): Path-sized logit parameter. A positive value penalizes overlapping routes.
+- **`detour.max`** (default: 1.5): Maximum detour factor for alternative routes. Higher values consider more routes but increase computation time substantially.
+- **`angle.max`** (default: 90): Maximum detour angle in degrees. Routes outside this angle from the straight line between origin and destination are not considered.
+- **`cost.column`**: The cost column to use for route computation. Can be a column name or numeric vector.
+- **`return.extra`**: Additional results to return, such as paths, edge counts, or distance matrices.
+
+### Parameter Tuning Tips
+
+- **`detour.max`**: Start with the default (1.5) and increase if you need to consider more alternative routes. Be aware that higher values can dramatically increase computation time.
+- **`angle.max`**: Use this to restrict route enumeration to more direct paths. Smaller values (e.g., 45°) can significantly speed up computation for large networks.
+- **`beta`**: The path-sized logit parameter. Typically positive (default 1) to penalize route overlap; values larger than 1 increase the penalty on overlapping routes, and values between 0 and 1 make the model closer to a standard MNL.
+
+## Conclusion
+
+This vignette has demonstrated the basic and advanced workflows for using the `flowr` package:
+
+1. **Basic workflow**: Convert network to graph, map zones to nodes, process OD matrix, and run traffic assignment
+2. **Advanced workflow**: Create undirected graphs, consolidate networks for performance, and run assignment on simplified networks
+
+The package provides efficient tools for transport modeling with the path-sized logit model, accounting for route overlap in traffic assignment. The network processing utilities allow you to prepare and simplify networks for efficient computation.
+
+### Next Steps
+
+- Explore the full function documentation: `?flowr-package`
+- Experiment with different parameter values (`beta`, `detour.max`, `angle.max`)
+- Try the other cargo types in `od_matrices_gcc` (drybulk, general, highvalue, liquidbulk)
+- Use `simplify_network()` to further reduce network size for specific OD pairs
+- Explore the additional results available through `return.extra` parameter
+
+For more information, see the package documentation and examples in the help files for individual functions.
+

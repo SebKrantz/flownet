@@ -11,7 +11,7 @@ run_assignment(
   directed = FALSE,
   cost.column = "cost",
   method = "PSL",
-  beta = -1,
+  beta = 1,
   ...,
   detour.max = 1.5,
   angle.max = 90,
@@ -38,7 +38,7 @@ The cost values are used to compute shortest paths and determine route probabili
 \item{method}{Character string (default: "PSL"). Assignment method. Currently only "PSL"
 (Path-Sized Logit) is implemented.}
 
-\item{beta}{Numeric (default: -1). Path-sized logit parameter (beta_PSL).}
+\item{beta}{Numeric (default: 1). Path-sized logit parameter (beta_PSL).}
 
 \item{\dots}{Additional arguments (currently ignored).}
 

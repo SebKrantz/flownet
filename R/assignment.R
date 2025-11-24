@@ -12,7 +12,7 @@
 #'   The cost values are used to compute shortest paths and determine route probabilities.
 #' @param method Character string (default: "PSL"). Assignment method. Currently only "PSL"
 #'   (Path-Sized Logit) is implemented.
-#' @param beta Numeric (default: -1). Path-sized logit parameter (beta_PSL).
+#' @param beta Numeric (default: 1). Path-sized logit parameter (beta_PSL).
 #' @param \dots Additional arguments (currently ignored).
 #' @param detour.max Numeric (default: 1.5). Maximum detour factor for alternative routes (applied to shortest paths cost). This is a key parameter controlling the execution time of the algorithm: considering more routes (higher \code{detour.max}) substantially increases computation time.
 #' @param angle.max Numeric (default: 90). Maximum detour angle (in degrees, two sided). I.e., nodes not within this angle measured against a straight line from origin to destination node will not be considered for detours.
@@ -108,7 +108,7 @@
 run_assignment <- function(graph_df, od_matrix_long,
                            directed = FALSE,
                            cost.column = "cost", # mode_col = NULL,
-                           method = "PSL", beta = -1,
+                           method = "PSL", beta = 1,
                            ...,
                            detour.max = 1.5,
                            angle.max = 90,
@@ -146,9 +146,14 @@ run_assignment <- function(graph_df, od_matrix_long,
 
   geol <- is.finite(angle.max) && angle.max > 0 && angle.max < 180
   if(geol) {
-    nodes_df <- nodes_from_graph(graph_df, sf = FALSE)
-    X <- nodes_df$X
-    Y <- nodes_df$Y
+    if(!all(c("FX", "FY", "TX", "TY") %in% names(graph_df))) {
+      geol <- FALSE
+      message("graph_df needs to have columns FX, FY, TX and TY to compute angle-based detour restrictions")
+    } else {
+      nodes_df <- nodes_from_graph(graph_df, sf = FALSE)
+      X <- nodes_df$X
+      Y <- nodes_df$Y
+    }
   }
 
   # Distance Matrix
@@ -157,12 +162,7 @@ run_assignment <- function(graph_df, od_matrix_long,
     if(nrow(dmat) != ncol(dmat)) stop("Distance matrix must be square")
     if(anyv(return.extra, "dmat")) res$dmat <- setDimnames(dmat, list(nodes, nodes))
     dimnames(dmat) <- NULL
-    if(geol) {
-      if(!all(c("FX", "FY", "TX", "TY") %in% names(graph_df))) {
-        geol <- FALSE
-        message("graph_df needs to have columns FX, FY, TX and TY to compute angle-based detour restrictions")
-      } else dmat_geo <- geodist_vec(X, Y, measure = "haversine")
-    }
+    if(geol) dmat_geo <- geodist_vec(X, Y, measure = "haversine")
     if(verbose) cat("Computed distance matrix of dimensions", nrow(dmat), "x", ncol(dmat), "...\n")
   } else v <- V(g)
 

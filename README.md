@@ -31,29 +31,28 @@ remotes::install_github("SebKrantz/flowr")
 
 ### Basic Usage
 
-```r
+``` r
 library(flowr)
 
 # Create a small graph data frame
-graph_df <- data.frame(
-  from = c(1, 2, 2, 3),
-  to   = c(2, 3, 4, 4),
-  cost = c(5, 3, 2, 4)
-)
+graph <- data.frame(from = c(1, 2, 2, 3),
+                    to = c(2, 3, 4, 4), cost = c(5, 3, 2, 4))
 
-# Prepare OD matrix with the same node IDs as in graph_df
-od_matrix_long <- data.frame(
-  from = c(1, 2, 3),
-  to   = c(4, 4, 4),
-  flow = c(100, 80, 60)
-)
+# Prepare OD matrix with the same node IDs as in graph
+od_matrix_long <- data.frame(from = c(1, 2, 3),
+                             to = c(4, 4, 4), flow = c(100, 80, 60))
 
 # Run traffic assignment (and route enumeration)
-result <- run_assignment(graph_df, od_matrix_long)
+result <- run_assignment(graph, od_matrix_long, angle.max = NA)
+#> Created graph with 4 nodes and 4 edges...
+#> Computed distance matrix of dimensions 4 x 4 ...
 
 # Access results
 result$final_flows
+#> [1] 100.00000  16.13649 196.13649  43.86351
 ```
+
+<sup>Created on 2025-11-24 with [reprex v2.1.1](https://reprex.tidyverse.org)</sup>
 
 ### Working with Spatial Networks
 
@@ -62,20 +61,20 @@ library(flowr)
 library(sf)
 
 # Read network from shapefile and create undirected graph (optional)
-graph_df <- st_read("data/network.shp") |> 
+graph <- st_read("data/network.shp") |> 
   linestrings_to_graph() |>
   create_undirected_graph()
 
 # Read zone centroids and get nearest nodes
 od_zones <- st_read("data/od_zones.shp") |> st_centroid()
-nodes <- nodes_from_graph(graph_df, sf = TRUE)
-nearest_nodes <- st_nearest_feature(od_zones, nodes)
+nodes <- nodes_from_graph(graph, sf = TRUE)
+nearest_nodes <- nodes$node[st_nearest_feature(od_zones, nodes)]
 
 # Consolidate Graph (optional)
-graph_df <- consolidate_graph(graph_df, keep = nearest_nodes, w = ~ cost)
+graph <- consolidate_graph(graph, keep = nearest_nodes, w = ~ cost)
 
 # Simplify network by keeping only traversed edges along shortest paths (optional)
-graph_df <- simplify_network(graph_df, nearest_nodes, cost.column = "cost")
+graph <- simplify_network(graph, nearest_nodes, cost.column = "cost")
 ```
 
 ## Main Functions
@@ -112,7 +111,7 @@ graph_df <- simplify_network(graph_df, nearest_nodes, cost.column = "cost")
 
 ```r
 library(fastverse)
-fastverse_extend(flowr, sf)
+fastverse_extend(flowr, sf, mapview)
 
 # 1. Load network and OD zone nodes
 network <- st_read("data/network.shp")
@@ -121,28 +120,24 @@ od_matrix <- fread("data/od_container_flows.csv") |> qM(1)
 if(!all(dim(od_matrix) == nrow(od_zones))) stop("zones and OD matrix must match")
 
 # 2. Convert network to graph
-graph_df <- network |>
+graph <- network |>
   linestrings_to_graph() |>
   create_undirected_graph()
 
 # 3. Map zones to nearest network nodes
-nodes <- nodes_from_graph(graph_df, sf = TRUE)
-nearest_nodes <- st_nearest_feature(od_zones, nodes)
+nodes <- nodes_from_graph(graph, sf = TRUE)
+nearest_nodes <- nodes$node[st_nearest_feature(od_zones, nodes)]
 
 # 4. Prepare OD matrix
-od_matrix_long <- data.frame(
-  from = rep.int(nearest_nodes, ncol(od_matrix)),
-  to = rep(nearest_nodes, each = nrow(od_matrix)),
-  flow = vec(od_matrix)
-) |> fsubset(is.finite(flow) & flow > 0)
+od_matrix_long <- melt_od_matrix(od_matrix, nodes = nearest_nodes)
 
 # 5. Run assignment
-result <- run_assignment(graph_df, od_matrix_long)
+result <- run_assignment(graph, od_matrix_long, cost = "cost_column")
 
 # 6. Visualize results (optional)
 network$final_flows <- NA_real_
-network$final_flows[attr(graph_df, "group.starts")] <- result$final_flows
-mapview::mapview(network, zcol = "final_flows")
+network$final_flows[attr(graph, "group.starts")] <- result$final_flows
+mapview(network, zcol = "final_flows")
 ```
 
 ## Authors
