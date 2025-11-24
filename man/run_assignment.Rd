@@ -32,7 +32,8 @@ Represents the origin-destination matrix in long format with flow values.}
 \item{directed}{Logical (default: FALSE). Whether the graph is directed.}
 
 \item{cost.column}{Character string (default: "cost") or numeric vector. Name of the cost column
-in \code{graph_df}, or a numeric vector of edge costs with length equal to \code{nrow(graph_df)}.}
+in \code{graph_df}, or a numeric vector of edge costs with length equal to \code{nrow(graph_df)}.
+The cost values are used to compute shortest paths and determine route probabilities.}
 
 \item{method}{Character string (default: "PSL"). Assignment method. Currently only "PSL"
 (Path-Sized Logit) is implemented.}
@@ -49,42 +50,60 @@ in \code{graph_df}, or a numeric vector of edge costs with length equal to \code
 \code{"graph"}, \code{"dmat"}, \code{"paths"} (most memory intensive), \code{"edges"}, \code{"counts"}, \code{"costs"}, and \code{"weights"}.
 Use \code{"all"} to return all available extra results.}
 
-\item{precompute.dmat}{Should distance matrices be precomputed or computed on the fly. The former is more memory intensive but dramatically speeds up the OD-iterations.}
+\item{precompute.dmat}{Logical (default: TRUE). Should distance matrices be precomputed or computed on the fly.
+The former is more memory intensive but dramatically speeds up the OD-iterations.}
 
-\item{verbose}{Show progress bar and intermediate steps completion status?}
+\item{verbose}{Logical (default: TRUE). Show progress bar and intermediate steps completion status?}
 
 \item{x}{An object of class \code{flowr}, typically returned by \code{\link{run_assignment}}.}
 }
 \value{
-A list containing:
+A list of class \code{"flowr"} containing:
   \itemize{
     \item \code{call} - The function call
-    \item \code{final_flows} - Numeric vector of assigned flows for each edge
-    \item Additional elements as specified in \code{return.extra}
+    \item \code{final_flows} - Numeric vector of assigned flows for each edge (same length as \code{nrow(graph_df)})
+    \item \code{od_pairs_used} - (if applicable) Indices of OD pairs with valid flows
+    \item Additional elements as specified in \code{return.extra}:
+      \itemize{
+        \item \code{graph} - The igraph graph object
+        \item \code{dmat} - Distance matrix with node IDs as dimnames
+        \item \code{paths} - List of paths for each OD pair
+        \item \code{edges} - List of edge indices used for each OD pair
+        \item \code{edge_counts} - List of edge visit counts for each OD pair
+        \item \code{path_costs} - List of path costs for each OD pair
+        \item \code{path_weights} - List of path weights (probabilities) for each OD pair
+      }
   }
 }
 \description{
 Assign traffic flows to network edges using path-sized logit (PSL) model.
 }
 \details{
-This function performs traffic assignment using a path-sized logit model:
+This function performs traffic assignment using a path-sized logit (PSL) model:
 \itemize{
-  \item Creates a graph from \code{graph_df} using igraph
-  \item Computes shortest path distance matrix for all node pairs
+  \item Creates a graph from \code{graph_df} using igraph, normalizing node IDs internally
+  \item Optionally computes shortest path distance matrix for all node pairs (if \code{precompute.dmat = TRUE})
   \item For each origin-destination pair in \code{od_matrix_long}:
     \itemize{
       \item Identifies alternative routes (detours) that are within \code{detour.max} of shortest path cost
+      \item If \code{angle.max} is specified, filters detours to those within the specified angle from origin to destination
       \item Finds shortest paths from origin to intermediate nodes and from intermediate nodes to destination
       \item Filters paths to remove those with duplicate edges
       \item Computes path-sized logit probabilities accounting for route overlap
-      \item Assigns flows to edges based on probabilities
+      \item Assigns flows to edges based on probabilities weighted by route overlap
     }
   \item Returns results including final flows and optionally additional information
 }
 
 The path-sized logit model accounts for route overlap by adjusting probabilities based on
 the number of alternative routes using each edge. Flows are assigned proportionally to
-the computed probabilities.
+the computed probabilities. The model uses the parameter \code{beta} to control the
+sensitivity to route overlap.
+
+When \code{angle.max} is specified and \code{graph_df} contains coordinate columns
+(\code{FX}, \code{FY}, \code{TX}, \code{TY}), the function uses geographic distance
+calculations to restrict detours to those within the specified angle, improving
+computational efficiency and route realism.
 }
 \examples{
 library(flowr)
@@ -109,10 +128,11 @@ print(result)
 # Visualize Results
 network_gcc$final_flows_log10 <- log10(result$final_flows + 1)
 
-library(mapview)
-mapview(network_gcc, zcol = "final_flows_log10") +
-  mapview(zones_gcc, alpha = 0, cex = 3,
-          col.regions = "red", alpha.regions = 0.8)
+mapview(network_gcc, zcol = "final_flows_log10",
+        layer.name = "Container Flows (Log10)") +
+mapview(zones_gcc, alpha = 0, cex = 3,
+        col.regions = "red", alpha.regions = 0.8,
+        layer.name = "Zone Nodes")
 }
 
 }
