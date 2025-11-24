@@ -249,10 +249,6 @@ run_assignment <- function(graph_df, od_matrix_long,
     short_detour_ij[d_ikj < d_ij + .Machine$double.eps*1e3] <- FALSE # Exclude nodes k that are on the shortest path
     # which(d_ij == d_ikj) # These are the nodes on the direct path from i to j which yield the shortest distance.
     ks <- which(short_detour_ij)
-    if(length(ks) == 0L) {
-      res$od_pairs_used[i] <- NA_integer_
-      next
-    }
     cost_ks <- d_ikj[ks]
 
     # We add the shortest path at the end of paths1
@@ -268,10 +264,6 @@ run_assignment <- function(graph_df, od_matrix_long,
 
     # Get indices of paths that do not contain duplicate edges
     no_dups <- .Call(C_check_path_duplicates, paths1, paths2, delta_ks)
-    if(length(no_dups) == 0L) {
-      res$od_pairs_used[i] <- NA_integer_
-      next
-    }
 
     # Now Path-Sized Logit: Need to compute overlap between routes
     # # Number of routes in choice set that use link j
@@ -301,6 +293,10 @@ run_assignment <- function(graph_df, od_matrix_long,
     # final_flows[shortest_path] <- final_flows[shortest_path] + flow[i] * prob_ks[length(prob_ks)]
     wi <- .Call(C_compute_path_sized_logit, paths1, paths2, no_dups, shortest_path,
                 cost, cost_ks, d_ij, beta, flow[i], delta_ks, final_flows, !retvals)
+    if(is.null(wi)) {
+      res$od_pairs_used[i] <- NA_integer_
+      next
+    }
 
     if(retvals) {
       if(pathsl) paths[[i]] <- c(list(as.integer(shortest_path)), lapply(no_dups,
