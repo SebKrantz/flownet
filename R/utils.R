@@ -334,7 +334,7 @@ normalize_graph <- function(graph_df) {
 #' @seealso \link{create_undirected_graph} \link{simplify_network} \link{flowr-package}
 #'
 #' @export
-#' @importFrom collapse fnrow get_vars anyv setv ss seq_row fcountv fduplicated fmatch whichv whichNA allNA ffirst GRP collap %!in% %!iin% join colorderv funique.default %!=% %==% missing_cases qtab flast fndistinct.default radixorderv groupv na_rm
+#' @importFrom collapse fnrow get_vars anyv setv ss seq_row fcountv fduplicated fmatch whichv whichNA allNA ffirst GRP collap %!in% %!iin% join colorderv funique.default %!=% %==% missing_cases qtab flast varying radixorderv groupv na_rm
 #' @importFrom stats setNames
 consolidate_graph <- function(graph_df, directed = FALSE,
                               drop.edges = c("loop", "duplicate", "single"),
@@ -424,7 +424,7 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
     by_id <- groupv(get_vars(graph_df, by))
     # We keep nodes where there are changes (e.g., different mode).
     keep.nodes <- funique.default(c(keep.nodes,
-     as.integer(names(which(fndistinct.default(c(by_id, by_id), c(graph_df$from, graph_df$to), na.rm = FALSE) > 1L)))))
+     as.integer(names(which(varying(c(by_id, by_id), c(graph_df$from, graph_df$to), any = FALSE))))))
   }
 
   if(anyv(drop.edges, "loop") && length(loop <- gft$from %==% gft$to)) {
@@ -757,10 +757,10 @@ simplify_network <- function(x, od_matrix_long, cost.column = NULL,
 melt_od_matrix <- function(od_matrix) {
   if(!is.matrix(od_matrix)) stop("od_matrix must be a matrix")
   if(!is.numeric(od_matrix)) stop("od_matrix must be numeric")
-  
+
   # Get row and column names, coerce to integer if possible
   dn <- dimnames(od_matrix)
-  
+
   # Try to coerce row names to integer
   if(!is.null(dn[[1L]])) {
     row_ids <- as.integer(dn[[1L]])
@@ -768,7 +768,7 @@ melt_od_matrix <- function(od_matrix) {
   } else {
     row_ids <- seq_row(od_matrix)
   }
-  
+
   # Try to coerce column names to integer
   if(!is.null(dn[[2L]])) {
     col_ids <- as.integer(dn[[2L]])
@@ -776,7 +776,7 @@ melt_od_matrix <- function(od_matrix) {
   } else {
     col_ids <- seq_len(ncol(od_matrix))
   }
-  
+
   # Create long format data frame
   data.frame(
     from = rep.int(row_ids, ncol(od_matrix)),
