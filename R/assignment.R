@@ -146,9 +146,14 @@ run_assignment <- function(graph_df, od_matrix_long,
 
   geol <- is.finite(angle.max) && angle.max > 0 && angle.max < 180
   if(geol) {
-    nodes_df <- nodes_from_graph(graph_df, sf = FALSE)
-    X <- nodes_df$X
-    Y <- nodes_df$Y
+    if(!all(c("FX", "FY", "TX", "TY") %in% names(graph_df))) {
+      geol <- FALSE
+      message("graph_df needs to have columns FX, FY, TX and TY to compute angle-based detour restrictions")
+    } else {
+      nodes_df <- nodes_from_graph(graph_df, sf = FALSE)
+      X <- nodes_df$X
+      Y <- nodes_df$Y
+    }
   }
 
   # Distance Matrix
@@ -157,12 +162,7 @@ run_assignment <- function(graph_df, od_matrix_long,
     if(nrow(dmat) != ncol(dmat)) stop("Distance matrix must be square")
     if(anyv(return.extra, "dmat")) res$dmat <- setDimnames(dmat, list(nodes, nodes))
     dimnames(dmat) <- NULL
-    if(geol) {
-      if(!all(c("FX", "FY", "TX", "TY") %in% names(graph_df))) {
-        geol <- FALSE
-        message("graph_df needs to have columns FX, FY, TX and TY to compute angle-based detour restrictions")
-      } else dmat_geo <- geodist_vec(X, Y, measure = "haversine")
-    }
+    if(geol) dmat_geo <- geodist_vec(X, Y, measure = "haversine")
     if(verbose) cat("Computed distance matrix of dimensions", nrow(dmat), "x", ncol(dmat), "...\n")
   } else v <- V(g)
 
