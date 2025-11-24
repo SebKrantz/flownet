@@ -5,6 +5,8 @@
 #define SEXPPTR_RO(x) ((const SEXP *)DATAPTR_RO(x))  // to avoid overhead of looped VECTOR_ELT
 #endif
 
+static double POS_INF = 1.0/0.0;
+
 /**
  * compute_path_sized_logit
  *
@@ -131,13 +133,11 @@ SEXP compute_path_sized_logit(SEXP paths1, SEXP paths2, SEXP no_dups, SEXP short
   prob_ptr[0] = exp(-d_ij_val + beta_PSL_val * log(gamma_1));
   sum_exp += prob_ptr[0];
 
-  // Normalize to get probabilities
-  for (int i = 0; i <= n_no_dups; i++) {
-    prob_ptr[i] /= sum_exp;
-  }
+  int invalid_sum = 0;
+  if(sum_exp != sum_exp || sum_exp <= 0 || sum_exp >= POS_INF) invalid_sum = 1;
 
   // Step 4: Reset delta_ks if requested (to reuse buffer for next OD pair)
-  if(LOGICAL(free_delta_ks)[0]) {
+  if(invalid_sum || LOGICAL(free_delta_ks)[0]) {
     for (int idx = 0; idx < n_no_dups; idx++) {
       int k = no_dups_ptr[idx] - 1;
       int len1 = length(paths1_ptr[k]);
@@ -150,20 +150,32 @@ SEXP compute_path_sized_logit(SEXP paths1, SEXP paths2, SEXP no_dups, SEXP short
     for (int i = 0; i < shortest_path_len; i++) delta_ptr[(int)shortest_path_ptr[i]] = 0;
   }
 
+  if(invalid_sum) {
+    UNPROTECT(1);
+    return R_NilValue;
+  }
+
+  // Normalize to get probabilities
+  for (int i = 0; i <= n_no_dups; i++) prob_ptr[i] /= sum_exp;
+
   // Step 5: Update final_flows with fractional flow assigned to each edge, for each alternative (including shortest path)
   for (int idx = 0; idx < n_no_dups; idx++) {
+    double prob_val = flow_val * prob_ptr[idx+1];
+    if(prob_val != prob_val || prob_val <= 0) continue;
     int k = no_dups_ptr[idx] - 1;
     int len1 = length(paths1_ptr[k]);
     int len2 = length(paths2_ptr[k]);
     double *p1 = REAL(paths1_ptr[k]);
     double *p2 = REAL(paths2_ptr[k]);
-    double prob_val = flow_val * prob_ptr[idx+1];
     for (int i = 0; i < len1; i++) final_flows_ptr[(int)p1[i] - 1] += prob_val;
     for (int i = 0; i < len2; i++) final_flows_ptr[(int)p2[i] - 1] += prob_val;
   }
+
   sum_exp = flow_val * prob_ptr[0];
-  for (int i = 0; i < shortest_path_len; i++) {
-    final_flows_ptr[(int)shortest_path_ptr[i] - 1] += sum_exp;
+  if(sum_exp == sum_exp && sum_exp > 0) {
+    for (int i = 0; i < shortest_path_len; i++) {
+      final_flows_ptr[(int)shortest_path_ptr[i] - 1] += sum_exp;
+    }
   }
 
   UNPROTECT(1);
