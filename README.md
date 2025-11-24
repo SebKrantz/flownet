@@ -31,23 +31,28 @@ remotes::install_github("SebKrantz/flowr")
 
 ### Basic Usage
 
-```r
+``` r
 library(flowr)
 
 # Create a small graph data frame
 graph <- data.frame(from = c(1, 2, 2, 3),
-  to = c(2, 3, 4, 4), cost = c(5, 3, 2, 4))
+                    to = c(2, 3, 4, 4), cost = c(5, 3, 2, 4))
 
 # Prepare OD matrix with the same node IDs as in graph
 od_matrix_long <- data.frame(from = c(1, 2, 3),
-  to = c(4, 4, 4), flow = c(100, 80, 60))
+                             to = c(4, 4, 4), flow = c(100, 80, 60))
 
 # Run traffic assignment (and route enumeration)
-result <- run_assignment(graph, od_matrix_long)
+result <- run_assignment(graph, od_matrix_long, angle.max = NA)
+#> Created graph with 4 nodes and 4 edges...
+#> Computed distance matrix of dimensions 4 x 4 ...
 
 # Access results
 result$final_flows
+#> [1] 100.00000  16.13649 196.13649  43.86351
 ```
+
+<sup>Created on 2025-11-24 with [reprex v2.1.1](https://reprex.tidyverse.org)</sup>
 
 ### Working with Spatial Networks
 
