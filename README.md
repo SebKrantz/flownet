@@ -18,6 +18,9 @@
 ```r
 # Install development version from GitHub
 remotes::install_github("CPCS-IAU/flowr")
+
+# Alternatively download the repo, extract it, and run
+install.packages("path/to/flowr", repos = NULL, type = "source")
 ```
 
 ## Dependencies
