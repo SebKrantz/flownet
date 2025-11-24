@@ -3,7 +3,7 @@
 S3method(print,flowr)
 export(consolidate_graph)
 export(create_undirected_graph)
-export(dist_mat_from_graph)
+export(distances_from_graph)
 export(linestrings_from_graph)
 export(linestrings_to_graph)
 export(melt_od_matrix)

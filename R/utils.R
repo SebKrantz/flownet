@@ -215,7 +215,7 @@ nodes_from_graph <- function(graph_df, sf = FALSE, crs = 4326) {
 #' @export
 #' @importFrom collapse fselect fnrow funique.default
 #' @importFrom igraph graph_from_data_frame distances
-dist_mat_from_graph <- function(graph_df, directed = FALSE, cost.column = "cost", ...) {
+distances_from_graph <- function(graph_df, directed = FALSE, cost.column = "cost", ...) {
   cost <- if(is.character(cost.column) && length(cost.column) == 1L) graph_df[[cost.column]] else
     if(is.numeric(cost.column) && length(cost.column) == fnrow(graph_df)) cost.column else
     stop("cost.column needs to be a column name in graph_df or a numeric vector matching nrow(graph_df)")
