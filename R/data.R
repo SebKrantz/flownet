@@ -51,7 +51,7 @@
 #' @source
 #' Internal dataset for transport modeling in the GCC region.
 #'
-#' @seealso \link{flowr-package}
+#' @seealso \code{\link{zones_gcc}} \code{\link{od_matrices}} \link{flowr-package}
 #'
 #' @examples
 #' library(sf)
@@ -101,21 +101,21 @@
 #' @source
 #' Internal dataset for transport modeling in the GCC region.
 #'
-#' @seealso \code{\link{network_gcc}}, \code{\link[=melt_od_matrix]{melt_od_matrix()}}, \code{\link[=run_assignment]{run_assignment()}}, \link{flowr-package}
+#' @seealso \code{\link{zones_gcc}}, \code{\link{network_gcc}}, \code{\link[=melt_od_matrix]{melt_od_matrix()}}, \code{\link[=run_assignment]{run_assignment()}}, \link{flowr-package}
 #'
 #' @examples
 #' str(od_matrices_gcc)
-#' 
+#'
 #' # Access individual cargo type matrices
 #' od_matrices_gcc$container
 #' od_matrices_gcc$dry_bulk
-#' 
+#'
 #' # Check dimensions
 #' dim(od_matrices_gcc$container)
-#' 
+#'
 #' # View flows from node 1
 #' od_matrices_gcc$container["1", ]
-#' 
+#'
 #' # Convert matrix to long format for use with run_assignment()
 #' od_matrix_long <- melt_od_matrix(od_matrices_gcc$container)
 #' head(od_matrix_long)
@@ -167,10 +167,10 @@
 #' @examples
 #' library(sf)
 #' head(zones_gcc)
-#' 
+#'
 #' # Get zone coordinates
 #' st_coordinates(zones_gcc)
-#' 
+#'
 #' # Find zones in a specific country
 #' zones_gcc[zones_gcc$country == "Iraq", ]
 #'
