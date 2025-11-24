@@ -68,3 +68,7 @@ reference:
   - nodes_from_graph
   - linestrings_from_graph
   - dist_mat_from_graph
+- title: "OD-Matrix Utilities"
+  desc: "Utility functions to reshape origin-destination flow/trip matrices."
+- contents:
+  - melt_od_matrix
