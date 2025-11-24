@@ -7,11 +7,17 @@
 melt_od_matrix(od_matrix, nodes = NULL)
 }
 \arguments{
-\item{od_matrix}{A numeric matrix with origin-destination flows.}
+\item{od_matrix}{A numeric matrix with origin-destination flows. Rows represent origins,
+columns represent destinations. The matrix should be square (same number of rows and columns).}
 
-\item{nodes}{(Optional) a vector of node IDs in the graph matching the rows and columns of the matrix. If omitted, row and column names
-(if present) will be used as node IDs, coerced to integer if possible. If names are
-not available or cannot be coerced to integer, sequential integers will be used.}
+\item{nodes}{(Optional) Numeric or integer vector of node IDs in the graph matching the rows
+and columns of the matrix. If provided, must have length equal to both \code{nrow(od_matrix)}
+and \code{ncol(od_matrix)}. When \code{nodes} is provided, these IDs are used directly,
+ignoring row and column names. This is particularly useful when mapping zone-based OD matrices
+to graph node IDs (e.g., using \code{\link[sf]{st_nearest_feature}} to find nearest graph nodes).
+If omitted, row and column names (if present) will be used as node IDs, coerced to integer
+if possible. If names are not available or cannot be coerced to integer, sequential integers
+will be used.}
 }
 \value{
 A data frame with columns:
@@ -27,11 +33,28 @@ Convert an origin-destination (OD) matrix to a long-format data frame
   with columns \code{from}, \code{to}, and \code{flow}.
 }
 \details{
-This function:
+This function converts a square OD matrix to long format, which is required by
+\code{\link[=run_assignment]{run_assignment()}}. The behavior depends on whether \code{nodes}
+is provided:
+
+\strong{When \code{nodes} is provided:}
 \itemize{
-  \item Extracts row and column names from the matrix (if available)
-  \item Attempts to coerce names to integer; if not possible or names are missing,
-    uses sequential integers from \code{seq_row()} and \code{seq_len(ncol())}
+  \item The \code{nodes} vector is used directly as node IDs for both origins and destinations
+  \item Row and column names are ignored (but must match if both are present)
+  \item This is the recommended approach when working with zone-based OD matrices that need to be
+    mapped to graph nodes, as it ensures the node IDs match those in the graph
+}
+
+\strong{When \code{nodes} is omitted:}
+\itemize{
+  \item Row and column names are extracted from the matrix (if available)
+  \item Names are coerced to integer if possible; if coercion fails or names are missing,
+    sequential integers are used
+  \item This approach works well when the matrix row/column names already correspond to graph node IDs
+}
+
+In both cases, the function:
+\itemize{
   \item Creates a long-format data frame with all origin-destination pairs
   \item Filters out non-finite and zero flow values
 }
@@ -39,6 +62,29 @@ This function:
 The function is useful for converting OD matrices (such as those in \code{\link{od_matrices_gcc}})
 to the long format required by \code{\link[=run_assignment]{run_assignment()}}.
 }
+\examples{
+library(flowr)
+library(sf)
+
+# Example 1: Using nodes argument to map zones to graph nodes
+# Load Graph
+graph <- linestrings_to_graph(network_gcc)
+nodes <- nodes_from_graph(graph, sf = TRUE)
+
+# Map Zones to Nodes
+nearest_nodes <- nodes$node[st_nearest_feature(zones_gcc, nodes)]
+
+# Convert OD matrix with node mapping
+od_matrix_long <- melt_od_matrix(od_matrices_gcc$container, nodes = nearest_nodes)
+head(od_matrix_long)
+
+# Example 2: Using matrix row/column names (when they match graph node IDs)
+# If matrix names already correspond to graph nodes, nodes argument can be omitted
+od_matrix_long2 <- melt_od_matrix(od_matrices_gcc$container)
+head(od_matrix_long2)
+
+}
 \seealso{
-\code{\link{od_matrices_gcc}}, \code{\link[=run_assignment]{run_assignment()}}, \link{flowr-package}
+\code{\link{od_matrices_gcc}}, \code{\link{zones_gcc}}, \code{\link[=nodes_from_graph]{nodes_from_graph()}},
+  \code{\link[=run_assignment]{run_assignment()}}, \link{flowr-package}
 }
