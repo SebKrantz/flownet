@@ -104,6 +104,7 @@ linestrings_from_graph <- function(graph_df, crs = 4326) {
 #'
 #' @param graph_df A data frame representing a directed graph including columns:
 #'   \code{from}, \code{to}, and (optionally) \code{edge}, \code{FX}, \code{FY}, \code{TX}, \code{TY}.
+#' @param by Link characteristics to preserve/not aggregate across, passed as a one-sided formula or character vector of column names. Typically this includes attributes like \emph{mode}, \emph{type}, or \emph{capacity} to ensure that only edges with the same characteristics are aggregated.
 #' @param \dots Arguments passed to \code{\link[collapse]{collap}()} for aggregation across duplicated (diretional) edges. The defaults are \code{FUN = fmean} for numeric columns and \code{catFUN = fmode} for categorical columns. Select columns using \code{cols} or use argument \code{custom = list(fmean = cols1, fsum = cols2, fmode = cols3)} to map different columns to specific aggregation functions. You can weight the aggregation (using \code{w = ~ weight_col}).
 #'
 #' @return A data frame representing an undirected graph with:
@@ -130,12 +131,16 @@ linestrings_from_graph <- function(graph_df, crs = 4326) {
 #'
 #' @export
 #' @importFrom collapse ftransform GRP get_vars add_vars add_vars<- ffirst colorderv %!in% collap
-create_undirected_graph <- function(graph_df, ...) {
+create_undirected_graph <- function(graph_df, by = NULL, ...) {
+  if(length(by)) {
+    if(is.call(by)) by <- all.vars(by)
+    if(!is.character(by)) stop("by needs to be a one-sided formula or a character vector of column names")
+  }
   graph_df <- ftransform(graph_df, from = pmin(from, to), to = pmax(from, to))
-  g <- GRP(graph_df, ~ from + to, sort = FALSE)
+  g <- GRP(graph_df, c("from", "to", by), sort = FALSE)
   nam <- names(graph_df)
   agg_first <- c("edge", "FX", "FY", "TX", "TY")
-  ord <- c("edge", "from", "FX", "FY", "to", "TX", "TY")
+  ord <- c("edge", "from", "FX", "FY", "to", "TX", "TY", by)
   res <- g$groups
   if(any(nam %in% agg_first)) {
     add_vars(res) <- ffirst(get_vars(graph_df, nam[nam %in% agg_first]), g, use.g.names = FALSE)
