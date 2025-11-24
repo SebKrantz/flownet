@@ -730,7 +730,8 @@ simplify_network <- function(x, od_matrix_long, cost.column = NULL,
 #' @description Convert an origin-destination (OD) matrix to a long-format data frame
 #'   with columns \code{from}, \code{to}, and \code{flow}.
 #'
-#' @param od_matrix A numeric matrix with origin-destination flows. Row and column names
+#' @param od_matrix A numeric matrix with origin-destination flows.
+#' @param nodes (Optional) a vector of node IDs in the graph matching the rows and columns of the matrix. If omitted, row and column names
 #'   (if present) will be used as node IDs, coerced to integer if possible. If names are
 #'   not available or cannot be coerced to integer, sequential integers will be used.
 #'
@@ -758,33 +759,34 @@ simplify_network <- function(x, od_matrix_long, cost.column = NULL,
 #' @seealso \code{\link{od_matrices_gcc}}, \code{\link[=run_assignment]{run_assignment()}}, \link{flowr-package}
 #'
 #' @export
-#' @importFrom collapse vec fsubset seq_row
-melt_od_matrix <- function(od_matrix) {
+#' @importFrom collapse vec fsubset seq_row seq_col all_identical
+melt_od_matrix <- function(od_matrix, nodes = NULL) {
   if(!is.matrix(od_matrix)) stop("od_matrix must be a matrix")
   if(!is.numeric(od_matrix)) stop("od_matrix must be numeric")
 
-  # Get row and column names, coerce to integer if possible
   dn <- dimnames(od_matrix)
 
-  # Try to coerce row names to integer
-  if(!is.null(dn[[1L]])) {
-    row_ids <- as.integer(dn[[1L]])
-    if(anyNA(row_ids)) row_ids <- seq_row(od_matrix)
+  if(length(nodes)) {
+    if(length(nodes) != nrow(od_matrix)) stop("Length of nodes must match number of rows in od_matrix")
+    if(length(nodes) != ncol(od_matrix)) stop("Length of nodes must match number of columns in od_matrix")
+    if(length(dn) && !all_identical(dn)) stop("Row- and column-names of od_matrix must match if nodes are provided")
+    row_ids <- col_ids <- nodes
   } else {
-    row_ids <- seq_row(od_matrix)
-  }
-
-  # Try to coerce column names to integer
-  if(!is.null(dn[[2L]])) {
-    col_ids <- as.integer(dn[[2L]])
-    if(anyNA(col_ids)) col_ids <- seq_len(ncol(od_matrix))
-  } else {
-    col_ids <- seq_len(ncol(od_matrix))
+    # Try to coerce row names to integer
+    if(!is.null(dn[[1L]])) {
+      row_ids <- as.integer(dn[[1L]])
+      if(anyNA(row_ids)) row_ids <- seq_row(od_matrix)
+    } else row_ids <- seq_row(od_matrix)
+    # Try to coerce column names to integer
+    if(!is.null(dn[[2L]])) {
+      col_ids <- as.integer(dn[[2L]])
+      if(anyNA(col_ids)) col_ids <- seq_len(ncol(od_matrix))
+    } else col_ids <- seq_col(od_matrix)
   }
 
   # Create long format data frame
   data.frame(
-    from = rep.int(row_ids, ncol(od_matrix)),
+    from = rep(row_ids, ncol(od_matrix)),
     to = rep(col_ids, each = nrow(od_matrix)),
     flow = vec(od_matrix)
   ) |>
