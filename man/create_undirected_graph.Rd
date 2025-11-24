@@ -4,11 +4,13 @@
 \alias{create_undirected_graph}
 \title{Create Undirected Graph}
 \usage{
-create_undirected_graph(graph_df, ...)
+create_undirected_graph(graph_df, by = NULL, ...)
 }
 \arguments{
 \item{graph_df}{A data frame representing a directed graph including columns:
 \code{from}, \code{to}, and (optionally) \code{edge}, \code{FX}, \code{FY}, \code{TX}, \code{TY}.}
+
+\item{by}{Link characteristics to preserve/not aggregate across, passed as a one-sided formula or character vector of column names. Typically this includes attributes like \emph{mode}, \emph{type}, or \emph{capacity} to ensure that only edges with the same characteristics are aggregated.}
 
 \item{\dots}{Arguments passed to \code{\link[collapse]{collap}()} for aggregation across duplicated (diretional) edges. The defaults are \code{FUN = fmean} for numeric columns and \code{catFUN = fmode} for categorical columns. Select columns using \code{cols} or use argument \code{custom = list(fmean = cols1, fsum = cols2, fmode = cols3)} to map different columns to specific aggregation functions. You can weight the aggregation (using \code{w = ~ weight_col}).}
 }

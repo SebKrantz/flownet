@@ -65,6 +65,6 @@ plot(network_gcc["mode"])
 
 }
 \seealso{
-\link{flowr-package}
+\code{\link{zones_gcc}} \code{\link{od_matrices_gcc}} \link{flowr-package}
 }
 \keyword{datasets}

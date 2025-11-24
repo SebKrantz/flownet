@@ -22,10 +22,10 @@
 #'
 #' \strong{Graph Utilities}
 #'
-#'  \code{\link[=nodes_from_graph]{nodes_from_graph()}} --- Extract unique nodes from graph\cr
 #'  \code{\link[=normalize_graph]{normalize_graph()}} --- Normalize node IDs to consecutive integers\cr
+#'  \code{\link[=nodes_from_graph]{nodes_from_graph()}} --- Extract unique nodes from graph\cr
 #'  \code{\link[=linestrings_from_graph]{linestrings_from_graph()}} --- Convert graph to LINESTRING geometries\cr
-#'  \code{\link[=dist_mat_from_graph]{dist_mat_from_graph()}} --- Compute distance matrix from graph\cr
+#'  \code{\link[=distances_from_graph]{distances_from_graph()}} --- Compute distance matrix from graph\cr
 #'
 #'
 #' \strong{OD Matrix Utilities}
@@ -37,6 +37,7 @@
 #'
 #'  \code{\link{network_gcc}} --- Multimodal transport network for the Gulf Cooperation Council (GCC) region\cr
 #'  \code{\link{od_matrices_gcc}} --- Origin-destination matrices for five cargo types in the GCC region\cr
+#'  \code{\link{zones_gcc}} --- Zone locations and descriptions for OD-matrix locations in the GCC region\cr
 #'
 #' @details
 #' The package uses efficient C implementations for critical path operations and leverages:

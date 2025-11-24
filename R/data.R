@@ -51,7 +51,7 @@
 #' @source
 #' Internal dataset for transport modeling in the GCC region.
 #'
-#' @seealso \link{flowr-package}
+#' @seealso \code{\link{zones_gcc}} \code{\link{od_matrices_gcc}} \link{flowr-package}
 #'
 #' @examples
 #' library(sf)
@@ -101,24 +101,78 @@
 #' @source
 #' Internal dataset for transport modeling in the GCC region.
 #'
-#' @seealso \code{\link{network_gcc}}, \code{\link[=melt_od_matrix]{melt_od_matrix()}}, \code{\link[=run_assignment]{run_assignment()}}, \link{flowr-package}
+#' @seealso \code{\link{zones_gcc}}, \code{\link{network_gcc}}, \code{\link[=melt_od_matrix]{melt_od_matrix()}}, \code{\link[=run_assignment]{run_assignment()}}, \link{flowr-package}
 #'
 #' @examples
 #' str(od_matrices_gcc)
-#' 
+#'
 #' # Access individual cargo type matrices
 #' od_matrices_gcc$container
 #' od_matrices_gcc$dry_bulk
-#' 
+#'
 #' # Check dimensions
 #' dim(od_matrices_gcc$container)
-#' 
+#'
 #' # View flows from node 1
 #' od_matrices_gcc$container["1", ]
-#' 
+#'
 #' # Convert matrix to long format for use with run_assignment()
 #' od_matrix_long <- melt_od_matrix(od_matrices_gcc$container)
 #' head(od_matrix_long)
 #'
 "od_matrices_gcc"
+
+#' Zone Locations for the Gulf Cooperation Council (GCC) Region
+#'
+#' @name zones_gcc
+#' @description
+#' A spatial dataset containing point locations and descriptions for the 115 zones
+#' used in the origin-destination matrices for the GCC region. Each zone represents
+#' a geographic location (city, region, or country) that serves as an origin or
+#' destination in the transport network.
+#'
+#' @format
+#' A Simple feature collection (sf object) with 115 POINT features and 3 fields:
+#' \describe{
+#'   \item{no}{Numeric. Zone identifier (1 to 115), corresponding to the row and column
+#'   indices in \code{\link{od_matrices_gcc}}.}
+#'   \item{name}{Character. Place name or description of the zone (e.g., "Bahrain",
+#'   "Basrah", "Central Asia").}
+#'   \item{country}{Character. Country or region name where the zone is located
+#'   (e.g., "Bahrain", "Iraq", "Africa", "Central Asia").}
+#'   \item{geometry}{POINT. Spatial geometry in WGS 84 (EPSG:4326) coordinate reference system,
+#'   representing the zone centroid coordinates.}
+#' }
+#'
+#' @details
+#' The zones correspond to the node structure used in \code{\link{od_matrices_gcc}} and
+#' \code{\link{network_gcc}}. Zone numbers match the row and column names in the OD matrices,
+#' allowing for spatial analysis and visualization of trade flows between zones.
+#'
+#' The dataset covers the GCC region and surrounding areas, including zones in:
+#' \itemize{
+#'   \item GCC countries (Bahrain, Saudi Arabia, United Arab Emirates, Oman, Yemen, etc.)
+#'   \item Middle Eastern countries (Iraq, Turkey, etc.)
+#'   \item Regional aggregations (Africa, Central Asia, Europe, etc.)
+#' }
+#'
+#' @usage
+#' data(zones_gcc)
+#'
+#' @source
+#' Internal dataset for transport modeling in the GCC region.
+#'
+#' @seealso \code{\link{network_gcc}}, \code{\link{od_matrices_gcc}}, \link{flowr-package}
+#'
+#' @examples
+#' library(sf)
+#' head(zones_gcc)
+#'
+#' # Get zone coordinates
+#' st_coordinates(zones_gcc)
+#'
+#' # Find zones in a specific country
+#' zones_gcc[zones_gcc$country == "Iraq", ]
+#'
+"zones_gcc"
 

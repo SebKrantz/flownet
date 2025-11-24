@@ -4,10 +4,12 @@
 \alias{melt_od_matrix}
 \title{Melt Origin-Destination Matrix to Long Format}
 \usage{
-melt_od_matrix(od_matrix)
+melt_od_matrix(od_matrix, nodes = NULL)
 }
 \arguments{
-\item{od_matrix}{A numeric matrix with origin-destination flows. Row and column names
+\item{od_matrix}{A numeric matrix with origin-destination flows.}
+
+\item{nodes}{(Optional) a vector of node IDs in the graph matching the rows and columns of the matrix. If omitted, row and column names
 (if present) will be used as node IDs, coerced to integer if possible. If names are
 not available or cannot be coerced to integer, sequential integers will be used.}
 }

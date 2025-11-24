@@ -104,6 +104,7 @@ linestrings_from_graph <- function(graph_df, crs = 4326) {
 #'
 #' @param graph_df A data frame representing a directed graph including columns:
 #'   \code{from}, \code{to}, and (optionally) \code{edge}, \code{FX}, \code{FY}, \code{TX}, \code{TY}.
+#' @param by Link characteristics to preserve/not aggregate across, passed as a one-sided formula or character vector of column names. Typically this includes attributes like \emph{mode}, \emph{type}, or \emph{capacity} to ensure that only edges with the same characteristics are aggregated.
 #' @param \dots Arguments passed to \code{\link[collapse]{collap}()} for aggregation across duplicated (diretional) edges. The defaults are \code{FUN = fmean} for numeric columns and \code{catFUN = fmode} for categorical columns. Select columns using \code{cols} or use argument \code{custom = list(fmean = cols1, fsum = cols2, fmode = cols3)} to map different columns to specific aggregation functions. You can weight the aggregation (using \code{w = ~ weight_col}).
 #'
 #' @return A data frame representing an undirected graph with:
@@ -130,12 +131,16 @@ linestrings_from_graph <- function(graph_df, crs = 4326) {
 #'
 #' @export
 #' @importFrom collapse ftransform GRP get_vars add_vars add_vars<- ffirst colorderv %!in% collap
-create_undirected_graph <- function(graph_df, ...) {
+create_undirected_graph <- function(graph_df, by = NULL, ...) {
+  if(length(by)) {
+    if(is.call(by)) by <- all.vars(by)
+    if(!is.character(by)) stop("by needs to be a one-sided formula or a character vector of column names")
+  }
   graph_df <- ftransform(graph_df, from = pmin(from, to), to = pmax(from, to))
-  g <- GRP(graph_df, ~ from + to, sort = FALSE)
+  g <- GRP(graph_df, c("from", "to", by), sort = FALSE)
   nam <- names(graph_df)
   agg_first <- c("edge", "FX", "FY", "TX", "TY")
-  ord <- c("edge", "from", "FX", "FY", "to", "TX", "TY")
+  ord <- c("edge", "from", "FX", "FY", "to", "TX", "TY", by)
   res <- g$groups
   if(any(nam %in% agg_first)) {
     add_vars(res) <- ffirst(get_vars(graph_df, nam[nam %in% agg_first]), g, use.g.names = FALSE)
@@ -210,7 +215,7 @@ nodes_from_graph <- function(graph_df, sf = FALSE, crs = 4326) {
 #' @export
 #' @importFrom collapse fselect fnrow funique.default
 #' @importFrom igraph graph_from_data_frame distances
-dist_mat_from_graph <- function(graph_df, directed = FALSE, cost.column = "cost", ...) {
+distances_from_graph <- function(graph_df, directed = FALSE, cost.column = "cost", ...) {
   cost <- if(is.character(cost.column) && length(cost.column) == 1L) graph_df[[cost.column]] else
     if(is.numeric(cost.column) && length(cost.column) == fnrow(graph_df)) cost.column else
     stop("cost.column needs to be a column name in graph_df or a numeric vector matching nrow(graph_df)")
@@ -725,7 +730,8 @@ simplify_network <- function(x, od_matrix_long, cost.column = NULL,
 #' @description Convert an origin-destination (OD) matrix to a long-format data frame
 #'   with columns \code{from}, \code{to}, and \code{flow}.
 #'
-#' @param od_matrix A numeric matrix with origin-destination flows. Row and column names
+#' @param od_matrix A numeric matrix with origin-destination flows.
+#' @param nodes (Optional) a vector of node IDs in the graph matching the rows and columns of the matrix. If omitted, row and column names
 #'   (if present) will be used as node IDs, coerced to integer if possible. If names are
 #'   not available or cannot be coerced to integer, sequential integers will be used.
 #'
@@ -753,33 +759,34 @@ simplify_network <- function(x, od_matrix_long, cost.column = NULL,
 #' @seealso \code{\link{od_matrices_gcc}}, \code{\link[=run_assignment]{run_assignment()}}, \link{flowr-package}
 #'
 #' @export
-#' @importFrom collapse vec fsubset seq_row
-melt_od_matrix <- function(od_matrix) {
+#' @importFrom collapse vec fsubset seq_row seq_col all_identical
+melt_od_matrix <- function(od_matrix, nodes = NULL) {
   if(!is.matrix(od_matrix)) stop("od_matrix must be a matrix")
   if(!is.numeric(od_matrix)) stop("od_matrix must be numeric")
 
-  # Get row and column names, coerce to integer if possible
   dn <- dimnames(od_matrix)
 
-  # Try to coerce row names to integer
-  if(!is.null(dn[[1L]])) {
-    row_ids <- as.integer(dn[[1L]])
-    if(anyNA(row_ids)) row_ids <- seq_row(od_matrix)
+  if(length(nodes)) {
+    if(length(nodes) != nrow(od_matrix)) stop("Length of nodes must match number of rows in od_matrix")
+    if(length(nodes) != ncol(od_matrix)) stop("Length of nodes must match number of columns in od_matrix")
+    if(length(dn) && !all_identical(dn)) stop("Row- and column-names of od_matrix must match if nodes are provided")
+    row_ids <- col_ids <- nodes
   } else {
-    row_ids <- seq_row(od_matrix)
-  }
-
-  # Try to coerce column names to integer
-  if(!is.null(dn[[2L]])) {
-    col_ids <- as.integer(dn[[2L]])
-    if(anyNA(col_ids)) col_ids <- seq_len(ncol(od_matrix))
-  } else {
-    col_ids <- seq_len(ncol(od_matrix))
+    # Try to coerce row names to integer
+    if(!is.null(dn[[1L]])) {
+      row_ids <- as.integer(dn[[1L]])
+      if(anyNA(row_ids)) row_ids <- seq_row(od_matrix)
+    } else row_ids <- seq_row(od_matrix)
+    # Try to coerce column names to integer
+    if(!is.null(dn[[2L]])) {
+      col_ids <- as.integer(dn[[2L]])
+      if(anyNA(col_ids)) col_ids <- seq_len(ncol(od_matrix))
+    } else col_ids <- seq_col(od_matrix)
   }
 
   # Create long format data frame
   data.frame(
-    from = rep.int(row_ids, ncol(od_matrix)),
+    from = rep(row_ids, ncol(od_matrix)),
     to = rep(col_ids, each = nrow(od_matrix)),
     flow = vec(od_matrix)
   ) |>

@@ -57,6 +57,6 @@ head(od_matrix_long)
 
 }
 \seealso{
-\code{\link{network_gcc}}, \code{\link[=melt_od_matrix]{melt_od_matrix()}}, \code{\link[=run_assignment]{run_assignment()}}, \link{flowr-package}
+\code{\link{zones_gcc}}, \code{\link{network_gcc}}, \code{\link[=melt_od_matrix]{melt_od_matrix()}}, \code{\link[=run_assignment]{run_assignment()}}, \link{flowr-package}
 }
 \keyword{datasets}
