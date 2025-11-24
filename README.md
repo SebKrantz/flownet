@@ -17,7 +17,7 @@
 
 ```r
 # Install development version from GitHub
-remotes::install_github("SebKrantz/flowr")
+remotes::install_github("CPCS-IAU/flowr")
 ```
 
 ## Dependencies
