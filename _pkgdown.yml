@@ -78,3 +78,9 @@ reference:
   - network_gcc
   - od_matrices_gcc
   - zones_gcc
+
+articles:
+  - title: Introduction to flows
+    desc: Introduces the package, including a walk-through of all main features.
+    contents:
+    - introduction

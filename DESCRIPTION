@@ -23,6 +23,7 @@ Imports:
     geodist (>= 0.1.1),
     progress (>= 1.2.3)
 Suggests:
+    fastverse (>= 0.3.4),
     mapview (>= 2.11.2),
     testthat (>= 3.0.0),
     knitr,
@@ -30,3 +31,4 @@ Suggests:
 LazyData: true
 NeedsCompilation: yes
 RoxygenNote: 7.3.2
+VignetteBuilder: knitr
