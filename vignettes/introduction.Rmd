@@ -129,6 +129,8 @@ Now we can run the traffic assignment using the path-sized logit model. The `run
 - Computes path probabilities accounting for route overlap
 - Assigns flows to network edges
 
+In many applications, the default settings (`beta = 1`, `detour.max = 1.5`, `angle.max = 90`) already provide a good trade-off between behavioral realism and computational cost.
+
 ```{r run-assignment}
 # Run Traffic Assignment
 result <- run_assignment(graph, od_matrix_long, cost = "generalized_cost",
@@ -288,7 +290,7 @@ Where:
 - If a path shares edges with many other routes ($\delta_a > 1$), then $PS_k < 1$ and $\ln(PS_k) < 0$.
 - The term $\beta_{PSL} \ln(PS_k)$ acts as a correction. Since $\ln(PS_k)$ is negative for overlapping routes, a **positive** $\beta_{PSL}$ (default 1) is required to ensure that overlapping paths have lower utility (penalization).
 
-This formulation ensures that the model assigns lower probabilities to routes that are largely duplicates of others, distributing flow more realistically across truly distinct alternatives.
+This formulation ensures that the model assigns lower probabilities to routes that are largely duplicates of others, distributing flow more realistically across truly distinct alternatives. In practice, a value of $\beta_{PSL} = 1$ is a sensible default; higher values strengthen the penalization of overlapping routes and lower values make the model behave more like a standard MNL.
 
 ### Network Processing Functions
 
@@ -328,7 +330,7 @@ This formulation ensures that the model assigns lower probabilities to routes th
 
 - **`detour.max`**: Start with the default (1.5) and increase if you need to consider more alternative routes. Be aware that higher values can dramatically increase computation time.
 - **`angle.max`**: Use this to restrict route enumeration to more direct paths. Smaller values (e.g., 45°) can significantly speed up computation for large networks.
-- **`beta`**: The path-sized logit parameter. Typically positive (default 1) to penalize route overlap.
+- **`beta`**: The path-sized logit parameter. Typically positive (default 1) to penalize route overlap; values larger than 1 increase the penalty on overlapping routes, and values between 0 and 1 make the model closer to a standard MNL.
 
 ## Conclusion
 
