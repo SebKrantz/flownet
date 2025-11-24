@@ -44,7 +44,7 @@ traffic assignment and provides utilities for network processing.
 \details{
 The package uses efficient C implementations for critical path operations and leverages:
 \itemize{
-  \item \code{collapse} - Fast data transformation
+  \item \code{collapse} - Fast data transformations
   \item \code{geodist} - Fast geodesic distance computations
   \item \code{igraph} - Graph operations and shortest path algorithms
 }
