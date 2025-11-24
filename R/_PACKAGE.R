@@ -37,6 +37,7 @@
 #'
 #'  \code{\link{network_gcc}} --- Multimodal transport network for the Gulf Cooperation Council (GCC) region\cr
 #'  \code{\link{od_matrices_gcc}} --- Origin-destination matrices for five cargo types in the GCC region\cr
+#'  \code{\link{zones_gcc}} --- Zone locations and descriptions for OD-matrix locations in the GCC region\cr
 #'
 #' @details
 #' The package uses efficient C implementations for critical path operations and leverages:
