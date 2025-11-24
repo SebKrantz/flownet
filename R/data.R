@@ -51,7 +51,7 @@
 #' @source
 #' Internal dataset for transport modeling in the GCC region.
 #'
-#' @seealso \code{\link{zones_gcc}} \code{\link{od_matrices}} \link{flowr-package}
+#' @seealso \code{\link{zones_gcc}} \code{\link{od_matrices_gcc}} \link{flowr-package}
 #'
 #' @examples
 #' library(sf)

@@ -62,7 +62,7 @@ reference:
   - run_assignment
   - print.flowr
 - title: "Graph Utilities"
-  desc: "Utility functions to extract information from graphs (represented using data frames)."
+  desc: "Utility functions to normalized and extract information from graphs (represented using data frames)."
 - contents:
   - normalize_graph
   - nodes_from_graph

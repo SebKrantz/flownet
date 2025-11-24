@@ -22,8 +22,8 @@
 #'
 #' \strong{Graph Utilities}
 #'
-#'  \code{\link[=nodes_from_graph]{nodes_from_graph()}} --- Extract unique nodes from graph\cr
 #'  \code{\link[=normalize_graph]{normalize_graph()}} --- Normalize node IDs to consecutive integers\cr
+#'  \code{\link[=nodes_from_graph]{nodes_from_graph()}} --- Extract unique nodes from graph\cr
 #'  \code{\link[=linestrings_from_graph]{linestrings_from_graph()}} --- Convert graph to LINESTRING geometries\cr
 #'  \code{\link[=distances_from_graph]{distances_from_graph()}} --- Compute distance matrix from graph\cr
 #'
