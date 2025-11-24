@@ -6,7 +6,8 @@
 \usage{
 simplify_network(
   x,
-  od_matrix_long,
+  y,
+  directed = FALSE,
   cost.column = NULL,
   return = c("edges", "edge_counts", "graph_df")
 )
@@ -15,10 +16,12 @@ simplify_network(
 \item{x}{Either an sf object with LINESTRING geometry representing the network, or a
 data.frame with columns \code{from} and \code{to} representing the graph edges.}
 
-\item{od_matrix_long}{A data.frame representing the origin-destination matrix in long format.
+\item{y}{either a set of nodes, spatial points, or a data.frame representing the origin-destination matrix in long format.
 If \code{x} is a LINETRING geometry, it should have columns \code{FX}, \code{FY}, \code{TX}, \code{TY}
 representing the origin/destination zone centroids. If \code{x} is a graph data frame, it should have columns
 \code{from} and \code{to} matching nodes in \code{x}.}
+
+\item{directed}{Logical (default: FALSE). Whether the graph is directed.}
 
 \item{cost.column}{Character string (optional). Name of the cost column in \code{x}.
 If \code{NULL} and \code{x} is an sf object, uses \code{st_length(x)} as the cost.}

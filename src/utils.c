@@ -19,6 +19,7 @@ SEXP check_path_duplicates(SEXP paths1, SEXP paths2, SEXP delta_ks) {
   if (length(paths1) < n_paths) {
     error("paths1 must be at least as long as paths2");
   }
+  if(n_paths == 0) return allocVector(INTSXP, 0);
 
   // Get pointer to delta_ks for direct indexing
   int *delta_ptr = INTEGER(delta_ks);

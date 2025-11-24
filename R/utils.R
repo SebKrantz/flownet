@@ -647,10 +647,11 @@ compute_degrees <- function(from_vec, to_vec) {
 #'
 #' @param x Either an sf object with LINESTRING geometry representing the network, or a
 #'   data.frame with columns \code{from} and \code{to} representing the graph edges.
-#' @param od_matrix_long A data.frame representing the origin-destination matrix in long format.
+#' @param y either a set of nodes, spatial points, or a data.frame representing the origin-destination matrix in long format.
 #' If \code{x} is a LINETRING geometry, it should have columns \code{FX}, \code{FY}, \code{TX}, \code{TY}
 #' representing the origin/destination zone centroids. If \code{x} is a graph data frame, it should have columns
 #' \code{from} and \code{to} matching nodes in \code{x}.
+#' @param directed Logical (default: FALSE). Whether the graph is directed.
 #' @param cost.column Character string (optional). Name of the cost column in \code{x}.
 #' If \code{NULL} and \code{x} is an sf object, uses \code{st_length(x)} as the cost.
 #' @param return description
@@ -680,38 +681,52 @@ compute_degrees <- function(from_vec, to_vec) {
 #' @importFrom igraph graph_from_data_frame delete_vertex_attr igraph_options shortest_paths
 #' @importFrom sf st_length
 #' @useDynLib flowr, .registration = TRUE
-simplify_network <- function(x, od_matrix_long, cost.column = NULL,
+simplify_network <- function(x, y, directed = FALSE, cost.column = NULL,
                              return = c("edges", "edge_counts", "graph_df")) {
 
   if(inherits(x, "sf")) {
     graph_df <- linestrings_to_graph(x)
     if(is.null(cost.column)) graph_df$cost <- st_length(x)
-    names(od_matrix_long) <- tolower(names(od_matrix_long))
-    if(!all(c("fx", "fy", "tx", "ty") %in% names(od_matrix_long)))
-      stop("od_matrix_long needs to have columns 'FX', 'FY', 'TX' and 'TY' when x is a linestring sf object")
+    names(y) <- tolower(names(y))
+    if(!all(c("fx", "fy", "tx", "ty") %in% names(y)))
+      stop("y needs to have columns 'FX', 'FY', 'TX' and 'TY' when x is a linestring sf object")
   } else if (all(c("from", "to") %in% names(x))) {
     graph_df <- x
-    if(!all(c("from", "to") %in% names(od_matrix_long))) stop("od_matrix_long needs to have columns 'from' and 'to'")
-
+    if(!is.atomic(y) && !all(c("from", "to") %in% names(y))) stop("y needs to have columns 'from' and 'to'")
   } else stop("x must be a linestring sf object or a graph data.frame with 'from' and 'to' columns")
 
-  g <- graph_df |> fselect(from, to) |>
-    graph_from_data_frame(directed = FALSE) |>
+  cost <- if(is.character(cost.column) && length(cost.column) == 1L) graph_df[[cost.column]] else
+    if(is.numeric(cost.column) && length(cost.column) == fnrow(graph_df)) cost.column else
+      stop("cost.column needs to be a column name in graph_df or a numeric vector matching nrow(graph_df)")
+
+  from_node <- as.integer(graph_df$from)
+  to_node <- as.integer(graph_df$to)
+  nodes <- funique.default(c(from_node, to_node), sort = TRUE)
+  # Internally use normalized graph node indices
+  from_node <- fmatch(from_node, nodes)
+  to_node <- fmatch(to_node, nodes)
+  g <- data.frame(from = from_node, to = to_node) |>
+    graph_from_data_frame(directed = directed,
+                          vertices = data.frame(name = seq_along(nodes))) |>
     delete_vertex_attr("name")
+  # Don't return vertex/edge names
   iopt <- igraph_options(return.vs.es = FALSE) # sparsematrices = TRUE
   on.exit(igraph_options(iopt))
 
-  if(length(od_matrix_long[["flow"]])) od_matrix_long <- fsubset(od_matrix_long, is.finite(flow) & flow > 0)
-  from <- od_matrix_long$from
-  to <- od_matrix_long$to
-
-  nodes_df <- nodes_from_graph(graph_df)
-  ckmatch(from, nodes_df$node, e = "Unknown origin nodes:")
-  ckmatch(to, nodes_df$node, e = "Unknown destination nodes:")
+  if(is.atomic(y)) {
+    from <- ckmatch(y, nodes, e = "Unknown origin nodes:")
+    to <- from
+  } else {
+    if(length(y[["flow"]])) y <- fsubset(y, is.finite(flow) & flow > 0)
+    from <- y$from
+    to <- y$to
+    from <- ckmatch(from, nodes, e = "Unknown origin nodes:")
+    to <- ckmatch(to, nodes, e = "Unknown destination nodes:")
+  }
 
   edges_traversed <- integer(fnrow(graph_df))
   for (i in from) {
-    pathsi <- shortest_paths(g, from = i, to = to, weights = cost, output = "epath")$epath
+    pathsi <- shortest_paths(g, from = i, to = to, weights = cost, mode = "out", output = "epath")$epath
     .Call(C_mark_edges_traversed, pathsi, edges_traversed)
   }
   edges <- which(edges_traversed > 0L)
