@@ -86,6 +86,36 @@ The path-sized logit model accounts for route overlap by adjusting probabilities
 the number of alternative routes using each edge. Flows are assigned proportionally to
 the computed probabilities.
 }
+\examples{
+library(flowr)
+library(sf)
+
+# Load Graph
+graph <- linestrings_to_graph(network_gcc)
+nodes <- nodes_from_graph(graph, sf = TRUE)
+
+# Map Zones to Nodes
+nearest_nodes <- nodes$node[st_nearest_feature(zones_gcc, nodes)]
+
+# Process OD Matrix
+od_matrix_long <- melt_od_matrix(od_matrices_gcc$container, nodes = nearest_nodes)
+
+# Run Traffic Assignment
+result <- run_assignment(graph, od_matrix_long, cost.column = "generalized_cost",
+                         return.extra = "all")
+print(result)
+
+\dontrun{
+# Visualize Results
+network_gcc$final_flows_log10 <- log10(result$final_flows + 1)
+
+library(mapview)
+mapview(network_gcc, zcol = "final_flows_log10") +
+  mapview(zones_gcc, alpha = 0, cex = 3,
+          col.regions = "red", alpha.regions = 0.8)
+}
+
+}
 \seealso{
 \link{flowr-package}
 }
