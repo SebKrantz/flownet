@@ -218,12 +218,13 @@ run_assignment <- function(graph_df, od_matrix_long,
       format = "Processed :current/:total OD-pairs (:percent) at :tick_rate/sec [Elapsed::elapsed | ETA::eta]", # [:bar] :percent eta: :eta",
       total = fnrow(od_matrix_long), clear = FALSE #, # width = 60
     )
+    div <- if(fnrow(od_matrix_long) > 1e5) 100L else 10L
   }
 
   # TODO: could restrict that other nodes must be in the direction of travel and not behind destination node
   for (i in seq_row(od_matrix_long)) {
 
-    if(verbose && i %% 10L == 0L) pb$tick(10L)
+    if(verbose && i %% div == 0L) pb$tick(div)
 
     if(precompute.dmat) {
       d_ij <- dmat[from[i], to[i]] # Shortest path cost
@@ -313,8 +314,8 @@ run_assignment <- function(graph_df, od_matrix_long,
   }
 
   if(verbose) {
-    if(i %% 10L != 0L) pb$tick(i %% 10L)
-    pb$terminate()
+    if(i %% div != 0L) pb$tick(i %% div)
+    # pb$terminate()
   }
 
   if(anyNA(res$od_pairs_used)) {
