@@ -221,7 +221,6 @@ run_assignment <- function(graph_df, od_matrix_long,
     div <- if(fnrow(od_matrix_long) > 1e4) 100L else 10L
   }
 
-  # TODO: could restrict that other nodes must be in the direction of travel and not behind destination node
   for (i in seq_row(od_matrix_long)) {
 
     if(verbose && i %% div == 0L) pb$tick(div)
