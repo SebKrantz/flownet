@@ -5,6 +5,8 @@ utils::globalVariables(c(
   # "." # Often needed if you use the data.table or magrittr pipe syntax
 ))
 
+sve <- function(x, i, elt) .Call(C_set_vector_elt, x, i, elt)
+
 #' @title Convert Linestring to Graph
 #'
 #' @param lines An sf data frame of LINESTRING geometries.

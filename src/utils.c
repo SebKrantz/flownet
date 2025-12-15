@@ -138,3 +138,12 @@ SEXP free_delta_ks(SEXP delta_ks, SEXP no_dups, SEXP paths1, SEXP paths2, SEXP s
 
   return delta_ks;
 }
+
+// Assign to list inside mirai daemon
+SEXP set_vector_elt(SEXP x, SEXP i, SEXP elt) {
+  int idx = asInteger(i) - 1;
+  if(TYPEOF(x) == INTSXP) INTEGER(x)[idx] = INTEGER(elt)[0];
+  else SET_VECTOR_ELT(x, idx, elt);
+  return R_NilValue;
+}
+
