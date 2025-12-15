@@ -211,8 +211,6 @@ nodes_from_graph <- function(graph_df, sf = FALSE, crs = 4326) {
 #'   \item Contracts the graph for efficient distance computation
 #'   \item Computes the distance matrix for all node pairs using the specified algorithm
 #' }
-#' The graph is contracted using \code{cpp_contract} to optimize distance calculations,
-#' which is particularly efficient for repeated queries.
 #'
 #' @export
 #' @importFrom collapse fselect fnrow funique.default
