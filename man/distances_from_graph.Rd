@@ -33,6 +33,4 @@ This function:
   \item Contracts the graph for efficient distance computation
   \item Computes the distance matrix for all node pairs using the specified algorithm
 }
-The graph is contracted using \code{cpp_contract} to optimize distance calculations,
-which is particularly efficient for repeated queries.
 }
