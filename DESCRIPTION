@@ -18,9 +18,11 @@ Depends:
     R (>= 3.5)
 Imports:
     collapse (>= 2.1.5),
+    kit (>= 0.0.5),
     igraph (>= 2.1.4),
     sf (>= 1.0.0),
     geodist (>= 0.1.1),
+    mirai (>= 2.5.2),
     progress (>= 1.2.3)
 Suggests:
     fastverse (>= 0.3.4),

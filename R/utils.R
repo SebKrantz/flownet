@@ -1,9 +1,11 @@
 
 utils::globalVariables(c(
-  "from", "to", "edge", "FX", "FY", "TX", "TY", "X", "Y", "cost", "flow"
+  "from", "to", "edge", "FX", "FY", "TX", "TY", "X", "Y", "cost", "flow", ".stop"
   # Add any other variable names that appear in the notes
   # "." # Often needed if you use the data.table or magrittr pipe syntax
 ))
+
+sve <- function(x, i, elt) .Call(C_set_vector_elt, x, i, elt)
 
 #' @title Convert Linestring to Graph
 #'
@@ -209,8 +211,6 @@ nodes_from_graph <- function(graph_df, sf = FALSE, crs = 4326) {
 #'   \item Contracts the graph for efficient distance computation
 #'   \item Computes the distance matrix for all node pairs using the specified algorithm
 #' }
-#' The graph is contracted using \code{cpp_contract} to optimize distance calculations,
-#' which is particularly efficient for repeated queries.
 #'
 #' @export
 #' @importFrom collapse fselect fnrow funique.default
@@ -339,7 +339,8 @@ normalize_graph <- function(graph_df) {
 #' @seealso \link{create_undirected_graph} \link{simplify_network} \link{flowr-package}
 #'
 #' @export
-#' @importFrom collapse fnrow get_vars anyv setv ss seq_row fcountv fduplicated fmatch whichv whichNA allNA ffirst GRP collap %iin% %!in% %!iin% join colorderv funique.default %!=% %==% missing_cases qtab flast varying radixorderv groupv na_rm
+#' @importFrom collapse fnrow get_vars anyv setv ss seq_row fduplicated fmatch whichv whichNA allNA ffirst GRP collap %iin% %!in% %!iin% join colorderv funique.default %!=% %==% missing_cases qtab flast varying radixorderv groupv na_rm
+#' @importFrom kit countOccur
 #' @importFrom stats setNames
 consolidate_graph <- function(graph_df, directed = FALSE,
                               drop.edges = c("loop", "duplicate", "single"),
@@ -365,7 +366,7 @@ consolidate_graph <- function(graph_df, directed = FALSE,
 
   if(verbose) {
     cat(sprintf("Consolidating %s graph %s with %d edges using %s recursion\n", if(directed) "directed" else "undirected", namg, fnrow(graph_df), as.character(recursive)))
-    print(qtab(fcountv(c(graph_df$from, graph_df$to))$N, dnn = "Initial node degrees:"))
+    print(qtab(countOccur(c(graph_df$from, graph_df$to))$Count, dnn = "Initial node degrees:"))
     cat("\n")
   }
 
@@ -401,7 +402,7 @@ consolidate_graph <- function(graph_df, directed = FALSE,
 
   if(verbose) {
     cat(sprintf("\nConsolidated %s graph %s from %d edges to %d edges (%s%%)\n", if(directed) "directed" else "undirected", namg, fnrow(graph_df), fnrow(res), as.character(signif(100*fnrow(res)/fnrow(graph_df), 3))))
-    print(qtab(fcountv(c(res$from, res$to))$N, dnn = "Final node degrees:"))
+    print(qtab(countOccur(c(res$from, res$to))$Count, dnn = "Final node degrees:"))
   }
 
   if(any(nam_rm[3:6] %in% nam)) {
@@ -448,9 +449,9 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
 
   if(anyv(drop.edges, "single") && fnrow(gft)) {
     repeat {
-      nodes_rm <- unclass(fcountv(c(gft$from, gft$to)))
-      if(!anyv(nodes_rm$N, 1L)) break
-      nodes_rm <- nodes_rm[[1L]][nodes_rm$N %==% 1L]
+      nodes_rm <- unclass(countOccur(c(gft$from, gft$to)))
+      if(!anyv(nodes_rm$Count, 1L)) break
+      nodes_rm <- nodes_rm$Variable[nodes_rm$Count %==% 1L]
       if(length(keep.nodes)) nodes_rm <- nodes_rm[nodes_rm %!iin% keep.nodes]
       if(length(nodes_rm)) {
         ind <- which(gft$from %!in% nodes_rm & gft$to %!in% nodes_rm)
@@ -621,16 +622,16 @@ compute_degrees <- function(from_vec, to_vec) {
   deg_to <- integer(length(nodes))
   if(length(nodes)) {
     if(length(from_vec)) {
-      counts <- unclass(fcountv(from_vec))
-      idx <- fmatch(nodes, counts[[1L]], nomatch = 0L)
+      counts <- unclass(countOccur(from_vec))
+      idx <- fmatch(nodes, counts$Variable, nomatch = 0L)
       has <- idx %!=% 0L
-      if(length(has)) setv(deg_from, has, counts$N[idx[has]], vind1 = TRUE)
+      if(length(has)) setv(deg_from, has, counts$Count[idx[has]], vind1 = TRUE)
     }
     if(length(to_vec)) {
-      counts <- unclass(fcountv(to_vec))
-      idx <- fmatch(nodes, counts[[1L]], nomatch = 0L)
+      counts <- unclass(countOccur(to_vec))
+      idx <- fmatch(nodes, counts$Variable, nomatch = 0L)
       has <- idx %!=% 0L
-      if(length(has)) setv(deg_to, has, counts$N[idx[has]], vind1 = TRUE)
+      if(length(has)) setv(deg_to, has, counts$Count[idx[has]], vind1 = TRUE)
     }
   }
   list(
