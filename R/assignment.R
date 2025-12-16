@@ -252,50 +252,53 @@ run_assignment <- function(graph_df, od_matrix_long,
     j <- 0L
     for (i in indices) {
 
+      fi = from[i]
+      ti = to[i]
+
       if(verbose) {
         j = j + 1L
         if(j %% div == 0L) pb$tick(divp)
       }
 
       if(precompute.dmat) {
-        d_ij <- dmat[from[i], to[i]] # Shortest path cost
-        d_ikj <- dmat[from[i], ] + dmat[, to[i]] # from i to all other nodes k and from these nodes k to j (basically dmat + t(dmat)?)
+        d_ij = dmat[fi, ti] # Shortest path cost
+        d_ikj = dmat[fi, ] + dmat[, ti] # from i to all other nodes k and from these nodes k to j (basically dmat + t(dmat)?)
         if(geol) {
-          b <- dmat_geo[from[i], ]
-          a <- b[to[i]]
-          theta <- acos((a^2 + b^2 - dmat_geo[, to[i]]^2)/(2*a*b)) * 180 / pi # Angle between a and b
+          b = dmat_geo[fi, ]
+          a = b[ti]
+          theta = acos((a^2 + b^2 - dmat_geo[, ti]^2)/(2*a*b)) * 180 / pi # Angle between a and b
         }
       } else {
-        d_ikj <- drop(distances(g, from[i], v, mode = "out", weights = cost))
-        d_ij <- d_ikj[to[i]]
-        d_ikj %+=% distances(g, v, to[i], mode = "out", weights = cost)
+        d_ikj = drop(distances(g, fi, v, mode = "out", weights = cost))
+        d_ij = d_ikj[ti]
+        d_ikj %+=% distances(g, v, ti, mode = "out", weights = cost)
         if(geol) {
-          b <- drop(geodist_vec(X[from[i]], Y[from[i]], X, Y, measure = "haversine"))
-          a <- b[to[i]]
-          c <- drop(geodist_vec(X, Y, X[to[i]], Y[to[i]], measure = "haversine"))
-          theta <- acos((a^2 + b^2 - c^2)/(2*a*b)) * 180 / pi # Angle between a and b
+          b = drop(geodist_vec(X[fi], Y[fi], X, Y, measure = "haversine"))
+          a = b[ti]
+          c = drop(geodist_vec(X, Y, X[ti], Y[ti], measure = "haversine"))
+          theta = acos((a^2 + b^2 - c^2)/(2*a*b)) * 180 / pi # Angle between a and b
         }
       }
-      short_detour_ij <- if(geol) d_ikj < detour.max * d_ij & b < a & theta < angle.max else
-                                  d_ikj < detour.max * d_ij
+      short_detour_ij = if(geol) d_ikj < detour.max * d_ij & b < a & theta < angle.max else
+                                 d_ikj < detour.max * d_ij
       short_detour_ij[d_ikj < d_ij + .Machine$double.eps*1e3] <- FALSE # Exclude nodes k that are on the shortest path
       # which(d_ij == d_ikj) # These are the nodes on the direct path from i to j which yield the shortest distance.
-      ks <- which(short_detour_ij)
-      cost_ks <- d_ikj[ks]
+      ks = which(short_detour_ij)
+      cost_ks = d_ikj[ks]
 
       # We add the shortest path at the end of paths1
       # TODO: Could still optimize calls to shortest_paths(), e.g., go to C directly.
-      paths1 <- shortest_paths(g, from = from[i], to = c(ks, to[i]), weights = cost,
-                               mode = "out", output = "epath", algorithm = "automatic")$epath
-      paths2 <- shortest_paths(g, from = to[i], to = ks, weights = cost,
-                               mode = "in", output = "epath", algorithm = "automatic")$epath
-      shortest_path <- paths1[[length(paths1)]]
+      paths1 = shortest_paths(g, from = fi, to = c(ks, ti), weights = cost,
+                              mode = "out", output = "epath", algorithm = "automatic")$epath
+      paths2 = shortest_paths(g, from = ti, to = ks, weights = cost,
+                              mode = "in", output = "epath", algorithm = "automatic")$epath
+      shortest_path = paths1[[length(paths1)]]
 
       # # Check
       # cost_ks[k] == sum(cost[paths1[[k]]]) + sum(cost[paths2[[k]]])
 
       # Get indices of paths that do not contain duplicate edges
-      no_dups <- .Call(C_check_path_duplicates, paths1, paths2, delta_ks)
+      no_dups = .Call(C_check_path_duplicates, paths1, paths2, delta_ks)
 
       # Now Path-Sized Logit: Need to compute overlap between routes
       # # Number of routes in choice set that use link j
@@ -323,8 +326,8 @@ run_assignment <- function(graph_df, od_matrix_long,
       #   final_flows[paths1[[k]]] <- final_flows[paths1[[k]]] + flow[i] * prob_ks[k]
       # }
       # final_flows[shortest_path] <- final_flows[shortest_path] + flow[i] * prob_ks[length(prob_ks)]
-      wi <- .Call(C_compute_path_sized_logit, paths1, paths2, no_dups, shortest_path,
-                  cost, cost_ks, d_ij, beta, flow[i], delta_ks, final_flows, !retvals)
+      wi = .Call(C_compute_path_sized_logit, paths1, paths2, no_dups, shortest_path,
+                 cost, cost_ks, d_ij, beta, flow[i], delta_ks, final_flows, !retvals)
       if(is.null(wi)) {
         sve(od_pairs, i, NA_integer_)
         next
@@ -334,7 +337,7 @@ run_assignment <- function(graph_df, od_matrix_long,
         if(pathsl) sve(paths, i, c(list(as.integer(shortest_path)), lapply(no_dups,
                       function(k) c(as.integer(paths1[[k]]), rev.default(as.integer(paths2[[k]]))))))
         if(countsl) {
-          ei <- whichv(delta_ks, 0L, invert = TRUE)
+          ei = whichv(delta_ks, 0L, invert = TRUE)
           if(edgesl) sve(edges, i, ei)
           sve(counts, i, delta_ks[ei])
         } else if(edgesl) sve(edges, i, whichv(delta_ks, 0L, invert = TRUE))
@@ -344,13 +347,8 @@ run_assignment <- function(graph_df, od_matrix_long,
       }
     }
 
-    if(verbose && !pb$finished) {
-      # if(i %% div != 0L) pb$tick(i %% div)
-      # if(as.integer(i/div)*divp < N) pb$tick(N - as.integer(i/div)*divp)
-      # cat("\nN=", N, "divp=", divp, "j=", j, "div=", div, "as.integer(i/div)*divp=", as.integer(i/div)*divp, "\n")
-      pb$tick(N - as.integer(j/div)*divp)
-      # pb$terminate()
-    }
+    if(verbose && !pb$finished) pb$tick(N - as.integer(j/div)*divp)
+    # pb$terminate()
 
     if(!session) {
       res <- list(final_flows = final_flows, od_pairs = od_pairs)
