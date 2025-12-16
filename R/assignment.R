@@ -22,6 +22,7 @@
 #' @param precompute.dmat Logical (default: TRUE). Should distance matrices be precomputed or computed on the fly.
 #'   The former is more memory intensive but dramatically speeds up the OD-iterations.
 #' @param verbose Logical (default: TRUE). Show progress bar and intermediate steps completion status?
+#' @param nthreads Integer (default: 1L). Number of threads (daemons) to use for parallel processing with \code{\link[mirai]{mirai}}. Should not exceed the number of logical processors.
 #'
 #'
 #' @return A list of class \code{"flowr"} containing:
@@ -101,9 +102,10 @@
 #' }
 #'
 #' @export
-#' @importFrom collapse funique.default ss fnrow seq_row ckmatch anyv whichv setDimnames fmatch %+=%
+#' @importFrom collapse funique.default ss fnrow seq_row ckmatch anyv whichv setDimnames fmatch %+=% gsplit setv
 #' @importFrom igraph V graph_from_data_frame delete_vertex_attr igraph_options distances shortest_paths vcount ecount
 #' @importFrom geodist geodist_vec
+#' @importFrom mirai mirai_map daemons everywhere
 #' @importFrom progress progress_bar
 run_assignment <- function(graph_df, od_matrix_long,
                            directed = FALSE,
@@ -114,7 +116,8 @@ run_assignment <- function(graph_df, od_matrix_long,
                            angle.max = 90,
                            return.extra = NULL,
                            precompute.dmat = TRUE,
-                           verbose = TRUE) {
+                           verbose = TRUE,
+                           nthreads = 1L) {
 
   cost <- if(is.character(cost.column) && length(cost.column) == 1L) graph_df[[cost.column]] else
     if(is.numeric(cost.column) && length(cost.column) == fnrow(graph_df)) cost.column else
@@ -166,25 +169,18 @@ run_assignment <- function(graph_df, od_matrix_long,
     if(verbose) cat("Computed distance matrix of dimensions", nrow(dmat), "x", ncol(dmat), "...\n")
   } else v <- V(g)
 
-  # Don't return vertex/edge names
-  iopt <- igraph_options(return.vs.es = FALSE) # sparsematrices = TRUE
-  on.exit(igraph_options(iopt))
-
-  # Edge incidence across selected routes
-  delta_ks <- integer(length(cost) + 10L)
-
-  # Final flows vector
-  final_flows <- numeric(length(cost))
-  res$final_flows <- final_flows
+  # Final flows vector (just for placement)
+  res$final_flows <- numeric(0)
 
   # Process/Check OD Matrix
   if(!all(c("from", "to", "flow") %in% names(od_matrix_long))) stop("od_matrix_long needs to have columns 'from', 'to' and 'flow'")
   od_pairs <- which(is.finite(od_matrix_long$flow) & od_matrix_long$flow > 0)
-  res$od_pairs_used <- od_pairs
+  res$od_pairs_used <- numeric(0) # Just for placement
   if(length(od_pairs) != fnrow(od_matrix_long)) od_matrix_long <- ss(od_matrix_long, od_pairs, check = FALSE)
   from <- ckmatch(od_matrix_long$from, nodes, e = "Unknown origin nodes in od_matrix:")
   to <- ckmatch(od_matrix_long$to, nodes, e = "Unknown destination nodes in od_matrix:")
   flow <- od_matrix_long[["flow"]]
+  N <- length(flow)
 
   # Return block
   retvals <- any(return.extra %in% c("paths", "edges", "counts", "costs", "weights"))
@@ -211,115 +207,206 @@ run_assignment <- function(graph_df, od_matrix_long,
     } else weightsl <- FALSE
   }
 
-  # Now iterating across OD-pairs
+  # Function for parallel setup with mirai
+  run_assignment_core <- function(indices, verbose = FALSE, session = FALSE) {
 
-  if(verbose) {
-    pb <- progress_bar$new(
-      format = "Processed :current/:total OD-pairs (:percent) at :tick_rate/sec [Elapsed::elapsed | ETA::eta]", # [:bar] :percent eta: :eta",
-      total = fnrow(od_matrix_long), clear = FALSE #, # width = 60
-    )
-    div <- if(fnrow(od_matrix_long) > 1e4) 100L else 10L
-  }
+    if(!session) {
+      # Load required functions
+      if(verbose) progess_bar <- progress::progress_bar
+      distances <- igraph::distances
+      shortest_paths <- igraph::shortest_paths
+      igraph_options <- igraph::igraph_options
+      geodist_vec <- geodist::geodist_vec
+      whichv <- collapse::whichv
+      setv <- collapse::setv
+      `%+=%` <- collapse::`%+=%`
+      flowr <- getNamespace("flowr")
+      sve <- flowr$sve
+      C_check_path_duplicates <- flowr$C_check_path_duplicates
+      C_compute_path_sized_logit <- flowr$C_compute_path_sized_logit
+      C_free_delta_ks <- flowr$C_free_delta_ks
+    }
 
-  for (i in seq_row(od_matrix_long)) {
+    # Don't return vertex/edge names
+    iopt <- igraph_options(return.vs.es = FALSE) # sparsematrices = TRUE
+    on.exit(igraph_options(iopt))
 
-    if(verbose && i %% div == 0L) pb$tick(div)
+    # Final flows vector
+    final_flows <- numeric(length(cost))
 
-    if(precompute.dmat) {
-      d_ij <- dmat[from[i], to[i]] # Shortest path cost
-      d_ikj <- dmat[from[i], ] + dmat[, to[i]] # from i to all other nodes k and from these nodes k to j (basically dmat + t(dmat)?)
-      if(geol) {
-        b <- dmat_geo[from[i], ]
-        a <- b[to[i]]
-        theta <- acos((a^2 + b^2 - dmat_geo[, to[i]]^2)/(2*a*b)) * 180 / pi # Angle between a and b
+    # Edge incidence across selected routes
+    delta_ks <- integer(length(cost) + 10L)
+
+    if(verbose) {
+      pb <- progress_bar$new(
+        format = "Processed :current/:total OD-pairs (:percent) at :tick_rate/sec [Elapsed::elapsed | ETA::eta]", # [:bar] :percent eta: :eta",
+        total = N, clear = FALSE #, # width = 60
+      )
+      div <- if(N > 1e4) 100L else 10L
+      divp <- div * max(as.integer(nthreads), 1L)
+      if(nthreads > 1L && as.integer(length(indices) / div) * divp > N)
+         divp <- as.integer(N / as.integer(length(indices) / div))
+    }
+
+    # Now iterating across OD-pairs
+    j <- 0L
+    for (i in indices) {
+
+      if(verbose) {
+        j = j + 1L
+        if(j %% div == 0L) pb$tick(divp)
       }
-    } else {
-      d_ikj <- drop(distances(g, from[i], v, mode = "out", weights = cost))
-      d_ij <- d_ikj[to[i]]
-      d_ikj %+=% distances(g, v, to[i], mode = "out", weights = cost)
-      if(geol) {
-        b <- drop(geodist_vec(X[from[i]], Y[from[i]], X, Y, measure = "haversine"))
-        a <- b[to[i]]
-        c <- drop(geodist_vec(X, Y, X[to[i]], Y[to[i]], measure = "haversine"))
-        theta <- acos((a^2 + b^2 - c^2)/(2*a*b)) * 180 / pi # Angle between a and b
+
+      if(precompute.dmat) {
+        d_ij <- dmat[from[i], to[i]] # Shortest path cost
+        d_ikj <- dmat[from[i], ] + dmat[, to[i]] # from i to all other nodes k and from these nodes k to j (basically dmat + t(dmat)?)
+        if(geol) {
+          b <- dmat_geo[from[i], ]
+          a <- b[to[i]]
+          theta <- acos((a^2 + b^2 - dmat_geo[, to[i]]^2)/(2*a*b)) * 180 / pi # Angle between a and b
+        }
+      } else {
+        d_ikj <- drop(distances(g, from[i], v, mode = "out", weights = cost))
+        d_ij <- d_ikj[to[i]]
+        d_ikj %+=% distances(g, v, to[i], mode = "out", weights = cost)
+        if(geol) {
+          b <- drop(geodist_vec(X[from[i]], Y[from[i]], X, Y, measure = "haversine"))
+          a <- b[to[i]]
+          c <- drop(geodist_vec(X, Y, X[to[i]], Y[to[i]], measure = "haversine"))
+          theta <- acos((a^2 + b^2 - c^2)/(2*a*b)) * 180 / pi # Angle between a and b
+        }
+      }
+      short_detour_ij <- if(geol) d_ikj < detour.max * d_ij & b < a & theta < angle.max else
+                                  d_ikj < detour.max * d_ij
+      short_detour_ij[d_ikj < d_ij + .Machine$double.eps*1e3] <- FALSE # Exclude nodes k that are on the shortest path
+      # which(d_ij == d_ikj) # These are the nodes on the direct path from i to j which yield the shortest distance.
+      ks <- which(short_detour_ij)
+      cost_ks <- d_ikj[ks]
+
+      # We add the shortest path at the end of paths1
+      # TODO: Could still optimize calls to shortest_paths(), e.g., go to C directly.
+      paths1 <- shortest_paths(g, from = from[i], to = c(ks, to[i]), weights = cost,
+                               mode = "out", output = "epath", algorithm = "automatic")$epath
+      paths2 <- shortest_paths(g, from = to[i], to = ks, weights = cost,
+                               mode = "in", output = "epath", algorithm = "automatic")$epath
+      shortest_path <- paths1[[length(paths1)]]
+
+      # # Check
+      # cost_ks[k] == sum(cost[paths1[[k]]]) + sum(cost[paths2[[k]]])
+
+      # Get indices of paths that do not contain duplicate edges
+      no_dups <- .Call(C_check_path_duplicates, paths1, paths2, delta_ks)
+
+      # Now Path-Sized Logit: Need to compute overlap between routes
+      # # Number of routes in choice set that use link j
+      # for (k in no_dups) {
+      #   delta_ks[paths1[[k]]] <- delta_ks[paths1[[k]]] + 1L
+      #   delta_ks[paths2[[k]]] <- delta_ks[paths2[[k]]] + 1L
+      # }
+      # delta_ks[shortest_path] <- delta_ks[shortest_path] + 1L
+      #
+      # # Correction factors for each route k
+      # gamma_ks <- sapply(no_dups, function(k) {
+      #   path <- c(paths1[[k]], paths2[[k]])
+      #   sum(cost[path] / delta_ks[path]) / cost_ks[k]
+      # })
+      # gamma_1 <- sum(cost[shortest_path] / delta_ks[shortest_path]) / d_ij
+      #
+      # # Now the PS-MNL
+      # prob_ks <- proportions(exp(-c(cost_ks[no_dups], d_ij) + beta_PSL * log(c(gamma_ks, gamma_1))))
+      #
+      # # Need to reset delta_ks
+      # delta_ks[] <- 0L
+      #
+      # # Assign result to edges:
+      # for (k in no_dups) {
+      #   final_flows[paths1[[k]]] <- final_flows[paths1[[k]]] + flow[i] * prob_ks[k]
+      # }
+      # final_flows[shortest_path] <- final_flows[shortest_path] + flow[i] * prob_ks[length(prob_ks)]
+      wi <- .Call(C_compute_path_sized_logit, paths1, paths2, no_dups, shortest_path,
+                  cost, cost_ks, d_ij, beta, flow[i], delta_ks, final_flows, !retvals)
+      if(is.null(wi)) {
+        sve(od_pairs, i, NA_integer_)
+        next
+      }
+
+      if(retvals) {
+        if(pathsl) sve(paths, i, c(list(as.integer(shortest_path)), lapply(no_dups,
+                      function(k) c(as.integer(paths1[[k]]), rev.default(as.integer(paths2[[k]]))))))
+        if(countsl) {
+          ei <- whichv(delta_ks, 0L, invert = TRUE)
+          if(edgesl) sve(edges, i, ei)
+          sve(counts, i, delta_ks[ei])
+        } else if(edgesl) sve(edges, i, whichv(delta_ks, 0L, invert = TRUE))
+        if(costsl) sve(costs, i, c(d_ij, cost_ks[no_dups]))
+        if(weightsl) sve(weights, i, wi)
+        .Call(C_free_delta_ks, delta_ks, no_dups, paths1, paths2, shortest_path)
       }
     }
-    short_detour_ij <- if(geol) d_ikj < detour.max * d_ij & b < a & theta < angle.max else
-                                d_ikj < detour.max * d_ij
-    short_detour_ij[d_ikj < d_ij + .Machine$double.eps*1e3] <- FALSE # Exclude nodes k that are on the shortest path
-    # which(d_ij == d_ikj) # These are the nodes on the direct path from i to j which yield the shortest distance.
-    ks <- which(short_detour_ij)
-    cost_ks <- d_ikj[ks]
 
-    # We add the shortest path at the end of paths1
-    # TODO: Could still optimize calls to shortest_paths(), e.g., go to C directly.
-    paths1 <- shortest_paths(g, from = from[i], to = c(ks, to[i]), weights = cost,
-                             mode = "out", output = "epath", algorithm = "automatic")$epath
-    paths2 <- shortest_paths(g, from = to[i], to = ks, weights = cost,
-                             mode = "in", output = "epath", algorithm = "automatic")$epath
-    shortest_path <- paths1[[length(paths1)]]
-
-    # # Check
-    # cost_ks[k] == sum(cost[paths1[[k]]]) + sum(cost[paths2[[k]]])
-
-    # Get indices of paths that do not contain duplicate edges
-    no_dups <- .Call(C_check_path_duplicates, paths1, paths2, delta_ks)
-
-    # Now Path-Sized Logit: Need to compute overlap between routes
-    # # Number of routes in choice set that use link j
-    # for (k in no_dups) {
-    #   delta_ks[paths1[[k]]] <- delta_ks[paths1[[k]]] + 1L
-    #   delta_ks[paths2[[k]]] <- delta_ks[paths2[[k]]] + 1L
-    # }
-    # delta_ks[shortest_path] <- delta_ks[shortest_path] + 1L
-    #
-    # # Correction factors for each route k
-    # gamma_ks <- sapply(no_dups, function(k) {
-    #   path <- c(paths1[[k]], paths2[[k]])
-    #   sum(cost[path] / delta_ks[path]) / cost_ks[k]
-    # })
-    # gamma_1 <- sum(cost[shortest_path] / delta_ks[shortest_path]) / d_ij
-    #
-    # # Now the PS-MNL
-    # prob_ks <- proportions(exp(-c(cost_ks[no_dups], d_ij) + beta_PSL * log(c(gamma_ks, gamma_1))))
-    #
-    # # Need to reset delta_ks
-    # delta_ks[] <- 0L
-    #
-    # # Assign result to edges:
-    # for (k in no_dups) {
-    #   final_flows[paths1[[k]]] <- final_flows[paths1[[k]]] + flow[i] * prob_ks[k]
-    # }
-    # final_flows[shortest_path] <- final_flows[shortest_path] + flow[i] * prob_ks[length(prob_ks)]
-    wi <- .Call(C_compute_path_sized_logit, paths1, paths2, no_dups, shortest_path,
-                cost, cost_ks, d_ij, beta, flow[i], delta_ks, final_flows, !retvals)
-    if(is.null(wi)) {
-      res$od_pairs_used[i] <- NA_integer_
-      next
+    if(verbose && !pb$finished) {
+      # if(i %% div != 0L) pb$tick(i %% div)
+      # if(as.integer(i/div)*divp < N) pb$tick(N - as.integer(i/div)*divp)
+      # cat("\nN=", N, "divp=", divp, "j=", j, "div=", div, "as.integer(i/div)*divp=", as.integer(i/div)*divp, "\n")
+      pb$tick(N - as.integer(j/div)*divp)
+      # pb$terminate()
     }
 
-    if(retvals) {
-      if(pathsl) paths[[i]] <- c(list(as.integer(shortest_path)), lapply(no_dups,
-                    function(k) c(as.integer(paths1[[k]]), rev.default(as.integer(paths2[[k]])))))
-      if(countsl) {
-        ei <- whichv(delta_ks, 0L, invert = TRUE)
-        if(edgesl) edges[[i]] <- ei
-        counts[[i]] <- delta_ks[ei]
-      } else if(edgesl) edges[[i]] <- whichv(delta_ks, 0L, invert = TRUE)
-      if(costsl) costs[[i]] <- c(d_ij, cost_ks[no_dups])
-      if(weightsl) weights[[i]] <- wi
+    if(!session) {
+      res <- list(final_flows = final_flows, od_pairs = od_pairs)
+      if(retvals) {
+        if(pathsl) res$paths <- paths
+        if(countsl) res$counts <- counts
+        if(edgesl) res$edges <- edges
+        if(costsl) res$costs <- costs
+        if(weightsl) res$weights <- weights
+      }
+      return(res)
     }
-    .Call(C_free_delta_ks, delta_ks, no_dups, paths1, paths2, shortest_path)
+
+    return(final_flows)
   }
 
-  if(verbose) {
-    if(i %% div != 0L) pb$tick(i %% div)
-    # pb$terminate()
+  if(!is.finite(nthreads) || nthreads <= 1L) {
+    res$final_flows <- run_assignment_core(seq_len(N), verbose, TRUE)
+  } else {
+    envir <- environment()
+    # Split OD matrix in equal parts
+    ind_list <- gsplit(g = sample.int(as.integer(nthreads), N, replace = TRUE))
+    daemons(n = nthreads - 1L)
+    # Pass current environment dynamically
+    everywhere({}, envir)
+    # Now run the map in the background
+    res_other <- mirai_map(ind_list[-1L], run_assignment_core)
+    # Runs the first instance in the current session
+    final_flows <- run_assignment_core(ind_list[[1L]], verbose, TRUE)
+    # Collect other mirai's results
+    res_other <- res_other[.stop] # [.stop, .progress] # collect_mirai()
+    # Deactivate Daemons
+    daemons(0)
+    # Combine Results
+    # return(environment())
+    for (i in seq_along(res_other)) {
+      resi <- res_other[[i]]
+      ind <- ind_list[[i+1L]]
+      final_flows %+=% resi$final_flows
+      setv(od_pairs, ind, resi$od_pairs, vind1 = TRUE)
+      if(retvals) {
+        if(pathsl) paths[ind] <- resi$paths[ind]
+        if(countsl) counts[ind] <- resi$counts[ind]
+        if(edgesl) edges[ind] <- resi$edges[ind]
+        if(costsl) costs[ind] <- resi$costs[ind]
+        if(weightsl) weights[ind] <- resi$weights[ind]
+      }
+    }
+    res$final_flows <- final_flows
+    rm(res_other, envir, ind_list, final_flows)
   }
 
-  if(anyNA(res$od_pairs_used)) {
-    nmiss_od <- whichNA(res$od_pairs_used, invert = TRUE)
-    res$od_pairs_used <- na_rm(res$od_pairs_used)
+  if(anyNA(od_pairs)) {
+    nmiss_od <- whichNA(od_pairs, invert = TRUE)
+    if(verbose) cat(length(od_pairs) - length(nmiss_od), "OD-pairs have zero or non-finite flow values and will be skipped...\n")
+    res$od_pairs_used <- od_pairs[nmiss_od]
     if(retvals) {
       if(pathsl) res$paths <- paths[nmiss_od]
       if(edgesl) res$edges <- edges[nmiss_od]
@@ -327,15 +414,18 @@ run_assignment <- function(graph_df, od_matrix_long,
       if(costsl) res$path_costs <- costs[nmiss_od]
       if(weightsl) res$path_weights <- weights[nmiss_od]
     }
-  } else if(retvals) {
-    if(pathsl) res$paths <- paths
-    if(edgesl) res$edges <- edges
-    if(countsl) res$edge_counts <- counts
-    if(costsl) res$path_costs <- costs
-    if(weightsl) res$path_weights <- weights
+  } else {
+    res$od_pairs_used <- od_pairs
+    if(retvals) {
+      if(pathsl) res$paths <- paths
+      if(edgesl) res$edges <- edges
+      if(countsl) res$edge_counts <- counts
+      if(costsl) res$path_costs <- costs
+      if(weightsl) res$path_weights <- weights
+    }
   }
 
-  class(res) <- "flowr" # , method)
+  class(res) <- "flowr" # , method
   return(res)
 }
 

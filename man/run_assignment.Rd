@@ -17,7 +17,8 @@ run_assignment(
   angle.max = 90,
   return.extra = NULL,
   precompute.dmat = TRUE,
-  verbose = TRUE
+  verbose = TRUE,
+  nthreads = 1L
 )
 
 \method{print}{flowr}(x, ...)
@@ -54,6 +55,8 @@ Use \code{"all"} to return all available extra results.}
 The former is more memory intensive but dramatically speeds up the OD-iterations.}
 
 \item{verbose}{Logical (default: TRUE). Show progress bar and intermediate steps completion status?}
+
+\item{nthreads}{Integer (default: 1L). Number of threads (daemons) to use for parallel processing with \code{\link[mirai]{mirai}}. Should not exceed the number of logical processors.}
 
 \item{x}{An object of class \code{flowr}, typically returned by \code{\link{run_assignment}}.}
 }

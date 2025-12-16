@@ -1,4 +1,3 @@
-
 # flowr 0.1.0 (Initial Release)
 
 ## Major Features
@@ -11,6 +10,7 @@
   - Configurable detour factors and angle constraints for route selection
   - Optional return of detailed path information, edge counts, costs, and weights
   - High-performance C implementation for critical path operations
+  - Multithreading (asynchronous parallelism) using [`mirai`](https://github.com/r-lib/mirai). 
 
 ### Network Processing
 - **`linestrings_to_graph()`**: Convert LINESTRING geometries (sf objects) to graph data frames
@@ -87,10 +87,12 @@
 
 ## Dependencies
 - **R** (>= 3.5)
-- **collapse** (>= 2.1.5) - Fast data transformations
+- **collapse** (>= 2.1.5) - Fast data transformations and memory efficient programming
+- **kit** (>= 0.0.5) - Fast tabulation and vectorized switches
 - **igraph** (>= 2.1.4) - Graph operations and shortest path algorithms
 - **sf** (>= 1.0.0) - Spatial data handling
 - **geodist** (>= 0.1.1) - Fast geodesic distance computations
+- **mirai** (>= 2.5.2) - Asynchronous parallelism for R
 - **progress** (>= 1.2.3) - Progress bars for long-running operations
 
 ## Suggested Packages
@@ -100,4 +102,5 @@
 
 ## License
 GPL-3
+
 

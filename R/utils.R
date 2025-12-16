@@ -1,6 +1,6 @@
 
 utils::globalVariables(c(
-  "from", "to", "edge", "FX", "FY", "TX", "TY", "X", "Y", "cost", "flow"
+  "from", "to", "edge", "FX", "FY", "TX", "TY", "X", "Y", "cost", "flow", ".stop"
   # Add any other variable names that appear in the notes
   # "." # Often needed if you use the data.table or magrittr pipe syntax
 ))
