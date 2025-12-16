@@ -451,7 +451,7 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
     repeat {
       nodes_rm <- unclass(countOccur(c(gft$from, gft$to)))
       if(!anyv(nodes_rm$Count, 1L)) break
-      nodes_rm <- nodes_rm[[1L]][nodes_rm$Count %==% 1L]
+      nodes_rm <- nodes_rm$Variable[nodes_rm$Count %==% 1L]
       if(length(keep.nodes)) nodes_rm <- nodes_rm[nodes_rm %!iin% keep.nodes]
       if(length(nodes_rm)) {
         ind <- which(gft$from %!in% nodes_rm & gft$to %!in% nodes_rm)
