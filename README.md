@@ -12,6 +12,7 @@
 - **Network Processing**: Convert LINESTRING geometries to graphs, consolidate graphs, simplify networks, and handle directed/undirected graphs
 - **Route Enumeration**: Efficient algorithm for finding alternative routes between origin-destination pairs
 - **High Performance**: C implementations for critical path operations
+- **Multithreading**: Asynchronous parallelism using `mirai` for faster processing of large networks
 
 ## Installation
 
@@ -25,10 +26,13 @@ install.packages("path/to/flowr", repos = NULL, type = "source")
 
 ## Dependencies
 
-- `collapse` (>= 2.1.5) - Fast data transformations
+- `collapse` (>= 2.1.5) - Fast data transformations and memory efficient programming
+- `kit` (>= 0.0.5) - Fast tabulation and vectorized switches
 - `igraph` (>= 2.1.4) - Graph operations and shortest path algorithms
-- `geodist` (>= 0.1.1) - Fast geodesic distance computations
 - `sf` (>= 1.0.0) - Spatial data handling
+- `geodist` (>= 0.1.1) - Fast geodesic distance computations
+- `mirai` (>= 2.5.2) - Asynchronous parallelism for R
+- `progress` (>= 1.2.3) - Progress bars for long-running operations
 
 ## Quick Start
 
@@ -110,6 +114,10 @@ graph <- simplify_network(graph, nearest_nodes, cost.column = "cost")
 - **`linestrings_from_graph()`** - Convert graph to LINESTRING geometries
 - **`distances_from_graph()`** - Compute distance matrix for all node pairs
 
+### OD Matrix Utilities
+
+- **`melt_od_matrix()`** - Convert origin-destination matrices to long format
+
 ## Example Workflow
 
 ```r
@@ -142,6 +150,20 @@ network$final_flows <- NA_real_
 network$final_flows[attr(graph, "group.starts")] <- result$final_flows
 mapview(network, zcol = "final_flows")
 ```
+
+## Example Data
+
+The package includes example datasets for the Gulf Cooperation Council (GCC) region:
+
+- **`network_gcc`**: Multimodal transport network including road, rail, and maritime connections
+- **`od_matrices_gcc`**: Origin-destination matrices for five cargo types (Container, Drybulk, Liquidbulk, General, HighValue) across multiple time periods (2019, 2030, 2040)
+- **`zones_gcc`**: Zone locations and descriptions for OD-matrix locations
+
+## Suggested Packages
+
+- **`fastverse`** (>= 0.3.4) - Enhanced data manipulation workflow
+- **`mapview`** (>= 2.11.2) - Interactive visualization of results
+- **`testthat`** (>= 3.0.0) - Unit testing framework
 
 ## Authors
 
