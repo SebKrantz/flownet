@@ -5,52 +5,92 @@
 \title{Simplify Network}
 \usage{
 simplify_network(
-  x,
-  y,
+  graph,
+  nodes,
+  method = c("shortest-paths", "cluster"),
   directed = FALSE,
-  cost.column = NULL,
-  return = c("edges", "edge_counts", "graph_df")
+  cost.column = "cost",
+  radius_km = list(nodes = 7, cluster = 20),
+  ...
 )
 }
 \arguments{
-\item{x}{Either an sf object with LINESTRING geometry representing the network, or a
-data.frame with columns \code{from} and \code{to} representing the graph edges.}
+\item{graph}{A data.frame with columns \code{from} and \code{to} representing the graph edges.
+For the cluster method, the graph must also have columns \code{FX}, \code{FY}, \code{TX}, \code{TY}
+representing node coordinates.}
 
-\item{y}{either a set of nodes, spatial points, or a data.frame representing the origin-destination matrix in long format.
-If \code{x} is a LINETRING geometry, it should have columns \code{FX}, \code{FY}, \code{TX}, \code{TY}
-representing the origin/destination zone centroids. If \code{x} is a graph data frame, it should have columns
-\code{from} and \code{to} matching nodes in \code{x}.}
+\item{nodes}{For \code{method = "shortest-paths"}: either an atomic vector of node IDs, or a
+data.frame with columns \code{from} and \code{to} specifying origin-destination pairs.
+For \code{method = "cluster"}: an atomic vector of node IDs to preserve. These nodes will
+be kept as cluster centroids, and nearby nodes (within \code{radius_km$nodes}) will be
+assigned to their clusters. Remaining nodes are clustered using \code{\link[leaderCluster]{leaderCluster}}.}
 
-\item{directed}{Logical (default: FALSE). Whether the graph is directed.}
+\item{method}{Character string (default: "shortest-paths"). Method to use for simplification:
+\code{"shortest-paths"} computes shortest paths between nodes and keeps only traversed edges;
+\code{"cluster"} clusters nodes using the \code{\link[leaderCluster]{leaderCluster}} algorithm and contracts the graph.}
 
-\item{cost.column}{Character string (optional). Name of the cost column in \code{x}.
-If \code{NULL} and \code{x} is an sf object, uses \code{st_length(x)} as the cost.}
+\item{directed}{Logical (default: FALSE). Whether the graph is directed. Only used for
+\code{method = "shortest-paths"}.}
 
-\item{return}{description}
+\item{cost.column}{Character string (default: "cost"). Name of the cost column in \code{graph}.
+Alternatively, a numeric vector of edge costs with length equal to \code{nrow(graph)}.
+Only used for \code{method = "shortest-paths"}.}
+
+\item{radius_km}{Named list with elements \code{nodes} (default: 7) and \code{cluster} (default: 20).
+Only used for \code{method = "cluster"}.
+\code{nodes}: radius in kilometers around preserved nodes. Graph nodes within this radius
+will be assigned to the nearest preserved node's cluster.
+\code{cluster}: radius in kilometers for clustering remaining nodes using leaderCluster.}
+
+\item{\dots}{For \code{method = "cluster"}: additional arguments passed to
+\code{\link[leaderCluster]{leaderCluster}} (e.g., \code{weights}) and to
+\code{\link[collapse]{collap}} for edge attribute aggregation.}
 }
 \value{
-If \code{x} is an sf object, returns a list with:
+A data.frame containing the simplified graph with:
   \itemize{
-    \item \code{network} - sf object containing only edges that were traversed
-    \item \code{graph_df} - data.frame with graph representation of traversed edges
+    \item For \code{method = "shortest-paths"}:
+      \itemize{
+        \item All columns from the input \code{graph} (for edges that were kept)
+        \item Attribute \code{"edges"}: integer vector of edge indices from the original graph
+        \item Attribute \code{"edge_counts"}: integer vector indicating how many times each edge was traversed
+      }
+    \item For \code{method = "cluster"}:
+      \itemize{
+        \item \code{edge} - New edge identifier
+        \item \code{from}, \code{to} - Cluster centroid node IDs
+        \item \code{FX}, \code{FY}, \code{TX}, \code{TY} - Coordinates of cluster centroid nodes
+        \item Aggregated edge attributes from the original graph
+        \item Attribute \code{"group.id"}: mapping from original edges to simplified edges
+        \item Attribute \code{"group.starts"}: start indices of each group
+        \item Attribute \code{"group.sizes"}: number of original edges per simplified edge
+      }
   }
-  If \code{x} is a data.frame, returns a data.frame containing only edges that were traversed.
 }
 \description{
-Simplify a network by keeping only edges that are traversed by shortest paths
-  between origin-destination pairs in the OD matrix.
+Simplify a network graph using shortest paths or node clustering methods.
 }
 \details{
-This function simplifies a network by:
+\strong{Method: "shortest-paths"}
 \itemize{
-  \item Converting the input to a graph representation (if needed)
-  \item Validating that all origin and destination nodes exist in the network
-  \item Computing shortest paths from each origin to all destinations using igraph
-  \item Marking all edges that are traversed by at least one shortest path
-  \item Returning only the subset of edges that were traversed
+  \item Validates that all origin and destination nodes exist in the network
+  \item Computes shortest paths from each origin to all destinations using igraph
+  \item Marks all edges that are traversed by at least one shortest path
+  \item Returns only the subset of edges that were traversed
+  \item If \code{nodes} is a data frame with \code{from} and \code{to} columns, paths are computed
+    from each unique origin to its specified destinations
 }
 
-The function filters the OD matrix to include only rows with finite, positive flow values.
-All shortest paths are computed using edge costs (either from \code{cost.column} or
-geometric length for sf objects).
+\strong{Method: "cluster"}
+\itemize{
+  \item Requires the graph to have spatial coordinates (\code{FX}, \code{FY}, \code{TX}, \code{TY})
+  \item If \code{nodes} is provided, these nodes are preserved as cluster centroids
+  \item Nearby nodes (within \code{radius_km$nodes} km) are assigned to the nearest preserved node
+  \item Remaining nodes are clustered using \code{\link[leaderCluster]{leaderCluster}} with
+    \code{radius_km$cluster} as the clustering radius
+  \item For each cluster, the node closest to the cluster centroid is selected as representative
+  \item The graph is contracted by mapping all nodes to their cluster representatives
+  \item Edge attributes are aggregated using \code{\link[collapse]{collap}} (default: mean for
+    numeric, mode for categorical); customize via \code{\dots}
+}
 }
