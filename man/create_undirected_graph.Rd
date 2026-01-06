@@ -40,3 +40,17 @@ This function converts a directed graph to an undirected graph by:
   \item For aggregation columns, \code{\link[collapse]{collap}()} will be applied.
 }
 }
+\examples{
+library(flowr)
+
+# Create graph and convert to undirected
+graph <- linestrings_to_graph(network_gcc)
+graph_undir <- create_undirected_graph(graph)
+
+# Use 'by' to preserve mode-specific edges
+graph_undir_mm <- create_undirected_graph(graph, by = ~ mode)
+
+# Fewer edges after removing directional duplicates
+c(directed = nrow(graph), undirected = nrow(graph_undir))
+
+}

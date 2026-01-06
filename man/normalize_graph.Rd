@@ -38,6 +38,21 @@ Normalization is useful when:
 Note: This function only normalizes the node IDs; it does not modify the graph structure
 or any other attributes. The mapping preserves the relative ordering of nodes.
 }
+\examples{
+library(flowr)
+
+# Create graph with non-consecutive node IDs
+graph <- data.frame(
+  from = c(10, 20, 20),
+  to = c(20, 30, 40),
+  cost = c(1, 2, 3)
+)
+
+# Normalize to consecutive integers (1, 2, 3, 4)
+graph_norm <- normalize_graph(graph)
+graph_norm
+
+}
 \seealso{
 \link{nodes_from_graph} \link{flowr-package}
 }

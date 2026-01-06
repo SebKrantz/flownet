@@ -32,6 +32,19 @@ This function is the inverse operation of \code{\link{linestrings_to_graph}}. It
   \item Returns an sf object suitable for spatial operations and visualization
 }
 }
+\examples{
+library(flowr)
+library(sf)
+
+# Convert network to graph and back to linestrings
+graph <- linestrings_to_graph(network_gcc)
+lines <- linestrings_from_graph(graph)
+
+# Result is an sf object with LINESTRING geometry
+class(lines)
+head(lines)
+
+}
 \seealso{
 \link{linestrings_to_graph} \link{flowr-package}
 }

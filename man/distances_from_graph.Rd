@@ -34,3 +34,18 @@ This function:
   \item Computes the distance matrix for all node pairs using the specified algorithm
 }
 }
+\examples{
+library(flowr)
+
+# Create a simple graph
+graph <- data.frame(
+  from = c(1, 2, 2, 3),
+  to = c(2, 3, 4, 4),
+  cost = c(1, 2, 3, 1)
+)
+
+# Compute distance matrix
+dmat <- distances_from_graph(graph, cost.column = "cost")
+dmat
+
+}

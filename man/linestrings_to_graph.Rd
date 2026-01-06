@@ -35,6 +35,17 @@ A data.frame representing the graph with columns:
 \description{
 Convert Linestring to Graph
 }
+\examples{
+library(flowr)
+
+# Convert network LINESTRING geometries to graph
+graph <- linestrings_to_graph(network_gcc)
+head(graph)
+
+# Graph contains edge, from/to nodes, and coordinates
+names(graph)
+
+}
 \seealso{
 \link{simplify_network} \link{flowr-package}
 }
