@@ -29,8 +29,10 @@ assigned to their clusters. Remaining nodes are clustered using \code{\link[lead
 \code{"shortest-paths"} computes shortest paths between nodes and keeps only traversed edges;
 \code{"cluster"} clusters nodes using the \code{\link[leaderCluster]{leaderCluster}} algorithm and contracts the graph.}
 
-\item{directed}{Logical (default: FALSE). Whether the graph is directed. Only used for
-\code{method = "shortest-paths"}.}
+\item{directed}{Logical (default: FALSE). Whether the graph is directed.
+For \code{method = "shortest-paths"}: controls path computation direction.
+For \code{method = "cluster"}: if TRUE, A->B and B->A remain as separate edges after
+contraction; if FALSE, edges are normalized so that \code{from < to} before grouping.}
 
 \item{cost.column}{Character string (default: "cost"). Name of the cost column in \code{graph}.
 Alternatively, a numeric vector of edge costs with length equal to \code{nrow(graph)}.
@@ -90,6 +92,9 @@ Simplify a network graph using shortest paths or node clustering methods.
     \code{radius_km$cluster} as the clustering radius
   \item For each cluster, the node closest to the cluster centroid is selected as representative
   \item The graph is contracted by mapping all nodes to their cluster representatives
+  \item Self-loops (edges where both endpoints map to the same cluster) are dropped
+  \item For undirected graphs (\code{directed = FALSE}), edges are normalized so \code{from < to},
+    merging opposite-direction edges; for directed graphs, A->B and B->A remain separate
   \item Edge attributes are aggregated using \code{\link[collapse]{collap}} (default: mean for
     numeric, mode for categorical); customize via \code{\dots}
 }

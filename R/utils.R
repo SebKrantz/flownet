@@ -656,8 +656,10 @@ compute_degrees <- function(from_vec, to_vec) {
 #' @param method Character string (default: "shortest-paths"). Method to use for simplification:
 #'   \code{"shortest-paths"} computes shortest paths between nodes and keeps only traversed edges;
 #'   \code{"cluster"} clusters nodes using the \code{\link[leaderCluster]{leaderCluster}} algorithm and contracts the graph.
-#' @param directed Logical (default: FALSE). Whether the graph is directed. Only used for
-#'   \code{method = "shortest-paths"}.
+#' @param directed Logical (default: FALSE). Whether the graph is directed.
+#'   For \code{method = "shortest-paths"}: controls path computation direction.
+#'   For \code{method = "cluster"}: if TRUE, A->B and B->A remain as separate edges after
+#'   contraction; if FALSE, edges are normalized so that \code{from < to} before grouping.
 #' @param cost.column Character string (default: "cost"). Name of the cost column in \code{graph}.
 #'   Alternatively, a numeric vector of edge costs with length equal to \code{nrow(graph)}.
 #'   Only used for \code{method = "shortest-paths"}.
@@ -710,6 +712,9 @@ compute_degrees <- function(from_vec, to_vec) {
 #'     \code{radius_km$cluster} as the clustering radius
 #'   \item For each cluster, the node closest to the cluster centroid is selected as representative
 #'   \item The graph is contracted by mapping all nodes to their cluster representatives
+#'   \item Self-loops (edges where both endpoints map to the same cluster) are dropped
+#'   \item For undirected graphs (\code{directed = FALSE}), edges are normalized so \code{from < to},
+#'     merging opposite-direction edges; for directed graphs, A->B and B->A remain separate
 #'   \item Edge attributes are aggregated using \code{\link[collapse]{collap}} (default: mean for
 #'     numeric, mode for categorical); customize via \code{\dots}
 #' }
@@ -791,7 +796,7 @@ simplify_network <- function(graph, nodes, method = c("shortest-paths", "cluster
     # Cluster method
     cl <- cluster_nodes(nodes_df, nodes, radius_km$nodes, radius_km$cluster, ...)
     # Graph Contraction to Clusters
-    result <- contract_edges(graph, nodes_df, cl$clusters, cl$centroids, ...)
+    result <- contract_edges(graph, nodes_df, cl$clusters, cl$centroids, directed = directed, ...)
 
   }
 
@@ -835,14 +840,28 @@ cluster_nodes <- function(nodes, keep,
   list(clusters = clusters, centroids = nodes$node[centroids])
 }
 
-contract_edges <- function(graph, nodes, clusters, centroids, ...) {
-    # if(length(by)) {
-    #   if(is.call(by)) by <- all.vars(by)
-    #   if(!is.character(by)) stop("by needs to be a one-sided formula or a character vector of column names")
-    # }
+contract_edges <- function(graph, nodes, clusters, centroids, directed = FALSE, ...) {
     node_centroids <- centroids[clusters]
     graph$from <- node_centroids[ckmatch(graph$from, nodes$node)]
     graph$to <- node_centroids[ckmatch(graph$to, nodes$node)]
+
+    # Drop self-loops (edges where both endpoints map to same cluster)
+    self_loops <- graph$from == graph$to
+    if(any(self_loops)) {
+      graph <- ss(graph, !self_loops, check = FALSE)
+    }
+
+    # For undirected graphs, normalize edge direction so from < to
+    # This merges A->B and B->A into a single edge
+    if(!directed) {
+      swap <- graph$from > graph$to
+      if(any(swap)) {
+        tmp <- graph$from[swap]
+        graph$from[swap] <- graph$to[swap]
+        graph$to[swap] <- tmp
+      }
+    }
+
     g <- GRP(graph, ~ from + to)
     nam <- names(graph)
     res <- g$groups
