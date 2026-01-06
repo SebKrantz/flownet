@@ -31,9 +31,9 @@ install.packages("path/to/flowr", repos = NULL, type = "source")
 - `igraph` (>= 2.1.4) - Graph operations and shortest path algorithms
 - `sf` (>= 1.0.0) - Spatial data handling
 - `geodist` (>= 0.1.1) - Fast geodesic distance computations
+- `leaderCluster` (>= 0.3.0) - Fast spatial clustering for network simplification
 - `mirai` (>= 2.5.2) - Asynchronous parallelism for R
 - `progress` (>= 1.2.3) - Progress bars for long-running operations
-- `leaderCluster` (>= 0.3.0) - Fast spatial clustering for network simplification
 
 ## Quick Start
 
