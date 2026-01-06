@@ -27,6 +27,16 @@ sve <- function(x, i, elt) .Call(C_set_vector_elt, x, i, elt)
 #'
 #' @seealso \link{simplify_network} \link{flowr-package}
 #'
+#' @examples
+#' library(flowr)
+#'
+#' # Convert network LINESTRING geometries to graph
+#' graph <- linestrings_to_graph(network_gcc)
+#' head(graph)
+#'
+#' # Graph contains edge, from/to nodes, and coordinates
+#' names(graph)
+#'
 #' @export
 #' @importFrom sf st_geometry_type st_coordinates st_length
 #' @importFrom collapse qDF GRP get_vars get_vars<- add_vars add_vars<- fselect ffirst flast add_stub fmutate group fmatch %+=% fmax colorder whichNA setv unattrib ss
@@ -82,6 +92,18 @@ linestrings_to_graph <- function(lines, digits = 6, keep.cols = is.atomic, compu
 #'
 #' @seealso \link{linestrings_to_graph} \link{flowr-package}
 #'
+#' @examples
+#' library(flowr)
+#' library(sf)
+#'
+#' # Convert network to graph and back to linestrings
+#' graph <- linestrings_to_graph(network_gcc)
+#' lines <- linestrings_from_graph(graph)
+#'
+#' # Result is an sf object with LINESTRING geometry
+#' class(lines)
+#' head(lines)
+#'
 #' @export
 #' @importFrom sf st_linestring st_sfc st_sf
 #' @importFrom collapse seq_row fselect add_vars
@@ -131,6 +153,19 @@ linestrings_from_graph <- function(graph_df, crs = 4326) {
 #'   \item For aggregation columns, \code{\link[collapse]{collap}()} will be applied.
 #' }
 #'
+#' @examples
+#' library(flowr)
+#'
+#' # Create graph and convert to undirected
+#' graph <- linestrings_to_graph(network_gcc)
+#' graph_undir <- create_undirected_graph(graph)
+#'
+#' # Use 'by' to preserve mode-specific edges
+#' graph_undir_mm <- create_undirected_graph(graph, by = ~ mode)
+#'
+#' # Fewer edges after removing directional duplicates
+#' c(directed = nrow(graph), undirected = nrow(graph_undir))
+#'
 #' @export
 #' @importFrom collapse ftransform GRP get_vars add_vars add_vars<- ffirst colorderv %!in% collap
 create_undirected_graph <- function(graph_df, by = NULL, ...) {
@@ -176,6 +211,22 @@ create_undirected_graph <- function(graph_df, by = NULL, ...) {
 #' columns of the graph, along with their corresponding coordinates. Duplicate nodes
 #' are removed, keeping only unique node IDs with their coordinates.
 #'
+#' @examples
+#' library(flowr)
+#' library(sf)
+#'
+#' # Extract nodes from graph
+#' graph <- linestrings_to_graph(network_gcc)
+#' nodes <- nodes_from_graph(graph)
+#' head(nodes)
+#'
+#' # Get nodes as sf POINT object for spatial operations
+#' nodes_sf <- nodes_from_graph(graph, sf = TRUE)
+#' class(nodes_sf)
+#'
+#' # Find nearest network nodes to zone centroids
+#' nearest <- nodes_sf$node[st_nearest_feature(zones_gcc, nodes_sf)]
+#'
 #' @export
 #' @importFrom collapse rowbind fselect funique
 #' @importFrom stats setNames
@@ -211,6 +262,20 @@ nodes_from_graph <- function(graph_df, sf = FALSE, crs = 4326) {
 #'   \item Contracts the graph for efficient distance computation
 #'   \item Computes the distance matrix for all node pairs using the specified algorithm
 #' }
+#'
+#' @examples
+#' library(flowr)
+#'
+#' # Create a simple graph
+#' graph <- data.frame(
+#'   from = c(1, 2, 2, 3),
+#'   to = c(2, 3, 4, 4),
+#'   cost = c(1, 2, 3, 1)
+#' )
+#'
+#' # Compute distance matrix
+#' dmat <- distances_from_graph(graph, cost.column = "cost")
+#' dmat
 #'
 #' @export
 #' @importFrom collapse fselect fnrow funique.default
@@ -262,6 +327,20 @@ distances_from_graph <- function(graph_df, directed = FALSE, cost.column = "cost
 #' or any other attributes. The mapping preserves the relative ordering of nodes.
 #'
 #' @seealso \link{nodes_from_graph} \link{flowr-package}
+#'
+#' @examples
+#' library(flowr)
+#'
+#' # Create graph with non-consecutive node IDs
+#' graph <- data.frame(
+#'   from = c(10, 20, 20),
+#'   to = c(20, 30, 40),
+#'   cost = c(1, 2, 3)
+#' )
+#'
+#' # Normalize to consecutive integers (1, 2, 3, 4)
+#' graph_norm <- normalize_graph(graph)
+#' graph_norm
 #'
 #' @export
 #' @importFrom collapse funique.default get_vars get_vars<- fmatch
@@ -337,6 +416,26 @@ normalize_graph <- function(graph_df) {
 #' they are preserved and updated based on the consolidated node coordinates from the original graph.
 #'
 #' @seealso \link{create_undirected_graph} \link{simplify_network} \link{flowr-package}
+#'
+#' @examples
+#' library(flowr)
+#' library(sf)
+#'
+#' # Create undirected graph
+#' graph <- linestrings_to_graph(network_gcc) |>
+#'   create_undirected_graph(by = ~ mode)
+#'
+#' # Get nodes to preserve (zone locations)
+#' nodes <- nodes_from_graph(graph, sf = TRUE)
+#' nearest_nodes <- nodes$node[st_nearest_feature(zones_gcc, nodes)]
+#'
+#' # Consolidate graph, preserving zone nodes
+#' graph_cons <- consolidate_graph(graph, by = ~ mode,
+#'                                 w = ~ length_km,
+#'                                 keep = nearest_nodes)
+#'
+#' # Consolidated graph has fewer edges
+#' c(original = nrow(graph), consolidated = nrow(graph_cons))
 #'
 #' @export
 #' @importFrom collapse fnrow get_vars anyv setv ss seq_row fduplicated fmatch whichv whichNA allNA ffirst GRP collap %iin% %!in% %!iin% join colorderv funique.default %!=% %==% missing_cases qtab flast varying radixorderv groupv na_rm

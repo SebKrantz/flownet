@@ -31,3 +31,20 @@ This function extracts all unique nodes from both the \code{from} and \code{to}
 columns of the graph, along with their corresponding coordinates. Duplicate nodes
 are removed, keeping only unique node IDs with their coordinates.
 }
+\examples{
+library(flowr)
+library(sf)
+
+# Extract nodes from graph
+graph <- linestrings_to_graph(network_gcc)
+nodes <- nodes_from_graph(graph)
+head(nodes)
+
+# Get nodes as sf POINT object for spatial operations
+nodes_sf <- nodes_from_graph(graph, sf = TRUE)
+class(nodes_sf)
+
+# Find nearest network nodes to zone centroids
+nearest <- nodes_sf$node[st_nearest_feature(zones_gcc, nodes_sf)]
+
+}

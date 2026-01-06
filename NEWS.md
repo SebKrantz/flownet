@@ -31,10 +31,9 @@
   - Weighted aggregation of edge attributes
   - Preserves coordinate information when present
 
-- **`simplify_network()`**: Simplify networks by keeping only traversed edges
-  - Filters network to edges used in shortest paths between OD pairs
-  - Works with both sf LINESTRING objects and graph data frames
-  - Efficient shortest path computation using igraph
+- **`simplify_network()`**: Simplify networks using shortest-paths or spatial clustering methods
+  - **Method "shortest-paths"**: Filters network to edges used in shortest paths between specified nodes
+  - **Method "cluster"**: Spatially clusters nodes using `leaderCluster` algorithm and contracts the graph
 
 ### Graph Utilities
 - **`normalize_graph()`**: Normalize node IDs to consecutive integers starting from 1
@@ -77,6 +76,7 @@
 - Integration with `collapse` package for fast data transformations
 - Uses `igraph` for graph operations and shortest path algorithms
 - Leverages `geodist` for fast geodesic distance computations
+- Leverages `leaderCluster` for efficient spatial clustering
 - Comprehensive documentation with examples and vignettes
 
 ## Documentation
@@ -92,6 +92,7 @@
 - **igraph** (>= 2.1.4) - Graph operations and shortest path algorithms
 - **sf** (>= 1.0.0) - Spatial data handling
 - **geodist** (>= 0.1.1) - Fast geodesic distance computations
+- **leaderCluster** (>= 0.1.5) - Efficient spatial clustering algorithms
 - **mirai** (>= 2.5.2) - Asynchronous parallelism for R
 - **progress** (>= 1.2.3) - Progress bars for long-running operations
 
