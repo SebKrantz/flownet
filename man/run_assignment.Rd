@@ -15,6 +15,7 @@ run_assignment(
   ...,
   detour.max = 1.5,
   angle.max = 90,
+  unique.cost = TRUE,
   return.extra = NULL,
   precompute.dmat = TRUE,
   verbose = TRUE,
@@ -46,6 +47,8 @@ The cost values are used to compute shortest paths and determine route probabili
 \item{detour.max}{Numeric (default: 1.5). Maximum detour factor for alternative routes (applied to shortest paths cost). This is a key parameter controlling the execution time of the algorithm: considering more routes (higher \code{detour.max}) substantially increases computation time.}
 
 \item{angle.max}{Numeric (default: 90). Maximum detour angle (in degrees, two sided). I.e., nodes not within this angle measured against a straight line from origin to destination node will not be considered for detours.}
+
+\item{unique.cost}{Logical (default: TRUE). Deduplicates paths based on the total cost prior to generating them. Since multiple 'intermediate nodes' may be on the same path, there is likely a significant number of duplicate paths which this option removes.}
 
 \item{return.extra}{Character vector specifying additional results to return. Options include:
 \code{"graph"}, \code{"dmat"}, \code{"paths"} (most memory intensive), \code{"edges"}, \code{"counts"}, \code{"costs"}, and \code{"weights"}.
@@ -85,13 +88,12 @@ Assign traffic flows to network edges using path-sized logit (PSL) model.
 This function performs traffic assignment using a path-sized logit (PSL) model:
 \itemize{
   \item Creates a graph from \code{graph_df} using igraph, normalizing node IDs internally
-  \item Optionally computes shortest path distance matrix for all node pairs (if \code{precompute.dmat = TRUE})
+  \item Computes shortest path distance matrix for all node pairs (if \code{precompute.dmat = TRUE})
   \item For each origin-destination pair in \code{od_matrix_long}:
     \itemize{
-      \item Identifies alternative routes (detours) that are within \code{detour.max} of shortest path cost
-      \item If \code{angle.max} is specified, filters detours to those within the specified angle from origin to destination
+      \item Identifies alternative routes (detours) that are within \code{detour.max} of shortest path cost. This is done by considering all other nodes and adding the shortest paths costs from origin node to an intermediate node (any other node) and from intermediate node to destination node. If \code{angle.max} is specified, filters detours to those within the specified angle from origin to destination. This means we only consider intermediate nodes that are roughly 'in the direction' of the destination node, and also not further away in terms of geodesic distance. If also \code{unique.cost = TRUE}, duplicate paths are removed based on the total cost. Thus, using only the shortest-paths-cost matrix and a matrix of the geodesic distances of the nodes (if \code{is.finite(angle.max)}), the algorithm pre-selects unique paths that are plausible both in terms of detour factor (cost) and direction before actually computing them. This speeds up route enumeration and PSL computations considerably.
       \item Finds shortest paths from origin to intermediate nodes and from intermediate nodes to destination
-      \item Filters paths to remove those with duplicate edges
+      \item Filters paths to remove those with duplicate edges, i.e., where the intermediate node is approached and departed from via the same edge(s).
       \item Computes path-sized logit probabilities accounting for route overlap
       \item Assigns flows to edges based on probabilities weighted by route overlap
     }
