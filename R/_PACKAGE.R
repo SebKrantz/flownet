@@ -50,5 +50,6 @@
 #' @author Sebastian Krantz \email{sebastian.krantz@graduateinstitute.ch} and Kamol Roy \email{kamol.roy08@gmail.com}
 #' @name flowr-package
 #' @aliases flowr
+#' @useDynLib flowr, .registration = TRUE
 NULL
 

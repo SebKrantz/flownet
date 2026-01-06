@@ -144,7 +144,7 @@ create_undirected_graph <- function(graph_df, by = NULL, ...) {
   agg_first <- c("edge", "FX", "FY", "TX", "TY")
   ord <- c("edge", "from", "FX", "FY", "to", "TX", "TY", by)
   res <- g$groups
-  if(any(nam %in% agg_first)) {
+  if(any(agg_first %in% nam)) {
     add_vars(res) <- ffirst(get_vars(graph_df, nam[nam %in% agg_first]), g, use.g.names = FALSE)
     res <- colorderv(res, ord[ord %in% nam])
   }
@@ -643,105 +643,304 @@ compute_degrees <- function(from_vec, to_vec) {
 }
 
 #' @title Simplify Network
-#' @description Simplify a network by keeping only edges that are traversed by shortest paths
-#'   between origin-destination pairs in the OD matrix.
+#' @description Simplify a network graph using shortest paths or node clustering methods.
 #'
-#' @param x Either an sf object with LINESTRING geometry representing the network, or a
-#'   data.frame with columns \code{from} and \code{to} representing the graph edges.
-#' @param y either a set of nodes, spatial points, or a data.frame representing the origin-destination matrix in long format.
-#' If \code{x} is a LINETRING geometry, it should have columns \code{FX}, \code{FY}, \code{TX}, \code{TY}
-#' representing the origin/destination zone centroids. If \code{x} is a graph data frame, it should have columns
-#' \code{from} and \code{to} matching nodes in \code{x}.
+#' @param graph A data.frame with columns \code{from} and \code{to} representing the graph edges.
+#'   For the cluster method, the graph must also have columns \code{FX}, \code{FY}, \code{TX}, \code{TY}
+#'   representing node coordinates.
+#' @param nodes For \code{method = "shortest-paths"}: either an atomic vector of node IDs, or a
+#'   data.frame with columns \code{from} and \code{to} specifying origin-destination pairs.
+#'   For \code{method = "cluster"}: an atomic vector of node IDs to preserve. These nodes will
+#'   be kept as cluster centroids, and nearby nodes (within \code{radius_km$nodes}) will be
+#'   assigned to their clusters. Remaining nodes are clustered using \code{\link[leaderCluster]{leaderCluster}}.
+#' @param method Character string (default: "shortest-paths"). Method to use for simplification:
+#'   \code{"shortest-paths"} computes shortest paths between nodes and keeps only traversed edges;
+#'   \code{"cluster"} clusters nodes using the \code{\link[leaderCluster]{leaderCluster}} algorithm and contracts the graph.
 #' @param directed Logical (default: FALSE). Whether the graph is directed.
-#' @param cost.column Character string (optional). Name of the cost column in \code{x}.
-#' If \code{NULL} and \code{x} is an sf object, uses \code{st_length(x)} as the cost.
-#' @param return description
-#' @return If \code{x} is an sf object, returns a list with:
+#'   For \code{method = "shortest-paths"}: controls path computation direction.
+#'   For \code{method = "cluster"}: if TRUE, A->B and B->A remain as separate edges after
+#'   contraction; if FALSE, edges are normalized so that \code{from < to} before grouping.
+#' @param cost.column Character string (default: "cost"). Name of the cost column in \code{graph}.
+#'   Alternatively, a numeric vector of edge costs with length equal to \code{nrow(graph)}.
+#'   Only used for \code{method = "shortest-paths"}.
+#' @param by Link characteristics to preserve/not simplify across, passed as a one-sided
+#'   formula or character vector of column names. Typically includes attributes like
+#'   \emph{mode}, \emph{type}, or \emph{capacity}.
+#'   For \code{method = "shortest-paths"}: paths are computed separately for each group
+#'   defined by \code{by}, with edges not in the current group penalized (cost set to
+#'   100x max cost) to compel mode-specific routes.
+#'   For \code{method = "cluster"}: edges are grouped by \code{from}, \code{to}, AND
+#'   \code{by} columns, preventing consolidation across different modes/types.
+#' @param radius_km Named list with elements \code{nodes} (default: 7) and \code{cluster} (default: 20).
+#'   Only used for \code{method = "cluster"}.
+#'   \code{nodes}: radius in kilometers around preserved nodes. Graph nodes within this radius
+#'   will be assigned to the nearest preserved node's cluster.
+#'   \code{cluster}: radius in kilometers for clustering remaining nodes using leaderCluster.
+#' @param \dots For \code{method = "cluster"}: additional arguments passed to
+#'   \code{\link[leaderCluster]{leaderCluster}} (e.g., \code{weights}) and to
+#'   \code{\link[collapse]{collap}} for edge attribute aggregation.
+#'
+#' @return A data.frame containing the simplified graph with:
 #'   \itemize{
-#'     \item \code{network} - sf object containing only edges that were traversed
-#'     \item \code{graph_df} - data.frame with graph representation of traversed edges
+#'     \item For \code{method = "shortest-paths"}:
+#'       \itemize{
+#'         \item All columns from the input \code{graph} (for edges that were kept)
+#'         \item Attribute \code{"edges"}: integer vector of edge indices from the original graph
+#'         \item Attribute \code{"edge_counts"}: integer vector indicating how many times each edge was traversed
+#'       }
+#'     \item For \code{method = "cluster"}:
+#'       \itemize{
+#'         \item \code{edge} - New edge identifier
+#'         \item \code{from}, \code{to} - Cluster centroid node IDs
+#'         \item \code{FX}, \code{FY}, \code{TX}, \code{TY} - Coordinates of cluster centroid nodes
+#'         \item Aggregated edge attributes from the original graph
+#'         \item Attribute \code{"group.id"}: mapping from original edges to simplified edges
+#'         \item Attribute \code{"group.starts"}: start indices of each group
+#'         \item Attribute \code{"group.sizes"}: number of original edges per simplified edge
+#'       }
 #'   }
-#'   If \code{x} is a data.frame, returns a data.frame containing only edges that were traversed.
 #'
 #' @details
-#' This function simplifies a network by:
+#' \strong{Method: "shortest-paths"}
 #' \itemize{
-#'   \item Converting the input to a graph representation (if needed)
-#'   \item Validating that all origin and destination nodes exist in the network
-#'   \item Computing shortest paths from each origin to all destinations using igraph
-#'   \item Marking all edges that are traversed by at least one shortest path
-#'   \item Returning only the subset of edges that were traversed
+#'   \item Validates that all origin and destination nodes exist in the network
+#'   \item Computes shortest paths from each origin to all destinations using igraph
+#'   \item Marks all edges that are traversed by at least one shortest path
+#'   \item Returns only the subset of edges that were traversed
+#'   \item If \code{nodes} is a data frame with \code{from} and \code{to} columns, paths are computed
+#'     from each unique origin to its specified destinations
 #' }
 #'
-#' The function filters the OD matrix to include only rows with finite, positive flow values.
-#' All shortest paths are computed using edge costs (either from \code{cost.column} or
-#' geometric length for sf objects).
+#' \strong{Method: "cluster"}
+#' \itemize{
+#'   \item Requires the graph to have spatial coordinates (\code{FX}, \code{FY}, \code{TX}, \code{TY})
+#'   \item If \code{nodes} is provided, these nodes are preserved as cluster centroids
+#'   \item Nearby nodes (within \code{radius_km$nodes} km) are assigned to the nearest preserved node
+#'   \item Remaining nodes are clustered using \code{\link[leaderCluster]{leaderCluster}} with
+#'     \code{radius_km$cluster} as the clustering radius
+#'   \item For each cluster, the node closest to the cluster centroid is selected as representative
+#'   \item The graph is contracted by mapping all nodes to their cluster representatives
+#'   \item Self-loops (edges where both endpoints map to the same cluster) are dropped
+#'   \item For undirected graphs (\code{directed = FALSE}), edges are normalized so \code{from < to},
+#'     merging opposite-direction edges; for directed graphs, A->B and B->A remain separate
+#'   \item Edge attributes are aggregated using \code{\link[collapse]{collap}} (default: mean for
+#'     numeric, mode for categorical); customize via \code{\dots}
+#' }
 #'
 #' @export
-#' @importFrom collapse fselect fsubset fnrow ss ckmatch anyv
+#' @importFrom collapse fnrow ss ckmatch funique.default fmatch gsplit fmin dapply whichv %+=% GRP add_vars seq_row add_stub colorderv %!in% collap get_vars
 #' @importFrom igraph graph_from_data_frame delete_vertex_attr igraph_options shortest_paths
-#' @importFrom sf st_length
-#' @useDynLib flowr, .registration = TRUE
-simplify_network <- function(x, y, directed = FALSE, cost.column = NULL,
-                             return = c("edges", "edge_counts", "graph_df")) {
+#' @importFrom geodist geodist_vec geodist_min
+#' @importFrom leaderCluster leaderCluster
+simplify_network <- function(graph, nodes, method = c("shortest-paths", "cluster"),
+                             directed = FALSE, cost.column = "cost", by = NULL,
+                             radius_km = list(nodes = 7, cluster = 20), ...) {
 
-  if(inherits(x, "sf")) {
-    graph_df <- linestrings_to_graph(x)
-    if(is.null(cost.column)) graph_df$cost <- st_length(x)
-    names(y) <- tolower(names(y))
-    if(!all(c("fx", "fy", "tx", "ty") %in% names(y)))
-      stop("y needs to have columns 'FX', 'FY', 'TX' and 'TY' when x is a linestring sf object")
-  } else if (all(c("from", "to") %in% names(x))) {
-    graph_df <- x
-    if(!is.atomic(y) && !all(c("from", "to") %in% names(y))) stop("y needs to have columns 'from' and 'to'")
-  } else stop("x must be a linestring sf object or a graph data.frame with 'from' and 'to' columns")
+  method <- match.arg(method)
 
-  cost <- if(is.character(cost.column) && length(cost.column) == 1L) graph_df[[cost.column]] else
-    if(is.numeric(cost.column) && length(cost.column) == fnrow(graph_df)) cost.column else
-      stop("cost.column needs to be a column name in graph_df or a numeric vector matching nrow(graph_df)")
+  # Validate graph input
+  if (!is.data.frame(graph) || !all(c("from", "to") %in% names(graph)))
+    stop("graph must be a data.frame with 'from' and 'to' columns")
 
-  from_node <- as.integer(graph_df$from)
-  to_node <- as.integer(graph_df$to)
-  nodes <- funique.default(c(from_node, to_node), sort = TRUE)
-  # Internally use normalized graph node indices
-  from_node <- fmatch(from_node, nodes)
-  to_node <- fmatch(to_node, nodes)
-  g <- data.frame(from = from_node, to = to_node) |>
-    graph_from_data_frame(directed = directed,
-                          vertices = data.frame(name = seq_along(nodes))) |>
-    delete_vertex_attr("name")
-  # Don't return vertex/edge names
-  iopt <- igraph_options(return.vs.es = FALSE) # sparsematrices = TRUE
-  on.exit(igraph_options(iopt))
+  # Validate by argument
+  if(length(by)) {
+    if(is.call(by)) by <- all.vars(by)
+    if(!is.character(by)) stop("by needs to be a one-sided formula or a character vector of column names")
+  }
 
-  if(is.atomic(y)) {
-    from <- ckmatch(y, nodes, e = "Unknown origin nodes:")
-    to <- from
+  if (method == "shortest-paths") {
+
+    # Shortest-paths method
+    cost <- if(is.character(cost.column) && length(cost.column) == 1L) graph[[cost.column]] else
+      if(is.numeric(cost.column) && length(cost.column) == fnrow(graph)) cost.column else
+        stop("cost.column needs to be a column name in graph or a numeric vector matching nrow(graph)")
+
+    from_node <- as.integer(graph$from)
+    to_node <- as.integer(graph$to)
+    all_nodes <- funique.default(c(from_node, to_node), sort = TRUE)
+
+    # Internally use normalized graph node indices
+    from_node <- fmatch(from_node, all_nodes)
+    to_node <- fmatch(to_node, all_nodes)
+    ig <- data.frame(from = from_node, to = to_node) |>
+      graph_from_data_frame(directed = directed,
+                            vertices = data.frame(name = seq_along(all_nodes))) |>
+      delete_vertex_attr("name")
+
+    # Don't return vertex/edge names
+    iopt <- igraph_options(return.vs.es = FALSE)
+    on.exit(igraph_options(iopt))
+
+    edges_traversed <- integer(fnrow(graph))
+
+    # Pre-process nodes input ONCE (before any group loop)
+    if(is.atomic(nodes)) {
+      nodes_matched <- ckmatch(nodes, all_nodes, e = "Unknown nodes:")
+      nodes_split <- NULL
+    } else if(is.data.frame(nodes)) {
+      if(!all(c("from", "to") %in% names(nodes)))
+        stop("nodes data.frame must have columns 'from' and 'to'")
+      nodes_split <- gsplit(ckmatch(nodes$to, all_nodes, e = "Unknown 'to' nodes:"),
+                            ckmatch(nodes$from, all_nodes, e = "Unknown 'from' nodes:"),
+                            use.g.names = TRUE)
+      nodes_matched <- NULL
+    } else stop("nodes must be an atomic vector or a data.frame")
+
+    # Helper to compute paths with given cost vector
+    compute_paths <- function(cost_vec) {
+      if(length(nodes_matched)) {
+        for (i in seq_along(nodes_matched)) {
+          pathsi <- shortest_paths(ig, from = nodes_matched[i], to = nodes_matched[-i],
+                                   weights = cost_vec, mode = "out", output = "epath")$epath
+          .Call(C_mark_edges_traversed, pathsi, edges_traversed)
+        }
+      } else {
+        from_nodes <- as.integer(names(nodes_split))
+        for (i in seq_along(from_nodes)) {
+          pathsi <- shortest_paths(ig, from = from_nodes[i], to = nodes_split[[i]],
+                                   weights = cost_vec, mode = "out", output = "epath")$epath
+          .Call(C_mark_edges_traversed, pathsi, edges_traversed)
+        }
+      }
+    }
+
+    if(length(by)) {
+      # Multimodal: iterate over groups, penalizing edges not in the current group
+      by_grp <- GRP(graph, by, return.order = FALSE)
+      max_cost <- 100 * max(cost, na.rm = TRUE)
+
+      for(grp_idx in seq_len(by_grp$N.groups)) {
+        cost_penalized <- cost
+        cost_penalized[by_grp$group.id != grp_idx] <- max_cost
+        compute_paths(cost_penalized)
+      }
+    } else {
+      # Single mode: compute paths once
+      compute_paths(cost)
+    }
+
+    edges <- which(edges_traversed > 0L)
+    result <- ss(graph, edges, check = FALSE)
+    attr(result, "edges") <- edges
+    attr(result, "edge_counts") <- edges_traversed[edges]
+
   } else {
-    if(length(y[["flow"]])) y <- fsubset(y, is.finite(flow) & flow > 0)
-    from <- y$from
-    to <- y$to
-    from <- ckmatch(from, nodes, e = "Unknown origin nodes:")
-    to <- ckmatch(to, nodes, e = "Unknown destination nodes:")
+
+    if (!all(c("FX", "FY", "TX", "TY") %in% names(graph)))
+      stop("graph must have columns 'FX', 'FY', 'TX', 'TY' for method = 'cluster'")
+
+    # Extract nodes with coordinates
+    nodes_df <- nodes_from_graph(graph, sf = FALSE)
+    # Cluster method
+    cl <- cluster_nodes(nodes_df, nodes, radius_km$nodes, radius_km$cluster, ...)
+    # Graph Contraction to Clusters
+    result <- contract_edges(graph, nodes_df, cl$clusters, cl$centroids, directed = directed, by = by, ...)
+
   }
 
-  edges_traversed <- integer(fnrow(graph_df))
-  for (i in from) {
-    pathsi <- shortest_paths(g, from = i, to = to, weights = cost, mode = "out", output = "epath")$epath
-    .Call(C_mark_edges_traversed, pathsi, edges_traversed)
-  }
-  edges <- which(edges_traversed > 0L)
-
-  res <- list()
-  if(anyv(return, "edges")) res$edges <- edges
-  if(anyv(return, "edge_counts")) res$edge_counts <- edges_traversed
-  if(anyv(return, "graph_df")) res$graph_df <- ss(graph_df, edges, check = FALSE)
-  # if(inherits(x, "sf")) {
-  #   return(list(network = x[edges_traversed > 0, ],
-  #               graph_df = graph_df |> ss(edges_traversed > 0)))
-  # }
-  res
+  return(result)
 }
+
+# Helper functions for simplify_network() with method = "cluster"
+cluster_nodes <- function(nodes, keep,
+                          nodes_radius_km = 7,
+                          cluster_radius_km = 20, ...) {
+  # Nodes to preserve
+  if(length(keep)) {
+    clusters <- integer(fnrow(nodes))
+    keep <- ckmatch(keep, nodes$node, "Unknown nodes to preserve:")
+    clusters[keep] <- seq_along(keep)
+    # Cluster nodes close to cities
+    dmat <- geodist_vec(nodes$X[keep], nodes$Y[keep],
+                        nodes$X[-keep], nodes$Y[-keep],
+                        measure = "haversine")
+    close <- fmin(dmat) < nodes_radius_km * 1000
+    if(any(close)) {
+      clusters[-keep][close] <- seq_along(keep)[dapply(dmat[, close, drop = FALSE], which.min)]
+    }
+    ind <- whichv(clusters, 0L)
+    if(length(ind)) {
+      mat <- cbind(Y = nodes$Y[ind], X = nodes$X[ind])
+      res <- leaderCluster(mat, cluster_radius_km, max_iter = 100L, distance = "haversine", ...)
+      clusters[ind] <- res$cluster_id %+=% length(keep)
+      centroids <- integer(length(keep) + res$num_clusters)
+      centroids[seq_along(keep)] <- keep
+      centroids[-seq_along(keep)] <- ind[geodist_min(res$cluster_centroids[,2:1], mat[,2:1], measure = "haversine")]
+    } else centroids <- keep
+  } else {
+    mat <- cbind(Y = nodes$Y, X = nodes$X)
+    res <- leaderCluster(mat, cluster_radius_km, max_iter = 100L, distance = "haversine", ...)
+    clusters <- res$cluster_id
+    centroids <- res$cluster_centroids[,2:1]
+    dimnames(centroids)[[2L]] <- c("X", "Y")
+    centroids <- geodist_min(centroids, mat[,2:1], measure = "haversine")
+  }
+  list(clusters = clusters, centroids = nodes$node[centroids])
+}
+
+contract_edges <- function(graph, nodes, clusters, centroids, directed = FALSE, by = NULL, ...) {
+    node_centroids <- centroids[clusters]
+    graph$from <- node_centroids[ckmatch(graph$from, nodes$node)]
+    graph$to <- node_centroids[ckmatch(graph$to, nodes$node)]
+
+    # Drop self-loops (edges where both endpoints map to same cluster)
+    self_loops <- graph$from == graph$to
+    if(any(self_loops)) {
+      graph <- ss(graph, !self_loops, check = FALSE)
+    }
+
+    # For undirected graphs, normalize edge direction so from < to
+    # This merges A->B and B->A into a single edge
+    if(!directed) {
+      swap <- graph$from > graph$to
+      if(any(swap)) {
+        tmp <- graph$from[swap]
+        graph$from[swap] <- graph$to[swap]
+        graph$to[swap] <- tmp
+      }
+    }
+
+    # Include 'by' columns in grouping to prevent cross-mode consolidation
+    g <- GRP(graph, c("from", "to", by))
+    nam <- names(graph)
+    res <- g$groups
+    add_vars(res, pos = "front") <- list(edge = seq_row(res))
+    if(any(nam %in% c("FX", "FY", "TX", "TY"))) {
+      add_vars(res) <- ss(nodes, ckmatch(res$from, nodes$node), c("X", "Y")) |> add_stub("F")
+      add_vars(res) <- ss(nodes, ckmatch(res$to, nodes$node), c("X", "Y")) |> add_stub("T")
+    }
+    ord <- c("edge", "from", "FX", "FY", "to", "TX", "TY")
+    res <- colorderv(res, ord[ord %in% nam])
+    if(any(nam %!in% ord)) {
+      add_vars(res) <- collap(get_vars(graph, nam[nam %!in% ord]), g, keep.by = FALSE, ...)
+    }
+    attr(res, "group.id") <- g$group.id
+    attr(res, "group.starts") <- g$group.starts
+    attr(res, "group.sizes") <- g$group.sizes
+    res
+  }
+
+# # Contracting graph
+# graph_straight |>
+#   join(nodes_clustered |> qDF() |>
+#          ftransform(qDF(st_coordinates(geometry))) |>
+#          fselect(fx = X, fy = Y, lon, lat)) |>
+#   ftransform(fx = lon, fy = lat, lon = NULL, lat = NULL) |>
+#   join(nodes_clustered |> qDF() |>
+#          ftransform(qDF(st_coordinates(geometry))) |>
+#          fselect(tx = X, ty = Y, lon, lat)) |>
+#   ftransform(tx = lon, ty = lat, lon = NULL, lat = NULL) |>
+#   fgroup_by(1:4) |> fsum() |> na_omit() |>
+#   st_as_sf(coords = c("fx", "fy"), crs = 4326, sf_column_name = "from") |> qDF() |>
+#   st_as_sf(coords = c("tx", "ty"), crs = 4326, sf_column_name = "to") |> qDF() |>
+#   fmutate(row = seq_along(from)) |>
+#   pivot(c("row", attrib), c("from", "to")) |>
+#   collap(~ row, custom = list(ffirst = attrib, st_combine = c("geometry" = "value")),
+#          keep.col.order = FALSE) |>
+#   st_as_sf(crs = 4326) |>
+#   st_cast("LINESTRING") |>
+#   fmutate(row = NULL)
+
 
 #' @title Melt Origin-Destination Matrix to Long Format
 #' @description Convert an origin-destination (OD) matrix to a long-format data frame
