@@ -45,6 +45,7 @@
 #'   \item \code{collapse} - Fast data transformations
 #'   \item \code{geodist} - Fast geodesic distance computations
 #'   \item \code{igraph} - Graph operations and shortest path algorithms
+#'   \item \code{leaderCluster} - Fast spatial clustering for network simplification
 #' }
 #'
 #' @author Sebastian Krantz \email{sebastian.krantz@graduateinstitute.ch} and Kamol Roy \email{kamol.roy08@gmail.com}
