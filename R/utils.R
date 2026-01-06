@@ -663,6 +663,14 @@ compute_degrees <- function(from_vec, to_vec) {
 #' @param cost.column Character string (default: "cost"). Name of the cost column in \code{graph}.
 #'   Alternatively, a numeric vector of edge costs with length equal to \code{nrow(graph)}.
 #'   Only used for \code{method = "shortest-paths"}.
+#' @param by Link characteristics to preserve/not simplify across, passed as a one-sided
+#'   formula or character vector of column names. Typically includes attributes like
+#'   \emph{mode}, \emph{type}, or \emph{capacity}.
+#'   For \code{method = "shortest-paths"}: paths are computed separately for each group
+#'   defined by \code{by}, with edges not in the current group penalized (cost set to
+#'   100x max cost) to compel mode-specific routes.
+#'   For \code{method = "cluster"}: edges are grouped by \code{from}, \code{to}, AND
+#'   \code{by} columns, preventing consolidation across different modes/types.
 #' @param radius_km Named list with elements \code{nodes} (default: 7) and \code{cluster} (default: 20).
 #'   Only used for \code{method = "cluster"}.
 #'   \code{nodes}: radius in kilometers around preserved nodes. Graph nodes within this radius
@@ -725,7 +733,7 @@ compute_degrees <- function(from_vec, to_vec) {
 #' @importFrom geodist geodist_vec geodist_min
 #' @importFrom leaderCluster leaderCluster
 simplify_network <- function(graph, nodes, method = c("shortest-paths", "cluster"),
-                             directed = FALSE, cost.column = "cost",
+                             directed = FALSE, cost.column = "cost", by = NULL,
                              radius_km = list(nodes = 7, cluster = 20), ...) {
 
   method <- match.arg(method)
@@ -733,6 +741,12 @@ simplify_network <- function(graph, nodes, method = c("shortest-paths", "cluster
   # Validate graph input
   if (!is.data.frame(graph) || !all(c("from", "to") %in% names(graph)))
     stop("graph must be a data.frame with 'from' and 'to' columns")
+
+  # Validate by argument
+  if(length(by)) {
+    if(is.call(by)) by <- all.vars(by)
+    if(!is.character(by)) stop("by needs to be a one-sided formula or a character vector of column names")
+  }
 
   if (method == "shortest-paths") {
 
@@ -748,7 +762,7 @@ simplify_network <- function(graph, nodes, method = c("shortest-paths", "cluster
     # Internally use normalized graph node indices
     from_node <- fmatch(from_node, all_nodes)
     to_node <- fmatch(to_node, all_nodes)
-    g <- data.frame(from = from_node, to = to_node) |>
+    ig <- data.frame(from = from_node, to = to_node) |>
       graph_from_data_frame(directed = directed,
                             vertices = data.frame(name = seq_along(all_nodes))) |>
       delete_vertex_attr("name")
@@ -759,27 +773,51 @@ simplify_network <- function(graph, nodes, method = c("shortest-paths", "cluster
 
     edges_traversed <- integer(fnrow(graph))
 
-    # Process nodes input
+    # Pre-process nodes input ONCE (before any group loop)
     if(is.atomic(nodes)) {
-      nodes <- ckmatch(nodes, all_nodes, e = "Unknown nodes:")
-      for (i in seq_along(nodes)) {
-        pathsi <- shortest_paths(g, from = nodes[i], to = nodes[-i], weights = cost,
-                                 mode = "out", output = "epath")$epath
-        .Call(C_mark_edges_traversed, pathsi, edges_traversed)
-      }
-    } else if (is.data.frame(nodes)) {
+      nodes_matched <- ckmatch(nodes, all_nodes, e = "Unknown nodes:")
+      nodes_split <- NULL
+    } else if(is.data.frame(nodes)) {
       if(!all(c("from", "to") %in% names(nodes)))
         stop("nodes data.frame must have columns 'from' and 'to'")
-      g <- gsplit(ckmatch(nodes$to, all_nodes, e = "Unknown 'to' nodes:"),
-                  ckmatch(nodes$from, all_nodes, e = "Unknown 'from' nodes:"),
-                  use.g.names = TRUE)
-      from <- as.integer(names(g))
-      for (i in seq_along(from)) {
-        pathsi <- shortest_paths(g, from = from[i], to = g[[i]], weights = cost,
-                                 mode = "out", output = "epath")$epath
-        .Call(C_mark_edges_traversed, pathsi, edges_traversed)
-      }
+      nodes_split <- gsplit(ckmatch(nodes$to, all_nodes, e = "Unknown 'to' nodes:"),
+                            ckmatch(nodes$from, all_nodes, e = "Unknown 'from' nodes:"),
+                            use.g.names = TRUE)
+      nodes_matched <- NULL
     } else stop("nodes must be an atomic vector or a data.frame")
+
+    # Helper to compute paths with given cost vector
+    compute_paths <- function(cost_vec) {
+      if(length(nodes_matched)) {
+        for (i in seq_along(nodes_matched)) {
+          pathsi <- shortest_paths(ig, from = nodes_matched[i], to = nodes_matched[-i],
+                                   weights = cost_vec, mode = "out", output = "epath")$epath
+          .Call(C_mark_edges_traversed, pathsi, edges_traversed)
+        }
+      } else {
+        from_nodes <- as.integer(names(nodes_split))
+        for (i in seq_along(from_nodes)) {
+          pathsi <- shortest_paths(ig, from = from_nodes[i], to = nodes_split[[i]],
+                                   weights = cost_vec, mode = "out", output = "epath")$epath
+          .Call(C_mark_edges_traversed, pathsi, edges_traversed)
+        }
+      }
+    }
+
+    if(length(by)) {
+      # Multimodal: iterate over groups, penalizing edges not in the current group
+      by_grp <- GRP(graph, by, return.order = FALSE)
+      max_cost <- 100 * max(cost, na.rm = TRUE)
+
+      for(grp_idx in seq_len(by_grp$N.groups)) {
+        cost_penalized <- cost
+        cost_penalized[by_grp$group.id != grp_idx] <- max_cost
+        compute_paths(cost_penalized)
+      }
+    } else {
+      # Single mode: compute paths once
+      compute_paths(cost)
+    }
 
     edges <- which(edges_traversed > 0L)
     result <- ss(graph, edges, check = FALSE)
@@ -796,7 +834,7 @@ simplify_network <- function(graph, nodes, method = c("shortest-paths", "cluster
     # Cluster method
     cl <- cluster_nodes(nodes_df, nodes, radius_km$nodes, radius_km$cluster, ...)
     # Graph Contraction to Clusters
-    result <- contract_edges(graph, nodes_df, cl$clusters, cl$centroids, directed = directed, ...)
+    result <- contract_edges(graph, nodes_df, cl$clusters, cl$centroids, directed = directed, by = by, ...)
 
   }
 
@@ -840,7 +878,7 @@ cluster_nodes <- function(nodes, keep,
   list(clusters = clusters, centroids = nodes$node[centroids])
 }
 
-contract_edges <- function(graph, nodes, clusters, centroids, directed = FALSE, ...) {
+contract_edges <- function(graph, nodes, clusters, centroids, directed = FALSE, by = NULL, ...) {
     node_centroids <- centroids[clusters]
     graph$from <- node_centroids[ckmatch(graph$from, nodes$node)]
     graph$to <- node_centroids[ckmatch(graph$to, nodes$node)]
@@ -862,7 +900,8 @@ contract_edges <- function(graph, nodes, clusters, centroids, directed = FALSE, 
       }
     }
 
-    g <- GRP(graph, ~ from + to)
+    # Include 'by' columns in grouping to prevent cross-mode consolidation
+    g <- GRP(graph, c("from", "to", by))
     nam <- names(graph)
     res <- g$groups
     add_vars(res, pos = "front") <- list(edge = seq_row(res))

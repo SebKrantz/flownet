@@ -10,6 +10,7 @@ simplify_network(
   method = c("shortest-paths", "cluster"),
   directed = FALSE,
   cost.column = "cost",
+  by = NULL,
   radius_km = list(nodes = 7, cluster = 20),
   ...
 )
@@ -37,6 +38,15 @@ contraction; if FALSE, edges are normalized so that \code{from < to} before grou
 \item{cost.column}{Character string (default: "cost"). Name of the cost column in \code{graph}.
 Alternatively, a numeric vector of edge costs with length equal to \code{nrow(graph)}.
 Only used for \code{method = "shortest-paths"}.}
+
+\item{by}{Link characteristics to preserve/not simplify across, passed as a one-sided
+formula or character vector of column names. Typically includes attributes like
+\emph{mode}, \emph{type}, or \emph{capacity}.
+For \code{method = "shortest-paths"}: paths are computed separately for each group
+defined by \code{by}, with edges not in the current group penalized (cost set to
+100x max cost) to compel mode-specific routes.
+For \code{method = "cluster"}: edges are grouped by \code{from}, \code{to}, AND
+\code{by} columns, preventing consolidation across different modes/types.}
 
 \item{radius_km}{Named list with elements \code{nodes} (default: 7) and \code{cluster} (default: 20).
 Only used for \code{method = "cluster"}.
