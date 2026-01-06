@@ -33,6 +33,7 @@ install.packages("path/to/flowr", repos = NULL, type = "source")
 - `geodist` (>= 0.1.1) - Fast geodesic distance computations
 - `mirai` (>= 2.5.2) - Asynchronous parallelism for R
 - `progress` (>= 1.2.3) - Progress bars for long-running operations
+- `leaderCluster` (>= 0.3.0) - Fast spatial clustering for network simplification
 
 ## Quick Start
 
@@ -81,7 +82,8 @@ nearest_nodes <- nodes$node[st_nearest_feature(od_zones, nodes)]
 graph <- consolidate_graph(graph, keep = nearest_nodes, w = ~ cost)
 
 # Simplify network by keeping only traversed edges along shortest paths (optional)
-graph <- simplify_network(graph, nearest_nodes, cost.column = "cost")
+# Use 'by' for multimodal networks to compute paths separately per mode
+graph <- simplify_network(graph, nearest_nodes, cost.column = "cost", by = ~ mode)
 ```
 
 ## Main Functions
@@ -105,7 +107,7 @@ graph <- simplify_network(graph, nearest_nodes, cost.column = "cost")
 - **`linestrings_to_graph()`** - Convert LINESTRING geometries to graph data frame
 - **`create_undirected_graph()`** - Convert directed graph to undirected with edge aggregation
 - **`consolidate_graph()`** - Consolidate graph by removing intermediate nodes and merging edges
-- **`simplify_network()`** - Simplify network by keeping only edges traversed by shortest paths
+- **`simplify_network()`** - Simplify network using shortest-paths or spatial clustering methods. Supports multimodal networks via `by` argument
 
 ### Graph Utilities
 

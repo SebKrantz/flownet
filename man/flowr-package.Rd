@@ -48,6 +48,7 @@ The package uses efficient C implementations for critical path operations and le
   \item \code{collapse} - Fast data transformations
   \item \code{geodist} - Fast geodesic distance computations
   \item \code{igraph} - Graph operations and shortest path algorithms
+  \item \code{leaderCluster} - Fast spatial clustering for network simplification
 }
 }
 \author{

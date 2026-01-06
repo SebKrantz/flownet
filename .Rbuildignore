@@ -3,6 +3,7 @@
 ^\.DS_Store$
 ^\.DS\_Store$
 .DS_Store
+.claude
 misc
 LICENSE
 ^\.github$

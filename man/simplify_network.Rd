@@ -109,3 +109,40 @@ Simplify a network graph using shortest paths or node clustering methods.
     numeric, mode for categorical); customize via \code{\dots}
 }
 }
+\examples{
+# Load example data
+library(flowr)
+
+# Create graph from network
+graph <- linestrings_to_graph(network_gcc)
+
+# Get zone nodes
+nodes_df <- nodes_from_graph(graph, sf = TRUE)
+nearest_nodes <- nodes_df$node[sf::st_nearest_feature(zones_gcc, nodes_df)]
+
+# Method 1: Shortest-paths simplification (keeps only traversed edges)
+graph_simple <- simplify_network(graph, nearest_nodes,
+                                 method = "shortest-paths",
+                                 cost.column = "generalized_cost")
+nrow(graph_simple)  # Reduced number of edges
+
+# With multimodal support: compute paths separately per mode
+graph_simple_mm <- simplify_network(graph, nearest_nodes,
+                                    method = "shortest-paths",
+                                    cost.column = "generalized_cost",
+                                    by = ~ mode)
+
+# Method 2: Cluster-based simplification (contracts graph spatially)
+\donttest{
+graph_cluster <- simplify_network(graph, nearest_nodes,
+                                  method = "cluster",
+                                  radius_km = list(nodes = 10, cluster = 30))
+
+# Cluster with multimodal support: don't merge edges of different modes
+graph_cluster_mm <- simplify_network(graph, nearest_nodes,
+                                     method = "cluster",
+                                     radius_km = list(nodes = 10, cluster = 30),
+                                     by = ~ mode)
+}
+
+}
