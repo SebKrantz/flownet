@@ -225,6 +225,66 @@ mapview(zones_gcc, alpha = 0, cex = 3,
 
 The consolidated network typically has fewer edges while maintaining connectivity between important nodes (zones).
 
+## Network Simplification with `simplify_network()`
+
+The `simplify_network()` function provides two methods for reducing network complexity while preserving connectivity between important nodes:
+
+1. **shortest-paths**: Keeps only edges traversed by shortest paths between specified nodes
+2. **cluster**: Spatially clusters nodes using the `leaderCluster` algorithm and contracts the graph
+
+Both methods support multimodal networks through the `by` argument, which prevents simplification across different transport modes.
+
+### Shortest-Paths Method
+
+This method computes shortest paths between all specified nodes and retains only the edges that are traversed:
+
+```{r simplify-shortest-paths}
+# Simplify network using shortest paths
+graph_simple <- simplify_network(graph_cons, nearest_nodes,
+                                 method = "shortest-paths",
+                                 cost.column = "generalized_cost")
+
+cat("Original edges:", nrow(graph_cons), "\n")
+cat("Simplified edges:", nrow(graph_simple), "\n")
+```
+
+### Multimodal Support
+
+For multimodal networks, use the `by` argument to compute paths separately for each mode. This ensures that each mode's shortest paths are computed independently, with edges of other modes penalized:
+
+```{r simplify-multimodal}
+# Simplify while preserving mode-specific routes
+graph_simple_mm <- simplify_network(graph_cons, nearest_nodes,
+                                    method = "shortest-paths",
+                                    cost.column = "generalized_cost",
+                                    by = ~ mode)
+
+cat("Edges with multimodal support:", nrow(graph_simple_mm), "\n")
+```
+
+### Cluster Method
+
+The cluster method uses the `leaderCluster` algorithm to spatially group nearby nodes and contract the graph. This is useful for creating coarser network representations:
+
+```{r simplify-cluster}
+# Cluster-based simplification (uses original graph with coordinates)
+graph_cluster <- simplify_network(graph, nearest_nodes,
+                                  method = "cluster",
+                                  radius_km = list(nodes = 10, cluster = 30),
+                                  by = ~ mode)
+
+cat("Original edges:", nrow(graph), "\n")
+cat("Clustered edges:", nrow(graph_cluster), "\n")
+```
+
+Key parameters:
+
+- `radius_km$nodes`: Radius (km) around preserved nodes to assign nearby nodes
+- `radius_km$cluster`: Clustering radius (km) for remaining nodes
+- `by`: Prevents merging edges of different modes during contraction
+
+## Traffic Assignment on Consolidated Network
+
 ### Step 5: Process OD Matrix and Run Assignment
 
 ```{r run-assignment-consolidated}
@@ -300,7 +360,12 @@ This formulation ensures that the model assigns lower probabilities to routes th
 
 **`consolidate_graph()`**: Simplifies network topology by removing intermediate nodes and merging connecting edges. This can significantly reduce computational complexity while preserving connectivity.
 
-**`simplify_network()`**: Simplifies the network by keeping only edges traversed by shortest paths between specified nodes. Useful for reducing network size when only certain OD pairs are of interest.
+**`simplify_network()`**: Simplifies the network using one of two methods:
+
+- **shortest-paths**: Keeps only edges traversed by shortest paths between specified nodes
+- **cluster**: Spatially clusters nodes using the `leaderCluster` algorithm and contracts the graph
+
+Both methods support multimodal networks through the `by` argument, which ensures that edges of different modes are handled separately (penalized costs for shortest-paths, separate grouping for cluster).
 
 ### Graph Utilities
 
