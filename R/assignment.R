@@ -17,6 +17,7 @@
 #' @param detour.max Numeric (default: 1.5). Maximum detour factor for alternative routes (applied to shortest paths cost). This is a key parameter controlling the execution time of the algorithm: considering more routes (higher \code{detour.max}) substantially increases computation time.
 #' @param angle.max Numeric (default: 90). Maximum detour angle (in degrees, two sided). I.e., nodes not within this angle measured against a straight line from origin to destination node will not be considered for detours.
 #' @param unique.cost Logical (default: TRUE). Deduplicates paths based on the total cost prior to generating them. Since multiple 'intermediate nodes' may be on the same path, there is likely a significant number of duplicate paths which this option removes.
+#' @param npaths.max Integer (default: 150). Maximum number of paths to compute per OD-pair. If the number of paths exceeds this number, a random sample will be taken from all but the shortest path.
 #' @param return.extra Character vector specifying additional results to return. Options include:
 #'   \code{"graph"}, \code{"dmat"}, \code{"paths"} (most memory intensive), \code{"edges"}, \code{"counts"}, \code{"costs"}, and \code{"weights"}.
 #'   Use \code{"all"} to return all available extra results.
@@ -115,6 +116,7 @@ run_assignment <- function(graph_df, od_matrix_long,
                            detour.max = 1.5,
                            angle.max = 90,
                            unique.cost = TRUE,
+                           npaths.max = 150L,
                            return.extra = NULL,
                            precompute.dmat = TRUE,
                            verbose = TRUE,
@@ -293,6 +295,11 @@ run_assignment <- function(graph_df, od_matrix_long,
         ndup = whichv(fduplicated(cost_ks), FALSE)
         cost_ks = cost_ks[ndup]
         ks = ks[ndup]
+      }
+      # If still too many paths: sample
+      if(length(ks) > npaths.max) {
+        ks = ks[sample.int(length(ks), npaths.max, useHash = FALSE)]
+        cost_ks = d_ikj[ks]
       }
 
       # We add the shortest path at the end of paths1

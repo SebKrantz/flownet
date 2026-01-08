@@ -16,6 +16,7 @@ run_assignment(
   detour.max = 1.5,
   angle.max = 90,
   unique.cost = TRUE,
+  npaths.max = 150L,
   return.extra = NULL,
   precompute.dmat = TRUE,
   verbose = TRUE,
@@ -49,6 +50,8 @@ The cost values are used to compute shortest paths and determine route probabili
 \item{angle.max}{Numeric (default: 90). Maximum detour angle (in degrees, two sided). I.e., nodes not within this angle measured against a straight line from origin to destination node will not be considered for detours.}
 
 \item{unique.cost}{Logical (default: TRUE). Deduplicates paths based on the total cost prior to generating them. Since multiple 'intermediate nodes' may be on the same path, there is likely a significant number of duplicate paths which this option removes.}
+
+\item{npaths.max}{Integer (default: 150). Maximum number of paths to compute per OD-pair. If the number of paths exceeds this number, a random sample will be taken from all but the shortest path.}
 
 \item{return.extra}{Character vector specifying additional results to return. Options include:
 \code{"graph"}, \code{"dmat"}, \code{"paths"} (most memory intensive), \code{"edges"}, \code{"counts"}, \code{"costs"}, and \code{"weights"}.
