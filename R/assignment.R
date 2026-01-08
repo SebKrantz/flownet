@@ -119,7 +119,7 @@
 #' }
 #'
 #' @export
-#' @importFrom collapse funique.default ss fnrow seq_row ckmatch anyv whichv setDimnames fmatch %+=% gsplit setv any_duplicated fduplicated
+#' @importFrom collapse funique.default ss fnrow seq_row ckmatch anyv whichv setDimnames fmatch %+=% gsplit setv any_duplicated fduplicated GRP
 #' @importFrom igraph V graph_from_data_frame delete_vertex_attr igraph_options distances shortest_paths vcount ecount
 #' @importFrom geodist geodist_vec
 #' @importFrom mirai mirai_map daemons everywhere
@@ -261,19 +261,21 @@ run_assignment <- function(graph_df, od_matrix_long,
     }
   }
 
-  # AoN Core Function
+  # AoN Core Function - Batched by origin node for efficiency
   run_assignment_core_aon <- function(indices, verbose = FALSE, session = FALSE) {
 
     if(!session) {
       if(verbose) progress_bar <- progress::progress_bar
       shortest_paths <- igraph::shortest_paths
       igraph_options <- igraph::igraph_options
-      setv <- collapse::setv
+      GRP <- collapse::GRP
+      gsplit <- collapse::gsplit
       flowr <- getNamespace("flowr")
-      C_assign_flow_to_path <- flowr$C_assign_flow_to_path
+      C_assign_flows_to_paths <- flowr$C_assign_flows_to_paths
       if(retvals_aon) {
         sve <- flowr$sve
-        if(countsl) C_increment_edge_counts <- flowr$C_increment_edge_counts
+        if(countsl) C_mark_edges_traversed <- flowr$C_mark_edges_traversed
+        if(costsl) C_sum_path_costs <- flowr$C_sum_path_costs
       }
     }
 
@@ -282,48 +284,45 @@ run_assignment <- function(graph_df, od_matrix_long,
 
     final_flows <- numeric(length(cost))
 
+    # Group OD pairs by origin node for batched shortest path computation
+    grp <- GRP(from[indices], return.groups = TRUE, call = FALSE, sort = FALSE)
+    fromi <- grp$groups[[1L]]  # Unique origin nodes
+    toi_idx <- gsplit(indices, grp)  # Indices grouped by origin
+
     if(verbose) {
       pb <- progress_bar$new(
         format = "Processed :current/:total OD-pairs (:percent) at :tick_rate/sec [Elapsed::elapsed | ETA::eta]",
         total = N, clear = FALSE
       )
-      div <- if(N > 1e4) 100L else 10L
-      divp <- div * max(as.integer(nthreads), 1L)
-      if(nthreads > 1L && as.integer(length(indices) / div) * divp > N)
-         divp <- as.integer(N / as.integer(length(indices) / div))
+      divp <- max(as.integer(nthreads), 1L)
+      if(nthreads > 1L && length(indices) * divp > N)
+         divp <- as.integer(N / length(indices))
     }
 
-    j <- 0L
-    for (i in indices) {
-      fi <- from[i]
-      ti <- to[i]
+    for (i in seq_along(fromi)) {
+      idx <- toi_idx[[i]]  # OD pair indices for this origin
 
-      if(verbose) {
-        j <- j + 1L
-        if(j %% div == 0L) pb$tick(divp)
-      }
+      # Compute all shortest paths from this origin to all its destinations
+      sp <- shortest_paths(g, from = fromi[i], to = to[idx], weights = cost,
+                           mode = "out", output = "epath", algorithm = "automatic")$epath
 
-      # Compute single shortest path
-      sp <- shortest_paths(g, from = fi, to = ti, weights = cost,
-                           mode = "out", output = "epath", algorithm = "automatic")$epath[[1]]
+      # Check for empty paths and mark as NA
+      if(anyv(splen <- vlengths(sp), 0L)) od_pairs[whichv(splen, 0L)] <- NA_integer_
 
-      if(length(sp) == 0) {
-        setv(od_pairs, i, NA_integer_)
-        next
-      }
-
-      # Assign all flow to this path
-      .Call(C_assign_flow_to_path, sp, flow[i], final_flows)
+      # Assign flows to paths (batch operation)
+      .Call(C_assign_flows_to_paths, sp, flow[idx], final_flows)
 
       # Handle return.extra for AoN
       if(retvals_aon) {
-        if(pathsl) sve(paths, i, as.integer(sp))
-        if(costsl) sve(sp_costs, i, sum(cost[sp]))
-        if(countsl) .Call(C_increment_edge_counts, sp, edge_counts)
+        if(pathsl) for(k in seq_along(idx)) sve(paths, idx[k], as.integer(sp[[k]]))
+        if(costsl) .Call(C_sum_path_costs, sp, cost, sp_costs, idx)
+        if(countsl) .Call(C_mark_edges_traversed, sp, edge_counts)
       }
+
+      if(verbose) pb$tick(divp * length(idx))
     }
 
-    if(verbose && !pb$finished) pb$tick(N - as.integer(j/div)*divp)
+    if(verbose && !pb$finished) pb$tick(N - divp*length(indices))
 
     if(!session) {
       res <- list(final_flows = final_flows, od_pairs = od_pairs)

@@ -150,23 +150,29 @@ SEXP set_vector_elt(SEXP x, SEXP i, SEXP elt) {
 
 
 /**
- * Assign flow to edges in a path (for All-or-Nothing assignment)
+ * Assign flows to edges for multiple paths (batch AoN assignment)
  *
- * @param path Numeric vector of 1-based edge indices
- * @param flow Scalar flow value to assign
+ * @param paths List of numeric vectors (edge indices for each path)
+ * @param flows Numeric vector of flow values (one per path)
  * @param final_flows Numeric vector to accumulate flows (modified in place)
  * @return The modified final_flows vector
  */
-SEXP assign_flow_to_path(SEXP path, SEXP flow, SEXP final_flows) {
-  int path_len = length(path);
-  if (path_len == 0) return final_flows;
+SEXP assign_flows_to_paths(SEXP paths, SEXP flows, SEXP final_flows) {
+  int n_paths = length(paths);
+  double *flows_vals = REAL(flows);
+  double *final_ptr = REAL(final_flows);
+  const SEXP *paths_ptr = SEXPPTR_RO(paths);
 
-  double flow_val = asReal(flow);
-  double *path_ptr = REAL(path);
-  double *flows_ptr = REAL(final_flows);
+  for (int k = 0; k < n_paths; k++) {
+    int path_len = length(paths_ptr[k]);
+    if (path_len == 0) continue;
 
-  for (int i = 0; i < path_len; i++) {
-    flows_ptr[(int)path_ptr[i] - 1] += flow_val;
+    double flow_val = flows_vals[k];
+    double *path_ptr = REAL(paths_ptr[k]);
+
+    for (int i = 0; i < path_len; i++) {
+      final_ptr[(int)path_ptr[i] - 1] += flow_val;
+    }
   }
 
   return final_flows;
@@ -174,23 +180,39 @@ SEXP assign_flow_to_path(SEXP path, SEXP flow, SEXP final_flows) {
 
 
 /**
- * Increment edge counts for a single path (for AoN counting)
+ * Compute sum of costs for each path and assign directly to indexed positions
  *
- * @param path Numeric vector of 1-based edge indices
- * @param edge_counts Integer vector to increment (modified in place)
- * @return The modified edge_counts vector
+ * @param paths List of numeric vectors (edge indices for each path)
+ * @param cost Numeric vector of edge costs
+ * @param result Numeric vector to store results (modified in place)
+ * @param indices Integer vector of 1-based indices into result where costs should be stored
+ * @return The modified result vector
  */
-SEXP increment_edge_counts(SEXP path, SEXP edge_counts) {
-  int path_len = length(path);
-  if (path_len == 0) return edge_counts;
+SEXP sum_path_costs(SEXP paths, SEXP cost, SEXP result, SEXP indices) {
+  int n_paths = length(paths);
+  double *cost_ptr = REAL(cost);
+  double *result_ptr = REAL(result);
+  int *idx_ptr = INTEGER(indices);
+  const SEXP *paths_ptr = SEXPPTR_RO(paths);
 
-  double *path_ptr = REAL(path);
-  int *counts_ptr = INTEGER(edge_counts);
+  for (int k = 0; k < n_paths; k++) {
+    int path_len = length(paths_ptr[k]);
+    int result_idx = idx_ptr[k] - 1;  // Convert to 0-based
 
-  for (int i = 0; i < path_len; i++) {
-    counts_ptr[(int)path_ptr[i] - 1]++;
+    if (path_len == 0) {
+      result_ptr[result_idx] = NA_REAL;
+      continue;
+    }
+
+    double sum = 0.0;
+    double *path_ptr = REAL(paths_ptr[k]);
+
+    for (int i = 0; i < path_len; i++) {
+      sum += cost_ptr[(int)path_ptr[i] - 1];
+    }
+    result_ptr[result_idx] = sum;
   }
 
-  return edge_counts;
+  return result;
 }
 
