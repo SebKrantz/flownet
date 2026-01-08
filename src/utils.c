@@ -159,6 +159,10 @@ SEXP set_vector_elt(SEXP x, SEXP i, SEXP elt) {
  */
 SEXP assign_flows_to_paths(SEXP paths, SEXP flows, SEXP final_flows) {
   int n_paths = length(paths);
+  int n_flows = length(flows);
+  if (n_paths != n_flows) {
+    error("paths and flows must have the same length");
+  }
   double *flows_vals = REAL(flows);
   double *final_ptr = REAL(final_flows);
   const SEXP *paths_ptr = SEXPPTR_RO(paths);
@@ -190,6 +194,10 @@ SEXP assign_flows_to_paths(SEXP paths, SEXP flows, SEXP final_flows) {
  */
 SEXP sum_path_costs(SEXP paths, SEXP cost, SEXP result, SEXP indices) {
   int n_paths = length(paths);
+  int n_indices = length(indices);
+  if (n_paths != n_indices) {
+    error("paths and indices must have the same length");
+  }
   double *cost_ptr = REAL(cost);
   double *result_ptr = REAL(result);
   int *idx_ptr = INTEGER(indices);

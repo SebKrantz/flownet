@@ -119,7 +119,7 @@
 #' }
 #'
 #' @export
-#' @importFrom collapse funique.default ss fnrow seq_row ckmatch anyv whichv setDimnames fmatch %+=% gsplit setv any_duplicated fduplicated GRP
+#' @importFrom collapse funique.default ss fnrow seq_row ckmatch anyv whichv setDimnames fmatch %+=% gsplit setv any_duplicated fduplicated GRP vlengths
 #' @importFrom igraph V graph_from_data_frame delete_vertex_attr igraph_options distances shortest_paths vcount ecount
 #' @importFrom geodist geodist_vec
 #' @importFrom mirai mirai_map daemons everywhere
@@ -307,7 +307,7 @@ run_assignment <- function(graph_df, od_matrix_long,
                            mode = "out", output = "epath", algorithm = "automatic")$epath
 
       # Check for empty paths and mark as NA
-      if(anyv(splen <- vlengths(sp), 0L)) od_pairs[whichv(splen, 0L)] <- NA_integer_
+      if(anyv(splen <- vlengths(sp), 0L)) od_pairs[idx[whichv(splen, 0L)]] <- NA_integer_
 
       # Assign flows to paths (batch operation)
       .Call(C_assign_flows_to_paths, sp, flow[idx], final_flows)
