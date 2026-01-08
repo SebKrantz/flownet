@@ -189,7 +189,7 @@ run_assignment <- function(graph_df, od_matrix_long,
   }
 
   # Distance Matrix
-  if(precompute.dmat || anyv(return.extra, "dmat")) {
+  if((precompute.dmat && !is_aon) || anyv(return.extra, "dmat")) {
     dmat <- distances(g, mode = "out", weights = cost)
     if(nrow(dmat) != ncol(dmat)) stop("Distance matrix must be square")
     if(anyv(return.extra, "dmat")) res$dmat <- setDimnames(dmat, list(nodes, nodes))
