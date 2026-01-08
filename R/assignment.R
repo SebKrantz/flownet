@@ -270,6 +270,9 @@ run_assignment <- function(graph_df, od_matrix_long,
       igraph_options <- igraph::igraph_options
       GRP <- collapse::GRP
       gsplit <- collapse::gsplit
+      vlengths <- collapse::vlengths
+      whichv <- collapse::whichv
+      anyv <- collapse::anyv
       flowr <- getNamespace("flowr")
       C_assign_flows_to_paths <- flowr$C_assign_flows_to_paths
       if(retvals_aon) {
