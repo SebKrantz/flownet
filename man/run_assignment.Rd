@@ -44,25 +44,26 @@ The cost values are used to compute shortest paths and determine route probabili
   \item \code{"AoN"}: All-or-Nothing assignment, assigns all flow to the shortest path (faster but no route alternatives)
 }}
 
-\item{beta}{Numeric (default: 1). Path-sized logit parameter (beta_PSL).}
+\item{beta}{Numeric (default: 1). Path-sized logit parameter (beta_PSL). Only used for PSL method.}
 
 \item{\dots}{Additional arguments (currently ignored).}
 
-\item{detour.max}{Numeric (default: 1.5). Maximum detour factor for alternative routes (applied to shortest paths cost). This is a key parameter controlling the execution time of the algorithm: considering more routes (higher \code{detour.max}) substantially increases computation time.}
+\item{detour.max}{Numeric (default: 1.5). Maximum detour factor for alternative routes (applied to shortest paths cost). Only used for PSL method. This is a key parameter controlling the execution time of the algorithm: considering more routes (higher \code{detour.max}) substantially increases computation time.}
 
-\item{angle.max}{Numeric (default: 90). Maximum detour angle (in degrees, two sided). I.e., nodes not within this angle measured against a straight line from origin to destination node will not be considered for detours.}
+\item{angle.max}{Numeric (default: 90). Maximum detour angle (in degrees, two sided). Only used for PSL method. I.e., nodes not within this angle measured against a straight line from origin to destination node will not be considered for detours.}
 
-\item{unique.cost}{Logical (default: TRUE). Deduplicates paths based on the total cost prior to generating them. Since multiple 'intermediate nodes' may be on the same path, there is likely a significant number of duplicate paths which this option removes.}
+\item{unique.cost}{Logical (default: TRUE). Deduplicates paths based on the total cost prior to generating them. Only used for PSL method. Since multiple 'intermediate nodes' may be on the same path, there is likely a significant number of duplicate paths which this option removes.}
 
-\item{npaths.max}{Integer (default: Inf). For method \code{"PSL"}: Maximum number of paths to compute per OD-pair. If the number of paths exceeds this number, a random sample will be taken from all but the shortest path. For method \code{"AoN"}: Maximum number of paths to compute at once.}
+\item{npaths.max}{Integer (default: Inf). Maximum number of paths to compute per OD-pair. Only used for PSL method. If the number of paths exceeds this number, a random sample will be taken from all but the shortest path.}
 
 \item{return.extra}{Character vector specifying additional results to return. Options include:
 \code{"graph"}, \code{"dmat"}, \code{"paths"}, \code{"edges"} (PSL only),
 \code{"counts"}, \code{"costs"}, and \code{"weights"} (PSL only).
-For AoN: \code{"costs"} returns a numeric vector of path costs, and \code{"counts"} returns a global integer vector of edge traversal counts.
+For AoN: \code{"paths"} returns a list of shortest paths (one integer vector per OD pair),
+\code{"costs"} returns a numeric vector of shortest path costs, and \code{"counts"} returns a global integer vector of edge traversal counts.
 Use \code{"all"} to return all available extra results for the selected method.}
 
-\item{precompute.dmat}{Logical (default: TRUE). Should distance matrices be precomputed or computed on the fly.
+\item{precompute.dmat}{Logical (default: TRUE). Should distance matrices be precomputed or computed on the fly. Only used for PSL method.
 The former is more memory intensive but dramatically speeds up the OD-iterations.}
 
 \item{verbose}{Logical (default: TRUE). Show progress bar and intermediate steps completion status?}
@@ -81,16 +82,17 @@ A list of class \code{"flowr"} containing:
       \itemize{
         \item \code{graph} - The igraph graph object
         \item \code{dmat} - Distance matrix with node IDs as dimnames
-        \item \code{paths} - List of paths for each OD pair
-        \item \code{edges} - List of edge indices used for each OD pair
-        \item \code{edge_counts} - List of edge visit counts for each OD pair
-        \item \code{path_costs} - List of path costs for each OD pair
-        \item \code{path_weights} - List of path weights (probabilities) for each OD pair
+        \item \code{paths} - For PSL: list of lists (multiple routes per OD pair); for AoN: list of integer vectors (one shortest path per OD pair)
+        \item \code{edges} - List of edge indices used for each OD pair (PSL only)
+        \item \code{edge_counts} - For PSL: list of edge visit counts per OD pair; for AoN: integer vector of global edge traversal counts
+        \item \code{path_costs} - For PSL: list of path costs per OD pair; for AoN: numeric vector of shortest path costs
+        \item \code{path_weights} - List of path weights (probabilities) for each OD pair (PSL only)
       }
   }
 }
 \description{
-Assign traffic flows to network edges using path-sized logit (PSL) model.
+Assign traffic flows to network edges using either Path-Sized Logit (PSL)
+  or All-or-Nothing (AoN) assignment methods.
 }
 \details{
 This function performs traffic assignment using one of two methods:
