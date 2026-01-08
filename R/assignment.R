@@ -210,7 +210,7 @@ run_assignment <- function(graph_df, od_matrix_long,
   if(length(od_pairs) != fnrow(od_matrix_long)) od_matrix_long <- ss(od_matrix_long, od_pairs, check = FALSE)
   from <- ckmatch(od_matrix_long$from, nodes, e = "Unknown origin nodes in od_matrix:")
   to <- ckmatch(od_matrix_long$to, nodes, e = "Unknown destination nodes in od_matrix:")
-  flow <- od_matrix_long[["flow"]]
+  flow <- as.numeric(od_matrix_long[["flow"]])
   N <- length(flow)
 
   # Return block
