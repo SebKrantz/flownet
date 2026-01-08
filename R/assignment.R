@@ -213,53 +213,31 @@ run_assignment <- function(graph_df, od_matrix_long,
   flow <- od_matrix_long[["flow"]]
   N <- length(flow)
 
-  # Return block for AoN
-  retvals_aon <- FALSE
-  if(is_aon) {
-    retvals_aon <- any(return.extra %in% c("paths", "costs", "counts"))
-    if(retvals_aon) {
-      if(anyv(return.extra, "paths")) {
-        pathsl <- TRUE
-        paths <- vector("list", N)
-      } else pathsl <- FALSE
-      if(anyv(return.extra, "costs")) {
-        costsl <- TRUE
-        sp_costs <- numeric(N)
-      } else costsl <- FALSE
-      if(anyv(return.extra, "counts")) {
-        countsl <- TRUE
-        edge_counts <- integer(length(cost))
-      } else countsl <- FALSE
-    }
+  # Return block
+  retvals <- any(return.extra %in% c("paths", "edges", "counts", "costs", "weights"))
+  if(retvals) {
+    if(anyv(return.extra, "paths")) {
+      pathsl <- TRUE
+      paths <- vector("list", N)
+    } else pathsl <- FALSE
+    if(!is_aon && anyv(return.extra, "edges")) {
+      edgesl <- TRUE
+      edges <- vector("list", N)
+    } else edgesl <- FALSE
+    if(anyv(return.extra, "counts")) {
+      countsl <- TRUE
+      counts <- if(is_aon) integer(length(cost)) else vector("list", N)
+    } else countsl <- FALSE
+    if(anyv(return.extra, "costs")) {
+      costsl <- TRUE
+      costs <- if(is_aon) numeric(N) else vector("list", N)
+    } else costsl <- FALSE
+    if(!is_aon && anyv(return.extra, "weights")) {
+      weightsl <- TRUE
+      weights <- vector("list", N)
+    } else weightsl <- FALSE
   }
 
-  # Return block (PSL only)
-  retvals <- FALSE
-  if(!is_aon) {
-    retvals <- any(return.extra %in% c("paths", "edges", "counts", "costs", "weights"))
-    if(retvals) {
-      if(anyv(return.extra, "paths")) {
-        pathsl <- TRUE
-        paths <- vector("list", length(flow))
-      } else pathsl <- FALSE
-      if(anyv(return.extra, "edges")) {
-        edgesl <- TRUE
-        edges <- vector("list", length(flow))
-      } else edgesl <- FALSE
-      if(anyv(return.extra, "counts")) {
-        countsl <- TRUE
-        counts <- vector("list", length(flow))
-      } else countsl <- FALSE
-      if(anyv(return.extra, "costs")) {
-        costsl <- TRUE
-        costs <- vector("list", length(flow))
-      } else costsl <- FALSE
-      if(anyv(return.extra, "weights")) {
-        weightsl <- TRUE
-        weights <- vector("list", length(flow))
-      } else weightsl <- FALSE
-    }
-  }
 
   # AoN Core Function - Batched by origin node for efficiency
   run_assignment_core_aon <- function(indices, verbose = FALSE, session = FALSE) {
@@ -275,7 +253,7 @@ run_assignment <- function(graph_df, od_matrix_long,
       anyv <- collapse::anyv
       flowr <- getNamespace("flowr")
       C_assign_flows_to_paths <- flowr$C_assign_flows_to_paths
-      if(retvals_aon) {
+      if(retvals) {
         sve <- flowr$sve
         if(countsl) C_mark_edges_traversed <- flowr$C_mark_edges_traversed
         if(costsl) C_sum_path_costs <- flowr$C_sum_path_costs
@@ -316,10 +294,10 @@ run_assignment <- function(graph_df, od_matrix_long,
       .Call(C_assign_flows_to_paths, sp, flow[idx], final_flows)
 
       # Handle return.extra for AoN
-      if(retvals_aon) {
+      if(retvals) {
         if(pathsl) for(k in seq_along(idx)) sve(paths, idx[k], as.integer(sp[[k]]))
-        if(costsl) .Call(C_sum_path_costs, sp, cost, sp_costs, idx)
-        if(countsl) .Call(C_mark_edges_traversed, sp, edge_counts)
+        if(costsl) .Call(C_sum_path_costs, sp, cost, costs, idx)
+        if(countsl) .Call(C_mark_edges_traversed, sp, counts)
       }
 
       if(verbose) pb$tick(divp * length(idx))
@@ -329,10 +307,10 @@ run_assignment <- function(graph_df, od_matrix_long,
 
     if(!session) {
       res <- list(final_flows = final_flows, od_pairs = od_pairs)
-      if(retvals_aon) {
+      if(retvals) {
         if(pathsl) res$paths <- paths
-        if(costsl) res$sp_costs <- sp_costs
-        if(countsl) res$edge_counts <- edge_counts
+        if(costsl) res$costs <- costs
+        if(countsl) res$counts <- counts
       }
       return(res)
     }
@@ -540,15 +518,13 @@ run_assignment <- function(graph_df, od_matrix_long,
       setv(od_pairs, ind, resi$od_pairs, vind1 = TRUE)
       if(retvals) {
         if(pathsl) paths[ind] <- resi$paths[ind]
-        if(countsl) counts[ind] <- resi$counts[ind]
         if(edgesl) edges[ind] <- resi$edges[ind]
         if(costsl) costs[ind] <- resi$costs[ind]
         if(weightsl) weights[ind] <- resi$weights[ind]
-      }
-      if(retvals_aon) {
-        if(pathsl) paths[ind] <- resi$paths[ind]
-        if(costsl) sp_costs[ind] <- resi$sp_costs[ind]
-        if(countsl) edge_counts %+=% resi$edge_counts
+        if(countsl) {
+          if(is_aon) counts %+=% resi$counts
+          else counts[ind] <- resi$counts[ind]
+        }
       }
     }
     res$final_flows <- final_flows
@@ -562,14 +538,9 @@ run_assignment <- function(graph_df, od_matrix_long,
     if(retvals) {
       if(pathsl) res$paths <- paths[nmiss_od]
       if(edgesl) res$edges <- edges[nmiss_od]
-      if(countsl) res$edge_counts <- counts[nmiss_od]
+      if(countsl) res$edge_counts <- if(is_aon) counts else counts[nmiss_od]
       if(costsl) res$path_costs <- costs[nmiss_od]
       if(weightsl) res$path_weights <- weights[nmiss_od]
-    }
-    if(retvals_aon) {
-      if(pathsl) res$paths <- paths[nmiss_od]
-      if(costsl) res$path_costs <- sp_costs[nmiss_od]
-      if(countsl) res$edge_counts <- edge_counts
     }
   } else {
     res$od_pairs_used <- od_pairs
@@ -579,11 +550,6 @@ run_assignment <- function(graph_df, od_matrix_long,
       if(countsl) res$edge_counts <- counts
       if(costsl) res$path_costs <- costs
       if(weightsl) res$path_weights <- weights
-    }
-    if(retvals_aon) {
-      if(pathsl) res$paths <- paths
-      if(costsl) res$path_costs <- sp_costs
-      if(countsl) res$edge_counts <- edge_counts
     }
   }
 
