@@ -10,17 +10,22 @@
 #' @param cost.column Character string (default: "cost") or numeric vector. Name of the cost column
 #'   in \code{graph_df}, or a numeric vector of edge costs with length equal to \code{nrow(graph_df)}.
 #'   The cost values are used to compute shortest paths and determine route probabilities.
-#' @param method Character string (default: "PSL"). Assignment method. Currently only "PSL"
-#'   (Path-Sized Logit) is implemented.
+#' @param method Character string (default: "PSL"). Assignment method:
+#'   \itemize{
+#'     \item \code{"PSL"}: Path-Sized Logit model considering multiple routes with overlap correction
+#'     \item \code{"AoN"}: All-or-Nothing assignment, assigns all flow to the shortest path (faster but no route alternatives)
+#'   }
 #' @param beta Numeric (default: 1). Path-sized logit parameter (beta_PSL).
 #' @param \dots Additional arguments (currently ignored).
 #' @param detour.max Numeric (default: 1.5). Maximum detour factor for alternative routes (applied to shortest paths cost). This is a key parameter controlling the execution time of the algorithm: considering more routes (higher \code{detour.max}) substantially increases computation time.
 #' @param angle.max Numeric (default: 90). Maximum detour angle (in degrees, two sided). I.e., nodes not within this angle measured against a straight line from origin to destination node will not be considered for detours.
 #' @param unique.cost Logical (default: TRUE). Deduplicates paths based on the total cost prior to generating them. Since multiple 'intermediate nodes' may be on the same path, there is likely a significant number of duplicate paths which this option removes.
-#' @param npaths.max Integer (default: 150). Maximum number of paths to compute per OD-pair. If the number of paths exceeds this number, a random sample will be taken from all but the shortest path.
+#' @param npaths.max Integer (default: Inf). For method \code{"PSL"}: Maximum number of paths to compute per OD-pair. If the number of paths exceeds this number, a random sample will be taken from all but the shortest path. For method \code{"AoN"}: Maximum number of paths to compute at once.
 #' @param return.extra Character vector specifying additional results to return. Options include:
-#'   \code{"graph"}, \code{"dmat"}, \code{"paths"} (most memory intensive), \code{"edges"}, \code{"counts"}, \code{"costs"}, and \code{"weights"}.
-#'   Use \code{"all"} to return all available extra results.
+#'   \code{"graph"}, \code{"dmat"}, \code{"paths"}, \code{"edges"} (PSL only),
+#'   \code{"counts"}, \code{"costs"}, and \code{"weights"} (PSL only).
+#'   For AoN: \code{"costs"} returns a numeric vector of path costs, and \code{"counts"} returns a global integer vector of edge traversal counts.
+#'   Use \code{"all"} to return all available extra results for the selected method.
 #' @param precompute.dmat Logical (default: TRUE). Should distance matrices be precomputed or computed on the fly.
 #'   The former is more memory intensive but dramatically speeds up the OD-iterations.
 #' @param verbose Logical (default: TRUE). Show progress bar and intermediate steps completion status?
@@ -45,7 +50,16 @@
 #'   }
 #'
 #' @details
-#' This function performs traffic assignment using a path-sized logit (PSL) model:
+#' This function performs traffic assignment using one of two methods:
+#'
+#' \strong{All-or-Nothing (AoN) Method:}
+#' A simple assignment method that assigns all flow from each OD pair to the single shortest path.
+#' This is much faster than PSL but does not consider route alternatives or overlaps.
+#' Parameters \code{detour.max}, \code{angle.max}, \code{unique.cost}, \code{npaths.max},
+#' \code{beta}, and \code{precompute.dmat} are ignored for AoN.
+#'
+#' \strong{Path-Sized Logit (PSL) Method:}
+#' A more sophisticated assignment method that considers multiple alternative routes:
 #' \itemize{
 #'   \item Creates a graph from \code{graph_df} using igraph, normalizing node IDs internally
 #'   \item Computes shortest path distance matrix for all node pairs (if \code{precompute.dmat = TRUE})
@@ -111,12 +125,13 @@
 run_assignment <- function(graph_df, od_matrix_long,
                            directed = FALSE,
                            cost.column = "cost", # mode_col = NULL,
-                           method = "PSL", beta = 1,
+                           method = c("PSL", "AoN"),
+                           beta = 1,
                            ...,
                            detour.max = 1.5,
                            angle.max = 90,
                            unique.cost = TRUE,
-                           npaths.max = 150L,
+                           npaths.max = Inf,
                            return.extra = NULL,
                            precompute.dmat = TRUE,
                            verbose = TRUE,
@@ -126,10 +141,16 @@ run_assignment <- function(graph_df, od_matrix_long,
     if(is.numeric(cost.column) && length(cost.column) == fnrow(graph_df)) cost.column else
     stop("cost.column needs to be a column name in graph_df or a numeric vector matching nrow(graph_df)")
 
+  # Validate method
+  method <- match.arg(method)
+  is_aon <- method == "AoN"
+
   # Results object
   res <- list(call = match.call())
-  if(length(return.extra) == 1L && return.extra == "all")
-    return.extra <- c("graph", "dmat", "paths", "edges", "counts", "costs", "weights")
+  if(length(return.extra) == 1L && return.extra == "all") {
+    return.extra <- if(is_aon) c("graph", "dmat", "paths", "costs", "counts")
+                    else c("graph", "dmat", "paths", "edges", "counts", "costs", "weights")
+  }
 
   # Create Igraph Graph
   from_node <- as.integer(graph_df$from)
@@ -150,27 +171,32 @@ run_assignment <- function(graph_df, od_matrix_long,
 
   if(verbose) cat("Created graph with", vcount(g), "nodes and", ecount(g), "edges...\n")
 
-  geol <- is.finite(angle.max) && angle.max > 0 && angle.max < 180
-  if(geol) {
-    if(!all(c("FX", "FY", "TX", "TY") %in% names(graph_df))) {
-      geol <- FALSE
-      message("graph_df needs to have columns FX, FY, TX and TY to compute angle-based detour restrictions")
-    } else {
-      nodes_df <- nodes_from_graph(graph_df, sf = FALSE)
-      X <- nodes_df$X
-      Y <- nodes_df$Y
+  # Geolocation and distance matrix are only used for PSL
+  if(!is_aon) {
+    geol <- is.finite(angle.max) && angle.max > 0 && angle.max < 180
+    if(geol) {
+      if(!all(c("FX", "FY", "TX", "TY") %in% names(graph_df))) {
+        geol <- FALSE
+        message("graph_df needs to have columns FX, FY, TX and TY to compute angle-based detour restrictions")
+      } else {
+        nodes_df <- nodes_from_graph(graph_df, sf = FALSE)
+        X <- nodes_df$X
+        Y <- nodes_df$Y
+      }
     }
   }
 
   # Distance Matrix
-  if(precompute.dmat) {
+  if(precompute.dmat || anyv(return.extra, "dmat")) {
     dmat <- distances(g, mode = "out", weights = cost)
     if(nrow(dmat) != ncol(dmat)) stop("Distance matrix must be square")
     if(anyv(return.extra, "dmat")) res$dmat <- setDimnames(dmat, list(nodes, nodes))
-    dimnames(dmat) <- NULL
-    if(geol) dmat_geo <- geodist_vec(X, Y, measure = "haversine")
+    if(!is_aon) {
+      dimnames(dmat) <- NULL
+      if(geol) dmat_geo <- geodist_vec(X, Y, measure = "haversine")
+    }
     if(verbose) cat("Computed distance matrix of dimensions", nrow(dmat), "x", ncol(dmat), "...\n")
-  } else v <- V(g)
+  } else if(!is_aon) v <- V(g)
 
   # Final flows vector (just for placement)
   res$final_flows <- numeric(0)
@@ -185,37 +211,137 @@ run_assignment <- function(graph_df, od_matrix_long,
   flow <- od_matrix_long[["flow"]]
   N <- length(flow)
 
-  # Return block
-  retvals <- any(return.extra %in% c("paths", "edges", "counts", "costs", "weights"))
-  if(retvals) {
-    if(anyv(return.extra, "paths")) {
-      pathsl <- TRUE
-      paths <- vector("list", length(flow))
-    } else pathsl <- FALSE
-    if(anyv(return.extra, "edges")) {
-      edgesl <- TRUE
-      edges <- vector("list", length(flow))
-    } else edgesl <- FALSE
-    if(anyv(return.extra, "counts")) {
-      countsl <- TRUE
-      counts <- vector("list", length(flow))
-    } else countsl <- FALSE
-    if(anyv(return.extra, "costs")) {
-      costsl <- TRUE
-      costs <- vector("list", length(flow))
-    } else costsl <- FALSE
-    if(anyv(return.extra, "weights")) {
-      weightsl <- TRUE
-      weights <- vector("list", length(flow))
-    } else weightsl <- FALSE
+  # Return block for AoN
+  retvals_aon <- FALSE
+  if(is_aon) {
+    retvals_aon <- any(return.extra %in% c("paths", "costs", "counts"))
+    if(retvals_aon) {
+      if(anyv(return.extra, "paths")) {
+        pathsl <- TRUE
+        paths <- vector("list", N)
+      } else pathsl <- FALSE
+      if(anyv(return.extra, "costs")) {
+        costsl <- TRUE
+        sp_costs <- numeric(N)
+      } else costsl <- FALSE
+      if(anyv(return.extra, "counts")) {
+        countsl <- TRUE
+        edge_counts <- integer(length(cost))
+      } else countsl <- FALSE
+    }
   }
 
-  # Function for parallel setup with mirai
-  run_assignment_core <- function(indices, verbose = FALSE, session = FALSE) {
+  # Return block (PSL only)
+  retvals <- FALSE
+  if(!is_aon) {
+    retvals <- any(return.extra %in% c("paths", "edges", "counts", "costs", "weights"))
+    if(retvals) {
+      if(anyv(return.extra, "paths")) {
+        pathsl <- TRUE
+        paths <- vector("list", length(flow))
+      } else pathsl <- FALSE
+      if(anyv(return.extra, "edges")) {
+        edgesl <- TRUE
+        edges <- vector("list", length(flow))
+      } else edgesl <- FALSE
+      if(anyv(return.extra, "counts")) {
+        countsl <- TRUE
+        counts <- vector("list", length(flow))
+      } else countsl <- FALSE
+      if(anyv(return.extra, "costs")) {
+        costsl <- TRUE
+        costs <- vector("list", length(flow))
+      } else costsl <- FALSE
+      if(anyv(return.extra, "weights")) {
+        weightsl <- TRUE
+        weights <- vector("list", length(flow))
+      } else weightsl <- FALSE
+    }
+  }
+
+  # AoN Core Function
+  run_assignment_core_aon <- function(indices, verbose = FALSE, session = FALSE) {
+
+    if(!session) {
+      if(verbose) progress_bar <- progress::progress_bar
+      shortest_paths <- igraph::shortest_paths
+      igraph_options <- igraph::igraph_options
+      setv <- collapse::setv
+      flowr <- getNamespace("flowr")
+      C_assign_flow_to_path <- flowr$C_assign_flow_to_path
+      if(retvals_aon) {
+        sve <- flowr$sve
+        if(countsl) C_increment_edge_counts <- flowr$C_increment_edge_counts
+      }
+    }
+
+    iopt <- igraph_options(return.vs.es = FALSE)
+    on.exit(igraph_options(iopt))
+
+    final_flows <- numeric(length(cost))
+
+    if(verbose) {
+      pb <- progress_bar$new(
+        format = "Processed :current/:total OD-pairs (:percent) at :tick_rate/sec [Elapsed::elapsed | ETA::eta]",
+        total = N, clear = FALSE
+      )
+      div <- if(N > 1e4) 100L else 10L
+      divp <- div * max(as.integer(nthreads), 1L)
+      if(nthreads > 1L && as.integer(length(indices) / div) * divp > N)
+         divp <- as.integer(N / as.integer(length(indices) / div))
+    }
+
+    j <- 0L
+    for (i in indices) {
+      fi <- from[i]
+      ti <- to[i]
+
+      if(verbose) {
+        j <- j + 1L
+        if(j %% div == 0L) pb$tick(divp)
+      }
+
+      # Compute single shortest path
+      sp <- shortest_paths(g, from = fi, to = ti, weights = cost,
+                           mode = "out", output = "epath", algorithm = "automatic")$epath[[1]]
+
+      if(length(sp) == 0) {
+        setv(od_pairs, i, NA_integer_)
+        next
+      }
+
+      # Assign all flow to this path
+      .Call(C_assign_flow_to_path, sp, flow[i], final_flows)
+
+      # Handle return.extra for AoN
+      if(retvals_aon) {
+        if(pathsl) sve(paths, i, as.integer(sp))
+        if(costsl) sve(sp_costs, i, sum(cost[sp]))
+        if(countsl) .Call(C_increment_edge_counts, sp, edge_counts)
+      }
+    }
+
+    if(verbose && !pb$finished) pb$tick(N - as.integer(j/div)*divp)
+
+    if(!session) {
+      res <- list(final_flows = final_flows, od_pairs = od_pairs)
+      if(retvals_aon) {
+        if(pathsl) res$paths <- paths
+        if(costsl) res$sp_costs <- sp_costs
+        if(countsl) res$edge_counts <- edge_counts
+      }
+      return(res)
+    }
+
+    return(final_flows)
+  }
+
+  # PSL Core Function for parallel setup with mirai
+  run_assignment_core_psl <- function(indices, verbose = FALSE, session = FALSE) {
 
     if(!session) {
       # Load required functions
-      if(verbose) progess_bar <- progress::progress_bar
+      if(verbose) progress_bar <- progress::progress_bar
       distances <- igraph::distances
       shortest_paths <- igraph::shortest_paths
       igraph_options <- igraph::igraph_options
@@ -381,6 +507,9 @@ run_assignment <- function(graph_df, od_matrix_long,
     return(final_flows)
   }
 
+  # Select core function based on method
+  run_assignment_core <- if(is_aon) run_assignment_core_aon else run_assignment_core_psl
+
   if(!is.finite(nthreads) || nthreads <= 1L) {
     res$final_flows <- run_assignment_core(seq_len(N), verbose, TRUE)
   } else {
@@ -412,6 +541,11 @@ run_assignment <- function(graph_df, od_matrix_long,
         if(costsl) costs[ind] <- resi$costs[ind]
         if(weightsl) weights[ind] <- resi$weights[ind]
       }
+      if(retvals_aon) {
+        if(pathsl) paths[ind] <- resi$paths[ind]
+        if(costsl) sp_costs[ind] <- resi$sp_costs[ind]
+        if(countsl) edge_counts %+=% resi$edge_counts
+      }
     }
     res$final_flows <- final_flows
     rm(res_other, envir, ind_list, final_flows)
@@ -428,6 +562,11 @@ run_assignment <- function(graph_df, od_matrix_long,
       if(costsl) res$path_costs <- costs[nmiss_od]
       if(weightsl) res$path_weights <- weights[nmiss_od]
     }
+    if(retvals_aon) {
+      if(pathsl) res$paths <- paths[nmiss_od]
+      if(costsl) res$path_costs <- sp_costs[nmiss_od]
+      if(countsl) res$edge_counts <- edge_counts
+    }
   } else {
     res$od_pairs_used <- od_pairs
     if(retvals) {
@@ -436,6 +575,11 @@ run_assignment <- function(graph_df, od_matrix_long,
       if(countsl) res$edge_counts <- counts
       if(costsl) res$path_costs <- costs
       if(weightsl) res$path_weights <- weights
+    }
+    if(retvals_aon) {
+      if(pathsl) res$paths <- paths
+      if(costsl) res$path_costs <- sp_costs
+      if(countsl) res$edge_counts <- edge_counts
     }
   }
 
@@ -462,18 +606,39 @@ print.flowr <- function(x, ...) {
       cat("Number of simulations/OD-pairs:", length(x$paths), "\n")
   }
   cat("\n")
+
   if (!is.null(x$paths) && length(x$paths)) {
     pls <- vlengths(x$paths)
-    cat("Average number of paths per simulation (SD): ", fmean(pls), "  (", fsd(pls, stable.algo = FALSE), ")\n", sep = "")
+    if(is.numeric(x$paths[[1L]])) {
+      # For AoN, vlengths gives path length (number of edges per path)
+      cat("Average path length in edges (SD): ", fmean(pls), "  (", fsd(pls, stable.algo = FALSE), ")\n", sep = "")
+    } else {
+      # For PSL, vlengths gives number of alternative paths per OD pair
+      cat("Average number of paths per simulation (SD): ", fmean(pls), "  (", fsd(pls, stable.algo = FALSE), ")\n", sep = "")
+    }
   }
   if (!is.null(x$edges) && length(x$edges)) {
     els <- vlengths(x$edges)
     cat("Average number of edges utilized per simulation (SD): ", fmean(els), "  (", fsd(els, stable.algo = FALSE), ")\n", sep = "")
   }
-  if (!is.null(x$edge_counts) && length(x$edge_counts))
-    cat("Average number of visits per edge (SD): ", fmean(fmean(x$edge_counts)), "  (", fmean(fsd(x$edge_counts, stable.algo = FALSE)), ")\n", sep = "")
-  if (!is.null(x$path_costs) && length(x$path_costs))
-    cat("Average path cost (SD): ", fmean(fmean(x$path_costs)), "  (", fmean(fsd(x$path_costs, stable.algo = FALSE)), ")\n", sep = "")
+  if (!is.null(x$edge_counts) && length(x$edge_counts)) {
+    if(is.numeric(x$edge_counts)) {
+      # For AoN, edge_counts is a single integer vector (global counts)
+      cat("Average number of visits per edge (SD): ", fmean(x$edge_counts), "  (", fsd(x$edge_counts, stable.algo = FALSE), ")\n", sep = "")
+    } else {
+      # For PSL, edge_counts is a list of counts per OD pair
+      cat("Average number of visits per edge (SD): ", fmean(fmean(x$edge_counts)), "  (", fmean(fsd(x$edge_counts, stable.algo = FALSE)), ")\n", sep = "")
+    }
+  }
+  if (!is.null(x$path_costs) && length(x$path_costs)) {
+    if(is.numeric(x$path_costs)) {
+      # For AoN, path_costs is a single numeric vector
+      cat("Average path cost (SD): ", fmean(x$path_costs), "  (", fsd(x$path_costs, stable.algo = FALSE), ")\n", sep = "")
+    } else {
+      # For PSL, path_costs is a list of costs per OD pair
+      cat("Average path cost (SD): ", fmean(fmean(x$path_costs)), "  (", fmean(fsd(x$path_costs, stable.algo = FALSE)), ")\n", sep = "")
+    }
+  }
   if (!is.null(x$path_weights) && length(x$path_weights))
     cat("Average path weight (SD): ", fmean(fmean(x$path_weights)), "  (", fmean(fsd(x$path_weights, stable.algo = FALSE)), ")\n", sep = "")
 }

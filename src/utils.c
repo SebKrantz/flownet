@@ -143,7 +143,54 @@ SEXP free_delta_ks(SEXP delta_ks, SEXP no_dups, SEXP paths1, SEXP paths2, SEXP s
 SEXP set_vector_elt(SEXP x, SEXP i, SEXP elt) {
   int idx = asInteger(i) - 1;
   if(TYPEOF(x) == INTSXP) INTEGER(x)[idx] = INTEGER(elt)[0];
+  else if(TYPEOF(x) == REALSXP) REAL(x)[idx] = asReal(elt);
   else SET_VECTOR_ELT(x, idx, elt);
   return R_NilValue;
+}
+
+
+/**
+ * Assign flow to edges in a path (for All-or-Nothing assignment)
+ *
+ * @param path Numeric vector of 1-based edge indices
+ * @param flow Scalar flow value to assign
+ * @param final_flows Numeric vector to accumulate flows (modified in place)
+ * @return The modified final_flows vector
+ */
+SEXP assign_flow_to_path(SEXP path, SEXP flow, SEXP final_flows) {
+  int path_len = length(path);
+  if (path_len == 0) return final_flows;
+
+  double flow_val = asReal(flow);
+  double *path_ptr = REAL(path);
+  double *flows_ptr = REAL(final_flows);
+
+  for (int i = 0; i < path_len; i++) {
+    flows_ptr[(int)path_ptr[i] - 1] += flow_val;
+  }
+
+  return final_flows;
+}
+
+
+/**
+ * Increment edge counts for a single path (for AoN counting)
+ *
+ * @param path Numeric vector of 1-based edge indices
+ * @param edge_counts Integer vector to increment (modified in place)
+ * @return The modified edge_counts vector
+ */
+SEXP increment_edge_counts(SEXP path, SEXP edge_counts) {
+  int path_len = length(path);
+  if (path_len == 0) return edge_counts;
+
+  double *path_ptr = REAL(path);
+  int *counts_ptr = INTEGER(edge_counts);
+
+  for (int i = 0; i < path_len; i++) {
+    counts_ptr[(int)path_ptr[i] - 1]++;
+  }
+
+  return edge_counts;
 }
 

@@ -10,13 +10,13 @@ run_assignment(
   od_matrix_long,
   directed = FALSE,
   cost.column = "cost",
-  method = "PSL",
+  method = c("PSL", "AoN"),
   beta = 1,
   ...,
   detour.max = 1.5,
   angle.max = 90,
   unique.cost = TRUE,
-  npaths.max = 150L,
+  npaths.max = Inf,
   return.extra = NULL,
   precompute.dmat = TRUE,
   verbose = TRUE,
@@ -38,8 +38,11 @@ Represents the origin-destination matrix in long format with flow values.}
 in \code{graph_df}, or a numeric vector of edge costs with length equal to \code{nrow(graph_df)}.
 The cost values are used to compute shortest paths and determine route probabilities.}
 
-\item{method}{Character string (default: "PSL"). Assignment method. Currently only "PSL"
-(Path-Sized Logit) is implemented.}
+\item{method}{Character string (default: "PSL"). Assignment method:
+\itemize{
+  \item \code{"PSL"}: Path-Sized Logit model considering multiple routes with overlap correction
+  \item \code{"AoN"}: All-or-Nothing assignment, assigns all flow to the shortest path (faster but no route alternatives)
+}}
 
 \item{beta}{Numeric (default: 1). Path-sized logit parameter (beta_PSL).}
 
@@ -51,11 +54,13 @@ The cost values are used to compute shortest paths and determine route probabili
 
 \item{unique.cost}{Logical (default: TRUE). Deduplicates paths based on the total cost prior to generating them. Since multiple 'intermediate nodes' may be on the same path, there is likely a significant number of duplicate paths which this option removes.}
 
-\item{npaths.max}{Integer (default: 150). Maximum number of paths to compute per OD-pair. If the number of paths exceeds this number, a random sample will be taken from all but the shortest path.}
+\item{npaths.max}{Integer (default: Inf). For method \code{"PSL"}: Maximum number of paths to compute per OD-pair. If the number of paths exceeds this number, a random sample will be taken from all but the shortest path. For method \code{"AoN"}: Maximum number of paths to compute at once.}
 
 \item{return.extra}{Character vector specifying additional results to return. Options include:
-\code{"graph"}, \code{"dmat"}, \code{"paths"} (most memory intensive), \code{"edges"}, \code{"counts"}, \code{"costs"}, and \code{"weights"}.
-Use \code{"all"} to return all available extra results.}
+\code{"graph"}, \code{"dmat"}, \code{"paths"}, \code{"edges"} (PSL only),
+\code{"counts"}, \code{"costs"}, and \code{"weights"} (PSL only).
+For AoN: \code{"costs"} returns a numeric vector of path costs, and \code{"counts"} returns a global integer vector of edge traversal counts.
+Use \code{"all"} to return all available extra results for the selected method.}
 
 \item{precompute.dmat}{Logical (default: TRUE). Should distance matrices be precomputed or computed on the fly.
 The former is more memory intensive but dramatically speeds up the OD-iterations.}
@@ -88,7 +93,16 @@ A list of class \code{"flowr"} containing:
 Assign traffic flows to network edges using path-sized logit (PSL) model.
 }
 \details{
-This function performs traffic assignment using a path-sized logit (PSL) model:
+This function performs traffic assignment using one of two methods:
+
+\strong{All-or-Nothing (AoN) Method:}
+A simple assignment method that assigns all flow from each OD pair to the single shortest path.
+This is much faster than PSL but does not consider route alternatives or overlaps.
+Parameters \code{detour.max}, \code{angle.max}, \code{unique.cost}, \code{npaths.max},
+\code{beta}, and \code{precompute.dmat} are ignored for AoN.
+
+\strong{Path-Sized Logit (PSL) Method:}
+A more sophisticated assignment method that considers multiple alternative routes:
 \itemize{
   \item Creates a graph from \code{graph_df} using igraph, normalizing node IDs internally
   \item Computes shortest path distance matrix for all node pairs (if \code{precompute.dmat = TRUE})
