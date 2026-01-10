@@ -143,7 +143,91 @@ SEXP free_delta_ks(SEXP delta_ks, SEXP no_dups, SEXP paths1, SEXP paths2, SEXP s
 SEXP set_vector_elt(SEXP x, SEXP i, SEXP elt) {
   int idx = asInteger(i) - 1;
   if(TYPEOF(x) == INTSXP) INTEGER(x)[idx] = INTEGER(elt)[0];
+  else if(TYPEOF(x) == REALSXP) REAL(x)[idx] = asReal(elt);
   else SET_VECTOR_ELT(x, idx, elt);
   return R_NilValue;
+}
+
+
+/**
+ * Assign flows to edges for multiple paths (batch AoN assignment)
+ *
+ * @param paths List of numeric vectors (edge indices for each path)
+ * @param flows Numeric vector of flow values (one per path)
+ * @param final_flows Numeric vector to accumulate flows (modified in place)
+ * @param indices Integer indices of od-pairs (to) processed
+ * @param od_pairs Integer vector indicating whether OD pair is valid
+ * @return The modified final_flows vector
+ */
+SEXP assign_flows_to_paths(SEXP paths, SEXP flows, SEXP final_flows, SEXP indices, SEXP od_pairs) {
+  int n_paths = length(paths);
+  int n_flows = length(indices);
+  if (n_paths != n_flows) {
+    error("paths and flows must have the same length");
+  }
+  double *flows_vals = REAL(flows);
+  double *final_ptr = REAL(final_flows);
+  const SEXP *paths_ptr = SEXPPTR_RO(paths);
+  int *idx = INTEGER(indices);
+  int *odp = INTEGER(od_pairs);
+
+  for (int k = 0; k < n_paths; k++) {
+    int path_len = length(paths_ptr[k]);
+    if (path_len == 0) {
+      odp[idx[k]-1] = NA_INTEGER;
+      continue;
+    }
+
+    double flow_val = flows_vals[idx[k]-1];
+    double *path_ptr = REAL(paths_ptr[k]);
+
+    for (int i = 0; i < path_len; i++) {
+      final_ptr[(int)path_ptr[i] - 1] += flow_val;
+    }
+  }
+
+  return final_flows;
+}
+
+
+/**
+ * Compute sum of costs for each path and assign directly to indexed positions
+ *
+ * @param paths List of numeric vectors (edge indices for each path)
+ * @param cost Numeric vector of edge costs
+ * @param result Numeric vector to store results (modified in place)
+ * @param indices Integer vector of 1-based indices into result where costs should be stored
+ * @return The modified result vector
+ */
+SEXP sum_path_costs(SEXP paths, SEXP cost, SEXP result, SEXP indices) {
+  int n_paths = length(paths);
+  int n_indices = length(indices);
+  if (n_paths != n_indices) {
+    error("paths and indices must have the same length");
+  }
+  double *cost_ptr = REAL(cost);
+  double *result_ptr = REAL(result);
+  int *idx_ptr = INTEGER(indices);
+  const SEXP *paths_ptr = SEXPPTR_RO(paths);
+
+  for (int k = 0; k < n_paths; k++) {
+    int path_len = length(paths_ptr[k]);
+    int result_idx = idx_ptr[k] - 1;  // Convert to 0-based
+
+    if (path_len == 0) {
+      result_ptr[result_idx] = NA_REAL;
+      continue;
+    }
+
+    double sum = 0.0;
+    double *path_ptr = REAL(paths_ptr[k]);
+
+    for (int i = 0; i < path_len; i++) {
+      sum += cost_ptr[(int)path_ptr[i] - 1];
+    }
+    result_ptr[result_idx] = sum;
+  }
+
+  return result;
 }
 
