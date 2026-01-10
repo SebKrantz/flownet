@@ -119,7 +119,7 @@
 #' }
 #'
 #' @export
-#' @importFrom collapse funique.default ss fnrow seq_row ckmatch anyv whichv setDimnames fmatch %+=% gsplit setv any_duplicated fduplicated GRP vlengths
+#' @importFrom collapse funique.default ss fnrow seq_row ckmatch anyv whichv setDimnames fmatch %+=% gsplit setv any_duplicated fduplicated GRP
 #' @importFrom igraph V graph_from_data_frame delete_vertex_attr igraph_options distances shortest_paths vcount ecount
 #' @importFrom geodist geodist_vec
 #' @importFrom mirai mirai_map daemons everywhere
@@ -248,9 +248,6 @@ run_assignment <- function(graph_df, od_matrix_long,
       igraph_options <- igraph::igraph_options
       GRP <- collapse::GRP
       gsplit <- collapse::gsplit
-      vlengths <- collapse::vlengths
-      whichv <- collapse::whichv
-      anyv <- collapse::anyv
       flowr <- getNamespace("flowr")
       C_assign_flows_to_paths <- flowr$C_assign_flows_to_paths
       if(retvals) {
@@ -281,17 +278,14 @@ run_assignment <- function(graph_df, od_matrix_long,
     }
 
     for (i in seq_along(fromi)) {
-      idx <- toi_idx[[i]]  # OD pair indices for this origin
+      idx = toi_idx[[i]]  # OD pair indices for this origin
 
       # Compute all shortest paths from this origin to all its destinations
-      sp <- shortest_paths(g, from = fromi[i], to = to[idx], weights = cost,
+      sp = shortest_paths(g, from = fromi[i], to = to[idx], weights = cost,
                            mode = "out", output = "epath", algorithm = "automatic")$epath
 
-      # Check for empty paths and mark as NA
-      if(anyv(splen <- vlengths(sp), 0L)) od_pairs[idx[whichv(splen, 0L)]] <- NA_integer_
-
-      # Assign flows to paths (batch operation)
-      .Call(C_assign_flows_to_paths, sp, flow[idx], final_flows)
+      # Assign flows to paths (batch operation) + Check missing paths
+      .Call(C_assign_flows_to_paths, sp, flow, final_flows, idx, od_pairs)
 
       # Handle return.extra for AoN
       if(retvals) {
@@ -562,7 +556,7 @@ run_assignment <- function(graph_df, od_matrix_long,
 #' @param x An object of class \code{flowr}, typically returned by \code{\link{run_assignment}}.
 #'
 #' @export
-#' @importFrom collapse fmean fsd vlengths
+#' @importFrom collapse fmean fsd vlengths descr print.qsu
 print.flowr <- function(x, ...) {
   cat("Flowr object\n")
   cat("Call:", deparse(x$call), "\n\n")
@@ -611,4 +605,10 @@ print.flowr <- function(x, ...) {
   }
   if (!is.null(x$path_weights) && length(x$path_weights))
     cat("Average path weight (SD): ", fmean(fmean(x$path_weights)), "  (", fmean(fsd(x$path_weights, stable.algo = FALSE)), ")\n", sep = "")
+  if(length(x$final_flows)) {
+    dff <- descr(x$final_flows)
+    cat("Final flows summary statistics:\n")
+    print.qsu(dff$final_flows$Stats, digits = 2)
+    print.qsu(dff$final_flows$Quant, digits = 2)
+  }
 }

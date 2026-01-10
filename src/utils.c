@@ -155,23 +155,30 @@ SEXP set_vector_elt(SEXP x, SEXP i, SEXP elt) {
  * @param paths List of numeric vectors (edge indices for each path)
  * @param flows Numeric vector of flow values (one per path)
  * @param final_flows Numeric vector to accumulate flows (modified in place)
+ * @param indices Integer indices of od-pairs (to) processed
+ * @param od_pairs Integer vector indicating whether OD pair is valid
  * @return The modified final_flows vector
  */
-SEXP assign_flows_to_paths(SEXP paths, SEXP flows, SEXP final_flows) {
+SEXP assign_flows_to_paths(SEXP paths, SEXP flows, SEXP final_flows, SEXP indices, SEXP od_pairs) {
   int n_paths = length(paths);
-  int n_flows = length(flows);
+  int n_flows = length(indices);
   if (n_paths != n_flows) {
     error("paths and flows must have the same length");
   }
   double *flows_vals = REAL(flows);
   double *final_ptr = REAL(final_flows);
   const SEXP *paths_ptr = SEXPPTR_RO(paths);
+  int *idx = INTEGER(indices);
+  int *odp = INTEGER(od_pairs);
 
   for (int k = 0; k < n_paths; k++) {
     int path_len = length(paths_ptr[k]);
-    if (path_len == 0) continue;
+    if (path_len == 0) {
+      odp[idx[k]-1] = NA_INTEGER;
+      continue;
+    }
 
-    double flow_val = flows_vals[k];
+    double flow_val = flows_vals[idx[k]-1];
     double *path_ptr = REAL(paths_ptr[k]);
 
     for (int i = 0; i < path_len; i++) {
