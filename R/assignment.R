@@ -119,7 +119,7 @@
 #' }
 #'
 #' @export
-#' @importFrom collapse funique.default ss fnrow seq_row ckmatch anyv whichv setDimnames fmatch %+=% gsplit setv any_duplicated fduplicated
+#' @importFrom collapse funique.default ss fnrow seq_row ckmatch anyv whichv setDimnames fmatch %+=% gsplit setv any_duplicated fduplicated GRP
 #' @importFrom igraph V graph_from_data_frame delete_vertex_attr igraph_options distances shortest_paths vcount ecount
 #' @importFrom geodist geodist_vec
 #' @importFrom mirai mirai_map daemons everywhere
@@ -189,7 +189,7 @@ run_assignment <- function(graph_df, od_matrix_long,
   }
 
   # Distance Matrix
-  if(precompute.dmat || anyv(return.extra, "dmat")) {
+  if((precompute.dmat && !is_aon) || anyv(return.extra, "dmat")) {
     dmat <- distances(g, mode = "out", weights = cost)
     if(nrow(dmat) != ncol(dmat)) stop("Distance matrix must be square")
     if(anyv(return.extra, "dmat")) res$dmat <- setDimnames(dmat, list(nodes, nodes))
@@ -210,70 +210,50 @@ run_assignment <- function(graph_df, od_matrix_long,
   if(length(od_pairs) != fnrow(od_matrix_long)) od_matrix_long <- ss(od_matrix_long, od_pairs, check = FALSE)
   from <- ckmatch(od_matrix_long$from, nodes, e = "Unknown origin nodes in od_matrix:")
   to <- ckmatch(od_matrix_long$to, nodes, e = "Unknown destination nodes in od_matrix:")
-  flow <- od_matrix_long[["flow"]]
+  flow <- as.numeric(od_matrix_long[["flow"]])
   N <- length(flow)
 
-  # Return block for AoN
-  retvals_aon <- FALSE
-  if(is_aon) {
-    retvals_aon <- any(return.extra %in% c("paths", "costs", "counts"))
-    if(retvals_aon) {
-      if(anyv(return.extra, "paths")) {
-        pathsl <- TRUE
-        paths <- vector("list", N)
-      } else pathsl <- FALSE
-      if(anyv(return.extra, "costs")) {
-        costsl <- TRUE
-        sp_costs <- numeric(N)
-      } else costsl <- FALSE
-      if(anyv(return.extra, "counts")) {
-        countsl <- TRUE
-        edge_counts <- integer(length(cost))
-      } else countsl <- FALSE
-    }
+  # Return block
+  retvals <- any(return.extra %in% c("paths", "edges", "counts", "costs", "weights"))
+  if(retvals) {
+    if(anyv(return.extra, "paths")) {
+      pathsl <- TRUE
+      paths <- vector("list", N)
+    } else pathsl <- FALSE
+    if(!is_aon && anyv(return.extra, "edges")) {
+      edgesl <- TRUE
+      edges <- vector("list", N)
+    } else edgesl <- FALSE
+    if(anyv(return.extra, "counts")) {
+      countsl <- TRUE
+      counts <- if(is_aon) integer(length(cost)) else vector("list", N)
+    } else countsl <- FALSE
+    if(anyv(return.extra, "costs")) {
+      costsl <- TRUE
+      costs <- if(is_aon) numeric(N) else vector("list", N)
+    } else costsl <- FALSE
+    if(!is_aon && anyv(return.extra, "weights")) {
+      weightsl <- TRUE
+      weights <- vector("list", N)
+    } else weightsl <- FALSE
   }
 
-  # Return block (PSL only)
-  retvals <- FALSE
-  if(!is_aon) {
-    retvals <- any(return.extra %in% c("paths", "edges", "counts", "costs", "weights"))
-    if(retvals) {
-      if(anyv(return.extra, "paths")) {
-        pathsl <- TRUE
-        paths <- vector("list", length(flow))
-      } else pathsl <- FALSE
-      if(anyv(return.extra, "edges")) {
-        edgesl <- TRUE
-        edges <- vector("list", length(flow))
-      } else edgesl <- FALSE
-      if(anyv(return.extra, "counts")) {
-        countsl <- TRUE
-        counts <- vector("list", length(flow))
-      } else countsl <- FALSE
-      if(anyv(return.extra, "costs")) {
-        costsl <- TRUE
-        costs <- vector("list", length(flow))
-      } else costsl <- FALSE
-      if(anyv(return.extra, "weights")) {
-        weightsl <- TRUE
-        weights <- vector("list", length(flow))
-      } else weightsl <- FALSE
-    }
-  }
 
-  # AoN Core Function
+  # AoN Core Function - Batched by origin node for efficiency
   run_assignment_core_aon <- function(indices, verbose = FALSE, session = FALSE) {
 
     if(!session) {
       if(verbose) progress_bar <- progress::progress_bar
       shortest_paths <- igraph::shortest_paths
       igraph_options <- igraph::igraph_options
-      setv <- collapse::setv
+      GRP <- collapse::GRP
+      gsplit <- collapse::gsplit
       flowr <- getNamespace("flowr")
-      C_assign_flow_to_path <- flowr$C_assign_flow_to_path
-      if(retvals_aon) {
+      C_assign_flows_to_paths <- flowr$C_assign_flows_to_paths
+      if(retvals) {
         sve <- flowr$sve
-        if(countsl) C_increment_edge_counts <- flowr$C_increment_edge_counts
+        if(countsl) C_mark_edges_traversed <- flowr$C_mark_edges_traversed
+        if(costsl) C_sum_path_costs <- flowr$C_sum_path_costs
       }
     }
 
@@ -282,55 +262,49 @@ run_assignment <- function(graph_df, od_matrix_long,
 
     final_flows <- numeric(length(cost))
 
+    # Group OD pairs by origin node for batched shortest path computation
+    grp <- GRP(from[indices], return.groups = TRUE, call = FALSE, sort = FALSE)
+    fromi <- grp$groups[[1L]]  # Unique origin nodes
+    toi_idx <- gsplit(indices, grp)  # Indices grouped by origin
+
     if(verbose) {
       pb <- progress_bar$new(
         format = "Processed :current/:total OD-pairs (:percent) at :tick_rate/sec [Elapsed::elapsed | ETA::eta]",
         total = N, clear = FALSE
       )
-      div <- if(N > 1e4) 100L else 10L
-      divp <- div * max(as.integer(nthreads), 1L)
-      if(nthreads > 1L && as.integer(length(indices) / div) * divp > N)
-         divp <- as.integer(N / as.integer(length(indices) / div))
+      divp <- max(as.integer(nthreads), 1L)
+      if(nthreads > 1L && length(indices) * divp > N)
+         divp <- as.integer(N / length(indices))
     }
 
-    j <- 0L
-    for (i in indices) {
-      fi <- from[i]
-      ti <- to[i]
+    for (i in seq_along(fromi)) {
+      idx = toi_idx[[i]]  # OD pair indices for this origin
 
-      if(verbose) {
-        j <- j + 1L
-        if(j %% div == 0L) pb$tick(divp)
-      }
+      # Compute all shortest paths from this origin to all its destinations
+      sp = shortest_paths(g, from = fromi[i], to = to[idx], weights = cost,
+                           mode = "out", output = "epath", algorithm = "automatic")$epath
 
-      # Compute single shortest path
-      sp <- shortest_paths(g, from = fi, to = ti, weights = cost,
-                           mode = "out", output = "epath", algorithm = "automatic")$epath[[1]]
-
-      if(length(sp) == 0) {
-        setv(od_pairs, i, NA_integer_)
-        next
-      }
-
-      # Assign all flow to this path
-      .Call(C_assign_flow_to_path, sp, flow[i], final_flows)
+      # Assign flows to paths (batch operation) + Check missing paths
+      .Call(C_assign_flows_to_paths, sp, flow, final_flows, idx, od_pairs)
 
       # Handle return.extra for AoN
-      if(retvals_aon) {
-        if(pathsl) sve(paths, i, as.integer(sp))
-        if(costsl) sve(sp_costs, i, sum(cost[sp]))
-        if(countsl) .Call(C_increment_edge_counts, sp, edge_counts)
+      if(retvals) {
+        if(pathsl) for(k in seq_along(idx)) sve(paths, idx[k], as.integer(sp[[k]]))
+        if(costsl) .Call(C_sum_path_costs, sp, cost, costs, idx)
+        if(countsl) .Call(C_mark_edges_traversed, sp, counts)
       }
+
+      if(verbose) pb$tick(divp * length(idx))
     }
 
-    if(verbose && !pb$finished) pb$tick(N - as.integer(j/div)*divp)
+    if(verbose && !pb$finished) pb$tick(N - divp*length(indices))
 
     if(!session) {
       res <- list(final_flows = final_flows, od_pairs = od_pairs)
-      if(retvals_aon) {
+      if(retvals) {
         if(pathsl) res$paths <- paths
-        if(costsl) res$sp_costs <- sp_costs
-        if(countsl) res$edge_counts <- edge_counts
+        if(costsl) res$costs <- costs
+        if(countsl) res$counts <- counts
       }
       return(res)
     }
@@ -538,15 +512,13 @@ run_assignment <- function(graph_df, od_matrix_long,
       setv(od_pairs, ind, resi$od_pairs, vind1 = TRUE)
       if(retvals) {
         if(pathsl) paths[ind] <- resi$paths[ind]
-        if(countsl) counts[ind] <- resi$counts[ind]
         if(edgesl) edges[ind] <- resi$edges[ind]
         if(costsl) costs[ind] <- resi$costs[ind]
         if(weightsl) weights[ind] <- resi$weights[ind]
-      }
-      if(retvals_aon) {
-        if(pathsl) paths[ind] <- resi$paths[ind]
-        if(costsl) sp_costs[ind] <- resi$sp_costs[ind]
-        if(countsl) edge_counts %+=% resi$edge_counts
+        if(countsl) {
+          if(is_aon) counts %+=% resi$counts
+          else counts[ind] <- resi$counts[ind]
+        }
       }
     }
     res$final_flows <- final_flows
@@ -560,14 +532,9 @@ run_assignment <- function(graph_df, od_matrix_long,
     if(retvals) {
       if(pathsl) res$paths <- paths[nmiss_od]
       if(edgesl) res$edges <- edges[nmiss_od]
-      if(countsl) res$edge_counts <- counts[nmiss_od]
+      if(countsl) res$edge_counts <- if(is_aon) counts else counts[nmiss_od]
       if(costsl) res$path_costs <- costs[nmiss_od]
       if(weightsl) res$path_weights <- weights[nmiss_od]
-    }
-    if(retvals_aon) {
-      if(pathsl) res$paths <- paths[nmiss_od]
-      if(costsl) res$path_costs <- sp_costs[nmiss_od]
-      if(countsl) res$edge_counts <- edge_counts
     }
   } else {
     res$od_pairs_used <- od_pairs
@@ -577,11 +544,6 @@ run_assignment <- function(graph_df, od_matrix_long,
       if(countsl) res$edge_counts <- counts
       if(costsl) res$path_costs <- costs
       if(weightsl) res$path_weights <- weights
-    }
-    if(retvals_aon) {
-      if(pathsl) res$paths <- paths
-      if(costsl) res$path_costs <- sp_costs
-      if(countsl) res$edge_counts <- edge_counts
     }
   }
 
@@ -594,7 +556,7 @@ run_assignment <- function(graph_df, od_matrix_long,
 #' @param x An object of class \code{flowr}, typically returned by \code{\link{run_assignment}}.
 #'
 #' @export
-#' @importFrom collapse fmean fsd vlengths
+#' @importFrom collapse fmean fsd vlengths descr print.qsu
 print.flowr <- function(x, ...) {
   cat("Flowr object\n")
   cat("Call:", deparse(x$call), "\n\n")
@@ -643,4 +605,10 @@ print.flowr <- function(x, ...) {
   }
   if (!is.null(x$path_weights) && length(x$path_weights))
     cat("Average path weight (SD): ", fmean(fmean(x$path_weights)), "  (", fmean(fsd(x$path_weights, stable.algo = FALSE)), ")\n", sep = "")
+  if(length(x$final_flows)) {
+    dff <- descr(x$final_flows)
+    cat("Final flows summary statistics:\n")
+    print.qsu(dff$final_flows$Stats, digits = 2)
+    print.qsu(dff$final_flows$Quant, digits = 2)
+  }
 }
