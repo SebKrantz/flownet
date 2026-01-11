@@ -491,7 +491,8 @@ run_assignment <- function(graph_df, od_matrix_long,
   } else {
     envir <- environment()
     # Split OD matrix in equal parts
-    ind_list <- gsplit(g = sample.int(as.integer(nthreads), N, replace = TRUE))
+    ind <- sample.int(as.integer(nthreads), N, replace = TRUE)
+    ind_list <- gsplit(g = if(is_aon) sort(ind) else ind) # Since AoN should reduce calls to shortest_paths()
     daemons(n = nthreads - 1L)
     # Pass current environment dynamically
     everywhere({}, envir)

@@ -924,6 +924,7 @@ simplify_network <- function(graph, nodes, method = c("shortest-paths", "cluster
     # Helper to compute paths with given cost vector
     compute_paths <- function(cost_vec) {
       if(length(nodes_matched)) {
+        # TODO: if undirected, can optimize (no need for full cartesian product)
         for (i in seq_along(nodes_matched)) {
           pathsi <- shortest_paths(ig, from = nodes_matched[i], to = nodes_matched[-i],
                                    weights = cost_vec, mode = "out", output = "epath")$epath
@@ -1091,6 +1092,7 @@ contract_edges <- function(graph, nodes, clusters, centroids, directed = FALSE, 
 #'   If omitted, row and column names (if present) will be used as node IDs, coerced to integer
 #'   if possible. If names are not available or cannot be coerced to integer, sequential integers
 #'   will be used.
+#' @param sort Sort long OD-matrix in ascending order of from and to columns. This can have computational benefits, e.g., when multithreading with \code{method = "AoN"}.
 #'
 #' @return A data frame with columns:
 #'   \itemize{
@@ -1156,7 +1158,7 @@ contract_edges <- function(graph, nodes, clusters, centroids, directed = FALSE, 
 #'
 #' @export
 #' @importFrom collapse vec fsubset seq_row seq_col all_identical
-melt_od_matrix <- function(od_matrix, nodes = NULL) {
+melt_od_matrix <- function(od_matrix, nodes = NULL, sort = TRUE) {
   if(!is.matrix(od_matrix)) stop("od_matrix must be a matrix")
   if(!is.numeric(od_matrix)) stop("od_matrix must be numeric")
 
@@ -1181,12 +1183,13 @@ melt_od_matrix <- function(od_matrix, nodes = NULL) {
   }
 
   # Create long format data frame
-  data.frame(
+  od_matrix_long <- data.frame(
     from = rep(row_ids, ncol(od_matrix)),
     to = rep(col_ids, each = nrow(od_matrix)),
     flow = vec(od_matrix)
   ) |>
     fsubset(is.finite(flow) & flow > 0)
+  if(sort) roworder(od_matrix_long, from, to) else od_matrix_long
 }
 
 
