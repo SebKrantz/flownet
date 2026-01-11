@@ -22,14 +22,14 @@
 #' @param angle.max Numeric (default: 90). Maximum detour angle (in degrees, two sided). Only used for PSL method. I.e., nodes not within this angle measured against a straight line from origin to destination node will not be considered for detours.
 #' @param unique.cost Logical (default: TRUE). Deduplicates paths based on the total cost prior to generating them. Only used for PSL method. Since multiple 'intermediate nodes' may be on the same path, there is likely a significant number of duplicate paths which this option removes.
 #' @param npaths.max Integer (default: Inf). Maximum number of paths to compute per OD-pair. Only used for PSL method. If the number of paths exceeds this number, a random sample will be taken from all but the shortest path.
+#' @param precompute.dmat Logical (default: TRUE). Should the entire matrix between all nodes be precomputed or distances between two nodes characterizing an OD-pair be computed on the fly. Only used for PSL method.
+#'   Precomputing the entire matrix is much faster, but requires significant memory (e.g., if there are 20,000 nodes in the graph, the matrix is about 3GB in size). FALSE should only be used with very large graphs and few OD-pairs.
 #' @param return.extra Character vector specifying additional results to return. Options include:
 #'   \code{"graph"}, \code{"dmat"}, \code{"paths"}, \code{"edges"} (PSL only),
 #'   \code{"counts"}, \code{"costs"}, and \code{"weights"} (PSL only).
 #'   For AoN: \code{"paths"} returns a list of shortest paths (one integer vector per OD pair),
 #'   \code{"costs"} returns a numeric vector of shortest path costs, and \code{"counts"} returns a global integer vector of edge traversal counts.
 #'   Use \code{"all"} to return all available extra results for the selected method.
-#' @param precompute.dmat Logical (default: TRUE). Should distance matrices be precomputed or computed on the fly. Only used for PSL method.
-#'   The former is more memory intensive but dramatically speeds up the OD-iterations.
 #' @param verbose Logical (default: TRUE). Show progress bar and intermediate steps completion status?
 #' @param nthreads Integer (default: 1L). Number of threads (daemons) to use for parallel processing with \code{\link[mirai]{mirai}}. Should not exceed the number of logical processors.
 #'
@@ -134,8 +134,8 @@ run_assignment <- function(graph_df, od_matrix_long,
                            angle.max = 90,
                            unique.cost = TRUE,
                            npaths.max = Inf,
-                           return.extra = NULL,
                            precompute.dmat = TRUE,
+                           return.extra = NULL,
                            verbose = TRUE,
                            nthreads = 1L) {
 
@@ -606,6 +606,7 @@ print.flowr <- function(x, ...) {
   if (!is.null(x$path_weights) && length(x$path_weights))
     cat("Average path weight (SD): ", fmean(fmean(x$path_weights)), "  (", fmean(fsd(x$path_weights, stable.algo = FALSE)), ")\n", sep = "")
   if(length(x$final_flows)) {
+    if(length(x$call$return.extra)) cat("\n")
     dff <- descr(x$final_flows)
     cat("Final flows summary statistics:\n")
     print.qsu(dff$final_flows$Stats, digits = 2)
