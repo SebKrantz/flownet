@@ -1,15 +1,17 @@
 Package: flowr
 Type: Package
-Title: Transport Modeling: Route Enumeration and Traffic Assignment with the Path-Sized Logit
+Title: Transport Modeling (Network Processing, Route Enumeration, and Traffic Assignment) in R
 Version: 0.1.0
 Authors@R: c(person("Sebastian", "Krantz", email = "sebastian.krantz@graduateinstitute.ch", role = c("aut", "cre")),
-             person("Kamol", "Roy", email = "kamol.roy08@gmail.com", role = c("ctb", "cph")))
-Description: Efficient tools for transport modeling, specifically route enumeration 
-    and traffic assignment tasks. The package implement the path-sized logit model for 
-    traffic assignment, a very efficient route enumeration algorithm, and provides 
-    powerful utilities for network processing. The user is expected to provide a 
-    transport network graph (either a graph data frame or a collection of LINESTRING
-    geometries representing a graph) and an OD-matrix with trade/traffic flows.
+             person("Kamol", "Roy", email = "kamol.roy08@gmail.com", role = "ctb"))
+Description: High-performance tools for transport modeling---network processing, route 
+    enumeration, and traffic assignment in R. The package implements the Path-Sized Logit 
+    model for traffic assignment, an efficient route enumeration algorithm, and provides 
+    powerful utility functions for (multimodal) network generation, consolidation, and/or 
+    simplification. The user is expected to provide a transport network (either a graph data 
+    frame or collection of LINESTRING's representing a graph) and an origin-destination (OD) 
+    matrix of trade/traffic flows. Maintained by transport consultants at CPCS (cpcs.ca) 
+    to support applied wokflows on large-scale (national/continental) transport networks.
 URL: https://sebkrantz.github.io/flowr/, https://github.com/SebKrantz/flowr
 BugReports: https://github.com/SebKrantz/flowr/issues
 License: GPL-3

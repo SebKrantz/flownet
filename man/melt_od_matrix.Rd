@@ -4,7 +4,7 @@
 \alias{melt_od_matrix}
 \title{Melt Origin-Destination Matrix to Long Format}
 \usage{
-melt_od_matrix(od_matrix, nodes = NULL)
+melt_od_matrix(od_matrix, nodes = NULL, sort = TRUE)
 }
 \arguments{
 \item{od_matrix}{A numeric matrix with origin-destination flows. Rows represent origins,
@@ -18,6 +18,8 @@ to graph node IDs (e.g., using \code{\link[sf]{st_nearest_feature}} to find near
 If omitted, row and column names (if present) will be used as node IDs, coerced to integer
 if possible. If names are not available or cannot be coerced to integer, sequential integers
 will be used.}
+
+\item{sort}{Sort long OD-matrix in ascending order of from and to columns. This can have computational benefits, e.g., when multithreading with \code{method = "AoN"}.}
 }
 \value{
 A data frame with columns:
