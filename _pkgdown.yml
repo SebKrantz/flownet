@@ -57,7 +57,7 @@ reference:
   - consolidate_graph
   - simplify_network
 - title: "Route Choice and Traffic Assignment"
-  desc: "Run traffic assignment using path-sized logit model, including efficient built-in route choice algorithm."
+  desc: "Run traffic assignment using path-sized logit model, including efficient built-in route choice algorithm, or all-or-nothing assignment to the shortest path."
 - contents:
   - run_assignment
   - print.flowr
