@@ -1157,7 +1157,7 @@ contract_edges <- function(graph, nodes, clusters, centroids, directed = FALSE, 
 #' head(od_matrix_long2)
 #'
 #' @export
-#' @importFrom collapse vec fsubset seq_row seq_col all_identical
+#' @importFrom collapse vec fsubset seq_row seq_col all_identical roworder
 melt_od_matrix <- function(od_matrix, nodes = NULL, sort = TRUE) {
   if(!is.matrix(od_matrix)) stop("od_matrix must be a matrix")
   if(!is.numeric(od_matrix)) stop("od_matrix must be numeric")
