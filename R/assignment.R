@@ -22,10 +22,9 @@
 #' @param angle.max Numeric (default: 90). Maximum detour angle (in degrees, two sided). Only used for PSL method. I.e., nodes not within this angle measured against a straight line from origin to destination node will not be considered for detours.
 #' @param unique.cost Logical (default: TRUE). Deduplicates paths based on the total cost prior to generating them. Only used for PSL method. Since multiple 'intermediate nodes' may be on the same path, there is likely a significant number of duplicate paths which this option removes.
 #' @param npaths.max Integer (default: Inf). Maximum number of paths to compute per OD-pair. Only used for PSL method. If the number of paths exceeds this number, a random sample will be taken from all but the shortest path.
-#' @param precompute.dmat Logical (default: TRUE). Should the entire matrix between all nodes be precomputed or distances between two nodes characterizing an OD-pair be computed on the fly. Only used for PSL method.
-#'   Precomputing the entire matrix is much faster, but requires significant memory (e.g., if there are 20,000 nodes in the graph, the matrix is about 3GB in size). FALSE should only be used with very large graphs and few OD-pairs.
+#' @param dmat.max.size Integer (default: 1e4^2). Maximum size of distance matrices (both shortest paths and geodesic) to precompute. If smaller then \code{n_nodes^2}, then the full matrix is precomputed. Otherwise, it is computed in chunks as needed, where each chunk has \code{dmat.max.size} elements. Only used for PSL method.
 #' @param return.extra Character vector specifying additional results to return. Options include:
-#'   \code{"graph"}, \code{"dmat"}, \code{"paths"}, \code{"edges"} (PSL only),
+#'   \code{"graph"}, \code{"paths"}, \code{"edges"} (PSL only),
 #'   \code{"counts"}, \code{"costs"}, and \code{"weights"} (PSL only).
 #'   For AoN: \code{"paths"} returns a list of shortest paths (one integer vector per OD pair),
 #'   \code{"costs"} returns a numeric vector of shortest path costs, and \code{"counts"} returns a global integer vector of edge traversal counts.
@@ -58,13 +57,13 @@
 #' A simple assignment method that assigns all flow from each OD pair to the single shortest path.
 #' This is much faster than PSL but does not consider route alternatives or overlaps.
 #' Parameters \code{detour.max}, \code{angle.max}, \code{unique.cost}, \code{npaths.max},
-#' \code{beta}, and \code{precompute.dmat} are ignored for AoN.
+#' \code{beta}, and \code{dmat.max.size} are ignored for AoN.
 #'
 #' \strong{Path-Sized Logit (PSL) Method:}
 #' A more sophisticated assignment method that considers multiple alternative routes:
 #' \itemize{
 #'   \item Creates a graph from \code{graph_df} using igraph, normalizing node IDs internally
-#'   \item Computes shortest path distance matrix for all node pairs (if \code{precompute.dmat = TRUE})
+#'   \item Computes shortest path distance matrix for all node pairs (chunkwise if \code{dmat.max.size < n_nodes^2})
 #'   \item For each origin-destination pair in \code{od_matrix_long}:
 #'     \itemize{
 #'       \item Identifies alternative routes (detours) that are within \code{detour.max} of shortest path cost. This is done by considering all other nodes and adding the shortest paths costs from origin node to an intermediate node (any other node) and from intermediate node to destination node. If \code{angle.max} is specified, filters detours to those within the specified angle from origin to destination. This means we only consider intermediate nodes that are roughly 'in the direction' of the destination node, and also not further away in terms of geodesic distance. If also \code{unique.cost = TRUE}, duplicate paths are removed based on the total cost. Thus, using only the shortest-paths-cost matrix and a matrix of the geodesic distances of the nodes (if \code{is.finite(angle.max)}), the algorithm pre-selects unique paths that are plausible both in terms of detour factor (cost) and direction before actually computing them. This speeds up route enumeration and PSL computations considerably.
@@ -134,7 +133,7 @@ run_assignment <- function(graph_df, od_matrix_long,
                            angle.max = 90,
                            unique.cost = TRUE,
                            npaths.max = Inf,
-                           precompute.dmat = TRUE,
+                           dmat.max.size = 10000^2,
                            return.extra = NULL,
                            verbose = TRUE,
                            nthreads = 1L) {
@@ -150,8 +149,8 @@ run_assignment <- function(graph_df, od_matrix_long,
   # Results object
   res <- list(call = match.call())
   if(length(return.extra) == 1L && return.extra == "all") {
-    return.extra <- if(is_aon) c("graph", "dmat", "paths", "costs", "counts")
-                    else c("graph", "dmat", "paths", "edges", "counts", "costs", "weights")
+    return.extra <- if(is_aon) c("graph", "paths", "costs", "counts") # "dmat"
+                    else c("graph", "paths", "edges", "counts", "costs", "weights") # "dmat"
   }
 
   # Create Igraph Graph
@@ -189,16 +188,20 @@ run_assignment <- function(graph_df, od_matrix_long,
   }
 
   # Distance Matrix
-  if((precompute.dmat && !is_aon) || anyv(return.extra, "dmat")) {
+  precompute.dmat <- dmat.max.size >= length(nodes)^2
+  if(precompute.dmat && !is_aon) { #  || anyv(return.extra, "dmat")
     dmat <- distances(g, mode = "out", weights = cost)
     if(nrow(dmat) != ncol(dmat)) stop("Distance matrix must be square")
     if(anyv(return.extra, "dmat")) res$dmat <- setDimnames(dmat, list(nodes, nodes))
-    if(!is_aon) {
-      dimnames(dmat) <- NULL
-      if(geol) dmat_geo <- geodist_vec(X, Y, measure = "haversine")
-    }
+    # if(!is_aon) {
+    dimnames(dmat) <- NULL
+    if(geol) dmat_geo <- geodist_vec(X, Y, measure = "haversine")
+    # }
     if(verbose) cat("Computed distance matrix of dimensions", nrow(dmat), "x", ncol(dmat), "...\n")
-  } else if(!is_aon) v <- V(g)
+  } else if(!is_aon) {
+    dmat_chunk_nrow <- as.integer(dmat.max.size / length(nodes))
+    v <- V(g)
+  }
 
   # Final flows vector (just for placement)
   res$final_flows <- numeric(0)
@@ -315,6 +318,8 @@ run_assignment <- function(graph_df, od_matrix_long,
   # PSL Core Function for parallel setup with mirai
   run_assignment_core_psl <- function(indices, verbose = FALSE, session = FALSE) {
 
+    n <- length(indices)
+
     if(!session) {
       # Load required functions
       if(verbose) progress_bar <- progress::progress_bar
@@ -351,8 +356,8 @@ run_assignment <- function(graph_df, od_matrix_long,
       )
       div <- if(N > 1e4) 100L else 10L
       divp <- div * max(as.integer(nthreads), 1L)
-      if(nthreads > 1L && as.integer(length(indices) / div) * divp > N)
-         divp <- as.integer(N / as.integer(length(indices) / div))
+      if(nthreads > 1L && as.integer(n / div) * divp > N)
+         divp <- as.integer(N / as.integer(n / div))
     }
 
     # Now iterating across OD-pairs
@@ -362,12 +367,11 @@ run_assignment <- function(graph_df, od_matrix_long,
       fi = from[i]
       ti = to[i]
 
-      if(verbose) {
-        j = j + 1L
-        if(j %% div == 0L) pb$tick(divp)
-      }
-
       if(precompute.dmat) {
+        if(verbose) {
+          j = j + 1L
+          if(j %% div == 0L) pb$tick(divp)
+        }
         d_ij = dmat[fi, ti] # Shortest path cost
         d_ikj = dmat[fi, ] + dmat[, ti] # from i to all other nodes k and from these nodes k to j (basically dmat + t(dmat)?)
         if(geol) {
@@ -376,15 +380,32 @@ run_assignment <- function(graph_df, od_matrix_long,
           theta = acos((a^2 + b^2 - dmat_geo[, ti]^2)/(2*a*b)) * 180 / pi # Angle between a and b
         }
       } else {
-        d_ikj = drop(distances(g, fi, v, mode = "out", weights = cost))
-        d_ij = d_ikj[ti]
-        d_ikj %+=% distances(g, v, ti, mode = "out", weights = cost)
-        if(geol) {
-          b = drop(geodist_vec(X[fi], Y[fi], X, Y, measure = "haversine"))
-          a = b[ti]
-          c = drop(geodist_vec(X, Y, X[ti], Y[ti], measure = "haversine"))
-          theta = acos((a^2 + b^2 - c^2)/(2*a*b)) * 180 / pi # Angle between a and b
+        if(j %% dmat_chunk_nrow == 0L) {
+          k = 0L
+          ind = indices[(j + 1L):min(j + dmat_chunk_nrow, n)]
+          from_ind = from[ind]
+          to_ind = to[ind]
+          dmat_total = distances(g, from_ind, mode = "out", weights = cost)
+          dimnames(dmat_total) <- NULL
+          dmat_sp = dmat_total[cbind(seq_along(ind), to_ind)]
+          dmat_total %+=% distances(g, to_ind, mode = "in", weights = cost)
+          if(geol) {
+            dmat_geo_rows = geodist_vec(X[from_ind], Y[from_ind], X, Y, measure = "haversine")
+            dmat_geo_cols = geodist_vec(X, Y, X[to_ind], Y[to_ind], measure = "haversine")
+          }
         }
+        j = j + 1L
+        k = k + 1L
+        if(verbose && j %% div == 0L) pb$tick(divp)
+        d_ij = dmat_sp[k] # Shortest path cost
+        d_ikj = dmat_total[k, ] # from i to all other nodes k and from these nodes k to j
+        if(geol) {
+          b = dmat_geo_rows[k, ]
+          a = b[ti]
+          theta = acos((a^2 + b^2 - dmat_geo_cols[, k]^2)/(2*a*b)) * 180 / pi # Angle between a and b
+        }
+        # if(anyNA(theta)) stop(sprintf("k is %d, j is %d, chunk_size is %d, window size is %d", k, j, dmat_chunk_nrow, length(window)))
+        # if(k > dmat_chunk_nrow) stop("k too large")
       }
       short_detour_ij = if(geol) d_ikj < detour.max * d_ij & b < a & theta < angle.max else
                                  d_ikj < detour.max * d_ij
@@ -392,9 +413,9 @@ run_assignment <- function(graph_df, od_matrix_long,
       # which(d_ij == d_ikj) # These are the nodes on the direct path from i to j which yield the shortest distance.
       ks = which(short_detour_ij)
       cost_ks = d_ikj[ks]
-      # Remove paths that are likely equivalent
-      if(unique.cost && any_duplicated(cost_ks)) {
-        ndup = whichv(fduplicated(cost_ks), FALSE)
+      # Remove paths that are likely equivalent (round to avoid floating point issues)
+      if(unique.cost && any_duplicated(cost_ks_r <- floor(cost_ks * 1e8))) {
+        ndup = whichv(fduplicated(cost_ks_r), FALSE)
         cost_ks = cost_ks[ndup]
         ks = ks[ndup]
       }
@@ -563,6 +584,8 @@ print.flowr <- function(x, ...) {
   cat("Call:", deparse(x$call), "\n\n")
   if (!is.null(x$dmat) && is.matrix(x$dmat))
     cat("Number of nodes:", nrow(x$dmat), "\n")
+  else if(!is.null(x$graph) && inherits(x$graph, "igraph"))
+    cat("Number of nodes:", vcount(x$graph), "\n")
   cat("Number of edges:", length(x$final_flows), "\n")
   if (!is.null(x$od_pairs_used) && length(x$od_pairs_used))
     cat("Number of simulations/OD-pairs:", length(x$od_pairs_used), "\n")

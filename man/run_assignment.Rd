@@ -17,7 +17,7 @@ run_assignment(
   angle.max = 90,
   unique.cost = TRUE,
   npaths.max = Inf,
-  precompute.dmat = TRUE,
+  dmat.max.size = 10000^2,
   return.extra = NULL,
   verbose = TRUE,
   nthreads = 1L
@@ -56,11 +56,10 @@ The cost values are used to compute shortest paths and determine route probabili
 
 \item{npaths.max}{Integer (default: Inf). Maximum number of paths to compute per OD-pair. Only used for PSL method. If the number of paths exceeds this number, a random sample will be taken from all but the shortest path.}
 
-\item{precompute.dmat}{Logical (default: TRUE). Should the entire matrix between all nodes be precomputed or distances between two nodes characterizing an OD-pair be computed on the fly. Only used for PSL method.
-Precomputing the entire matrix is much faster, but requires significant memory (e.g., if there are 20,000 nodes in the graph, the matrix is about 3GB in size). FALSE should only be used with very large graphs and few OD-pairs.}
+\item{dmat.max.size}{Integer (default: 1e4^2). Maximum size of distance matrices (both shortest paths and geodesic) to precompute. If smaller then \code{n_nodes^2}, then the full matrix is precomputed. Otherwise, it is computed in chunks as needed, where each chunk has \code{dmat.max.size} elements. Only used for PSL method.}
 
 \item{return.extra}{Character vector specifying additional results to return. Options include:
-\code{"graph"}, \code{"dmat"}, \code{"paths"}, \code{"edges"} (PSL only),
+\code{"graph"}, \code{"paths"}, \code{"edges"} (PSL only),
 \code{"counts"}, \code{"costs"}, and \code{"weights"} (PSL only).
 For AoN: \code{"paths"} returns a list of shortest paths (one integer vector per OD pair),
 \code{"costs"} returns a numeric vector of shortest path costs, and \code{"counts"} returns a global integer vector of edge traversal counts.
@@ -101,13 +100,13 @@ This function performs traffic assignment using one of two methods:
 A simple assignment method that assigns all flow from each OD pair to the single shortest path.
 This is much faster than PSL but does not consider route alternatives or overlaps.
 Parameters \code{detour.max}, \code{angle.max}, \code{unique.cost}, \code{npaths.max},
-\code{beta}, and \code{precompute.dmat} are ignored for AoN.
+\code{beta}, and \code{dmat.max.size} are ignored for AoN.
 
 \strong{Path-Sized Logit (PSL) Method:}
 A more sophisticated assignment method that considers multiple alternative routes:
 \itemize{
   \item Creates a graph from \code{graph_df} using igraph, normalizing node IDs internally
-  \item Computes shortest path distance matrix for all node pairs (if \code{precompute.dmat = TRUE})
+  \item Computes shortest path distance matrix for all node pairs (chunkwise if \code{dmat.max.size < n_nodes^2})
   \item For each origin-destination pair in \code{od_matrix_long}:
     \itemize{
       \item Identifies alternative routes (detours) that are within \code{detour.max} of shortest path cost. This is done by considering all other nodes and adding the shortest paths costs from origin node to an intermediate node (any other node) and from intermediate node to destination node. If \code{angle.max} is specified, filters detours to those within the specified angle from origin to destination. This means we only consider intermediate nodes that are roughly 'in the direction' of the destination node, and also not further away in terms of geodesic distance. If also \code{unique.cost = TRUE}, duplicate paths are removed based on the total cost. Thus, using only the shortest-paths-cost matrix and a matrix of the geodesic distances of the nodes (if \code{is.finite(angle.max)}), the algorithm pre-selects unique paths that are plausible both in terms of detour factor (cost) and direction before actually computing them. This speeds up route enumeration and PSL computations considerably.
