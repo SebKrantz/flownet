@@ -56,7 +56,7 @@ The cost values are used to compute shortest paths and determine route probabili
 
 \item{npaths.max}{Integer (default: Inf). Maximum number of paths to compute per OD-pair. Only used for PSL method. If the number of paths exceeds this number, a random sample will be taken from all but the shortest path.}
 
-\item{dmat.max.size}{Integer (default: 1e4^2). Maximum size of distance matrices (both shortest paths and geodesic) to precompute. If smaller then \code{n_nodes^2}, then the full matrix is precomputed. Otherwise, it is computed in chunks as needed, where each chunk has \code{dmat.max.size} elements. Only used for PSL method.}
+\item{dmat.max.size}{Integer (default: 1e4^2). Maximum size of distance matrices (both shortest paths and geodesic) to precompute. If smaller than \code{n_nodes^2}, then the full matrix is precomputed. Otherwise, it is computed in chunks as needed, where each chunk has \code{dmat.max.size} elements. Only used for PSL method.}
 
 \item{return.extra}{Character vector specifying additional results to return. Options include:
 \code{"graph"}, \code{"paths"}, \code{"edges"} (PSL only),
@@ -80,7 +80,6 @@ A list of class \code{"flowr"} containing:
     \item Additional elements as specified in \code{return.extra}:
       \itemize{
         \item \code{graph} - The igraph graph object
-        \item \code{dmat} - Distance matrix with node IDs as dimnames
         \item \code{paths} - For PSL: list of lists (multiple routes per OD pair); for AoN: list of integer vectors (one shortest path per OD pair)
         \item \code{edges} - List of edge indices used for each OD pair (PSL only)
         \item \code{edge_counts} - For PSL: list of edge visit counts per OD pair; for AoN: integer vector of global edge traversal counts
