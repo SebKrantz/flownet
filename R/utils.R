@@ -924,11 +924,19 @@ simplify_network <- function(graph, nodes, method = c("shortest-paths", "cluster
     # Helper to compute paths with given cost vector
     compute_paths <- function(cost_vec) {
       if(length(nodes_matched)) {
-        # TODO: if undirected, can optimize (no need for full cartesian product)
-        for (i in seq_along(nodes_matched)) {
-          pathsi <- shortest_paths(ig, from = nodes_matched[i], to = nodes_matched[-i],
-                                   weights = cost_vec, mode = "out", output = "epath")$epath
-          .Call(C_mark_edges_traversed, pathsi, edges_traversed)
+        if(directed) {
+          for (i in nodes_matched) {
+            pathsi <- shortest_paths(ig, from = i, to = nodes_matched,
+                                     weights = cost_vec, mode = "out", output = "epath")$epath
+            .Call(C_mark_edges_traversed, pathsi, edges_traversed)
+          }
+        } else {
+          n <- length(nodes_matched)
+          for (i in 1:(n - 1L)) {
+            pathsi <- shortest_paths(ig, from = nodes_matched[i], to = nodes_matched[(i + 1L):n],
+                                     weights = cost_vec, mode = "out", output = "epath")$epath
+            .Call(C_mark_edges_traversed, pathsi, edges_traversed)
+          }
         }
       } else {
         from_nodes <- as.integer(names(nodes_split))
