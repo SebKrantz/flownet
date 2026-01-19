@@ -90,30 +90,28 @@
 #' library(flowr)
 #' library(sf)
 #'
-#' # Load Graph
-#' graph <- linestrings_to_graph(network_gcc)
+#' # Load network and convert to graph
+#' graph <- linestrings_to_graph(africa_network)
 #' nodes <- nodes_from_graph(graph, sf = TRUE)
 #'
-#' # Map Zones to Nodes
-#' nearest_nodes <- nodes$node[st_nearest_feature(zones_gcc, nodes)]
+#' # Map cities/ports to nearest network nodes
+#' nearest_nodes <- nodes$node[st_nearest_feature(africa_cities_ports, nodes)]
 #'
-#' # Process OD Matrix
-#' od_matrix_long <- melt_od_matrix(od_matrices_gcc$container, nodes = nearest_nodes)
+#' # Create a simple OD matrix from city populations (for demonstration)
+#' n_cities <- nrow(africa_cities_ports)
+#' od_mat <- outer(africa_cities_ports$population, africa_cities_ports$population) / 1e12
+#' dimnames(od_mat) <- list(nearest_nodes, nearest_nodes)
+#' od_matrix_long <- melt_od_matrix(od_mat)
 #'
+#' \dontrun{
 #' # Run Traffic Assignment
-#' result <- run_assignment(graph, od_matrix_long, cost.column = "generalized_cost",
+#' result <- run_assignment(graph, od_matrix_long, cost.column = "total_dist",
 #'                          return.extra = "all")
 #' print(result)
 #'
-#' \dontrun{
 #' # Visualize Results
-#' network_gcc$final_flows_log10 <- log10(result$final_flows + 1)
-#'
-#' mapview(network_gcc, zcol = "final_flows_log10",
-#'         layer.name = "Container Flows (Log10)") +
-#' mapview(zones_gcc, alpha = 0, cex = 3,
-#'         col.regions = "red", alpha.regions = 0.8,
-#'         layer.name = "Zone Nodes")
+#' africa_network$final_flows_log10 <- log10(result$final_flows + 1)
+#' plot(africa_network["final_flows_log10"])
 #' }
 #'
 #' @export

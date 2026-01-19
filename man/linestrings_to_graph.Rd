@@ -39,7 +39,7 @@ Convert Linestring to Graph
 library(flowr)
 
 # Convert network LINESTRING geometries to graph
-graph <- linestrings_to_graph(network_gcc)
+graph <- linestrings_to_graph(africa_network)
 head(graph)
 
 # Graph contains edge, from/to nodes, and coordinates

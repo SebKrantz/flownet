@@ -37,7 +37,7 @@ library(flowr)
 library(sf)
 
 # Convert network to graph and back to linestrings
-graph <- linestrings_to_graph(network_gcc)
+graph <- linestrings_to_graph(africa_network)
 lines <- linestrings_from_graph(graph)
 
 # Result is an sf object with LINESTRING geometry

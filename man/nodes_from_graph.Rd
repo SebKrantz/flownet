@@ -36,7 +36,7 @@ library(flowr)
 library(sf)
 
 # Extract nodes from graph
-graph <- linestrings_to_graph(network_gcc)
+graph <- linestrings_to_graph(africa_network)
 nodes <- nodes_from_graph(graph)
 head(nodes)
 
@@ -45,6 +45,6 @@ nodes_sf <- nodes_from_graph(graph, sf = TRUE)
 class(nodes_sf)
 
 # Find nearest network nodes to zone centroids
-nearest <- nodes_sf$node[st_nearest_feature(zones_gcc, nodes_sf)]
+nearest <- nodes_sf$node[st_nearest_feature(africa_cities_ports, nodes_sf)]
 
 }

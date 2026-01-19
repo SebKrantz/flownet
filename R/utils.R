@@ -31,7 +31,7 @@ sve <- function(x, i, elt) .Call(C_set_vector_elt, x, i, elt)
 #' library(flowr)
 #'
 #' # Convert network LINESTRING geometries to graph
-#' graph <- linestrings_to_graph(network_gcc)
+#' graph <- linestrings_to_graph(africa_network)
 #' head(graph)
 #'
 #' # Graph contains edge, from/to nodes, and coordinates
@@ -97,7 +97,7 @@ linestrings_to_graph <- function(lines, digits = 6, keep.cols = is.atomic, compu
 #' library(sf)
 #'
 #' # Convert network to graph and back to linestrings
-#' graph <- linestrings_to_graph(network_gcc)
+#' graph <- linestrings_to_graph(africa_network)
 #' lines <- linestrings_from_graph(graph)
 #'
 #' # Result is an sf object with LINESTRING geometry
@@ -157,7 +157,7 @@ linestrings_from_graph <- function(graph_df, crs = 4326) {
 #' library(flowr)
 #'
 #' # Create graph and convert to undirected
-#' graph <- linestrings_to_graph(network_gcc)
+#' graph <- linestrings_to_graph(africa_network)
 #' graph_undir <- create_undirected_graph(graph)
 #'
 #' # Use 'by' to preserve mode-specific edges
@@ -216,7 +216,7 @@ create_undirected_graph <- function(graph_df, by = NULL, ...) {
 #' library(sf)
 #'
 #' # Extract nodes from graph
-#' graph <- linestrings_to_graph(network_gcc)
+#' graph <- linestrings_to_graph(africa_network)
 #' nodes <- nodes_from_graph(graph)
 #' head(nodes)
 #'
@@ -225,7 +225,7 @@ create_undirected_graph <- function(graph_df, by = NULL, ...) {
 #' class(nodes_sf)
 #'
 #' # Find nearest network nodes to zone centroids
-#' nearest <- nodes_sf$node[st_nearest_feature(zones_gcc, nodes_sf)]
+#' nearest <- nodes_sf$node[st_nearest_feature(africa_cities_ports, nodes_sf)]
 #'
 #' @export
 #' @importFrom collapse rowbind fselect funique
@@ -422,12 +422,12 @@ normalize_graph <- function(graph_df) {
 #' library(sf)
 #'
 #' # Create undirected graph
-#' graph <- linestrings_to_graph(network_gcc) |>
+#' graph <- linestrings_to_graph(africa_network) |>
 #'   create_undirected_graph(by = ~ mode)
 #'
 #' # Get nodes to preserve (zone locations)
 #' nodes <- nodes_from_graph(graph, sf = TRUE)
-#' nearest_nodes <- nodes$node[st_nearest_feature(zones_gcc, nodes)]
+#' nearest_nodes <- nodes$node[st_nearest_feature(africa_cities_ports, nodes)]
 #'
 #' # Consolidate graph, preserving zone nodes
 #' graph_cons <- consolidate_graph(graph, by = ~ mode,
@@ -831,11 +831,11 @@ compute_degrees <- function(from_vec, to_vec) {
 #' library(flowr)
 #'
 #' # Create graph from network
-#' graph <- linestrings_to_graph(network_gcc)
+#' graph <- linestrings_to_graph(africa_network)
 #'
 #' # Get zone nodes
 #' nodes_df <- nodes_from_graph(graph, sf = TRUE)
-#' nearest_nodes <- nodes_df$node[sf::st_nearest_feature(zones_gcc, nodes_df)]
+#' nearest_nodes <- nodes_df$node[sf::st_nearest_feature(africa_cities_ports, nodes_df)]
 #'
 #' # Method 1: Shortest-paths simplification (keeps only traversed edges)
 #' graph_simple <- simplify_network(graph, nearest_nodes,
@@ -1137,10 +1137,11 @@ contract_edges <- function(graph, nodes, clusters, centroids, directed = FALSE, 
 #'   \item Filters out non-finite and zero flow values
 #' }
 #'
-#' The function is useful for converting OD matrices (such as those in \code{\link{od_matrices_gcc}})
-#' to the long format required by \code{\link[=run_assignment]{run_assignment()}}.
+#' The function is useful for converting OD matrices to the long format required by
+#' \code{\link[=run_assignment]{run_assignment()}}.
 #'
-#' @seealso \code{\link{od_matrices_gcc}}, \code{\link{zones_gcc}}, \code{\link[=nodes_from_graph]{nodes_from_graph()}},
+#' @seealso \code{\link{africa_cities_ports}}, \code{\link{africa_network}},
+#'   \code{\link[=nodes_from_graph]{nodes_from_graph()}},
 #'   \code{\link[=run_assignment]{run_assignment()}}, \link{flowr-package}
 #'
 #' @examples
@@ -1148,20 +1149,24 @@ contract_edges <- function(graph, nodes, clusters, centroids, directed = FALSE, 
 #' library(sf)
 #'
 #' # Example 1: Using nodes argument to map zones to graph nodes
-#' # Load Graph
-#' graph <- linestrings_to_graph(network_gcc)
+#' # Load network and convert to graph
+#' graph <- linestrings_to_graph(africa_network)
 #' nodes <- nodes_from_graph(graph, sf = TRUE)
 #'
-#' # Map Zones to Nodes
-#' nearest_nodes <- nodes$node[st_nearest_feature(zones_gcc, nodes)]
+#' # Map cities/ports to nearest network nodes
+#' nearest_nodes <- nodes$node[st_nearest_feature(africa_cities_ports, nodes)]
+#'
+#' # Create a simple OD matrix from city populations (for demonstration)
+#' od_mat <- outer(africa_cities_ports$population, africa_cities_ports$population) / 1e12
 #'
 #' # Convert OD matrix with node mapping
-#' od_matrix_long <- melt_od_matrix(od_matrices_gcc$container, nodes = nearest_nodes)
+#' od_matrix_long <- melt_od_matrix(od_mat, nodes = nearest_nodes)
 #' head(od_matrix_long)
 #'
 #' # Example 2: Using matrix row/column names (when they match graph node IDs)
 #' # If matrix names already correspond to graph nodes, nodes argument can be omitted
-#' od_matrix_long2 <- melt_od_matrix(od_matrices_gcc$container)
+#' dimnames(od_mat) <- list(nearest_nodes, nearest_nodes)
+#' od_matrix_long2 <- melt_od_matrix(od_mat)
 #' head(od_matrix_long2)
 #'
 #' @export

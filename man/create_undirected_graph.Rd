@@ -44,7 +44,7 @@ This function converts a directed graph to an undirected graph by:
 library(flowr)
 
 # Create graph and convert to undirected
-graph <- linestrings_to_graph(network_gcc)
+graph <- linestrings_to_graph(africa_network)
 graph_undir <- create_undirected_graph(graph)
 
 # Use 'by' to preserve mode-specific edges

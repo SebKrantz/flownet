@@ -38,9 +38,10 @@ traffic assignment and provides utilities for network processing.
 
 \strong{Data}
 
- \code{\link{network_gcc}} --- Multimodal transport network for the Gulf Cooperation Council (GCC) region\cr
- \code{\link{od_matrices_gcc}} --- Origin-destination matrices for five cargo types in the GCC region\cr
- \code{\link{zones_gcc}} --- Zone locations and descriptions for OD-matrix locations in the GCC region\cr
+ \code{\link{africa_trade}} --- Average BACI HS96 2012-22 trade flows by section between 47 continental African countries\cr
+ \code{\link{africa_cities_ports}} --- The 453 largest (port-)cities in continental Africa within a 70km radius - from Krantz (2024)\cr
+ \code{\link{africa_network}} --- African continental road network + extensions to optimally connect the 453 cities - from Krantz (2024)\cr
+ \code{\link{africa_segments}} --- Primary segments derived from OpenStreetMap routes between the 453 cities - from Krantz (2024)\cr
 }
 \details{
 The package uses efficient C implementations for critical path operations and leverages:

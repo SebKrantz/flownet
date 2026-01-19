@@ -114,11 +114,11 @@ Simplify a network graph using shortest paths or node clustering methods.
 library(flowr)
 
 # Create graph from network
-graph <- linestrings_to_graph(network_gcc)
+graph <- linestrings_to_graph(africa_network)
 
 # Get zone nodes
 nodes_df <- nodes_from_graph(graph, sf = TRUE)
-nearest_nodes <- nodes_df$node[sf::st_nearest_feature(zones_gcc, nodes_df)]
+nearest_nodes <- nodes_df$node[sf::st_nearest_feature(africa_cities_ports, nodes_df)]
 
 # Method 1: Shortest-paths simplification (keeps only traversed edges)
 graph_simple <- simplify_network(graph, nearest_nodes,

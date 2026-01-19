@@ -93,12 +93,12 @@ library(flowr)
 library(sf)
 
 # Create undirected graph
-graph <- linestrings_to_graph(network_gcc) |>
+graph <- linestrings_to_graph(africa_network) |>
   create_undirected_graph(by = ~ mode)
 
 # Get nodes to preserve (zone locations)
 nodes <- nodes_from_graph(graph, sf = TRUE)
-nearest_nodes <- nodes$node[st_nearest_feature(zones_gcc, nodes)]
+nearest_nodes <- nodes$node[st_nearest_feature(africa_cities_ports, nodes)]
 
 # Consolidate graph, preserving zone nodes
 graph_cons <- consolidate_graph(graph, by = ~ mode,
