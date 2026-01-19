@@ -121,20 +121,45 @@ SEXP compute_path_sized_logit(SEXP paths1, SEXP paths2, SEXP no_dups, SEXP short
   // Ensure gamma_1 is positive to avoid log(0) or log(negative)
   if (gamma_1 <= 0.0) gamma_1 = 1e-10;
 
-  // Step 3: Compute prob_ks using proportions
+  // Step 3: Compute prob_ks using log-sum-exp for numerical stability
   SEXP prob_ks = PROTECT(allocVector(REALSXP, n_no_dups + 1));
   double *prob_ptr = REAL(prob_ks);
   memset(prob_ptr, 0, (n_no_dups + 1) * sizeof(double));
+
+  // First pass: compute max utility for numerical stability
+  double max_utility = -POS_INF;
+  for (int idx = 0; idx < n_no_dups; idx++) {
+    double util = -cost_ks_ptr[no_dups_ptr[idx]-1] + beta_PSL_val * log(gamma_ks[idx]);
+    if(util > max_utility && util != -POS_INF) max_utility = util;
+  }
+  double util_shortest = -d_ij_val + beta_PSL_val * log(gamma_1);
+  if(util_shortest > max_utility && util_shortest != -POS_INF) max_utility = util_shortest;
+
+  // Handle case where all utilities are -infinity
+  if(max_utility == -POS_INF) {
+    UNPROTECT(1);
+    return R_NilValue;
+  }
+
+  // Second pass: compute exponentials with max normalization to prevent underflow
   double sum_exp = 0.0;
   for (int idx = 0; idx < n_no_dups; idx++) {
-    prob_ptr[idx+1] = exp(-cost_ks_ptr[no_dups_ptr[idx]-1] + beta_PSL_val * log(gamma_ks[idx]));
+    double util = -cost_ks_ptr[no_dups_ptr[idx]-1] + beta_PSL_val * log(gamma_ks[idx]);
+    double util_diff = util - max_utility;
+    // Clamp to reasonable range to prevent overflow/underflow
+    if(util_diff < -700.0) util_diff = -700.0;  // exp(-700) ≈ 0, but won't underflow
+    prob_ptr[idx+1] = exp(util_diff);
     sum_exp += prob_ptr[idx+1];
   }
-  prob_ptr[0] = exp(-d_ij_val + beta_PSL_val * log(gamma_1));
+  double util_diff_0 = util_shortest - max_utility;
+  if(util_diff_0 < -700.0) util_diff_0 = -700.0;
+  prob_ptr[0] = exp(util_diff_0);
   sum_exp += prob_ptr[0];
 
   int invalid_sum = 0;
-  if(sum_exp != sum_exp || sum_exp <= 0 || sum_exp >= POS_INF) invalid_sum = 1;
+  // More lenient check: allow very small but positive sum_exp (can happen with extreme costs)
+  // Only fail if truly invalid (NaN, <= 0, or infinity)
+  if(sum_exp != sum_exp || sum_exp <= 1e-300 || sum_exp >= POS_INF) invalid_sum = 1;
 
   // Step 4: Reset delta_ks if requested (to reuse buffer for next OD pair)
   if(invalid_sum || LOGICAL(free_delta_ks)[0]) {
