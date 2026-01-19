@@ -3,7 +3,7 @@ Type: Package
 Title: Transport Modeling (Network Processing, Route Enumeration, and Traffic Assignment) in R
 Version: 0.1.0
 Authors@R: c(person("Sebastian", "Krantz", email = "sebastian.krantz@graduateinstitute.ch", role = c("aut", "cre")),
-             person("Kamol", "Roy", email = "kamol.roy08@gmail.com", role = "ctb"))
+             person("Kamol", "Roy", role = "ctb"))
 Description: High-performance tools for transport modeling---network processing, route 
     enumeration, and traffic assignment in R. The package implements the Path-Sized Logit 
     model for traffic assignment, an efficient route enumeration algorithm, and provides 
@@ -17,7 +17,7 @@ BugReports: https://github.com/SebKrantz/flowr/issues
 License: GPL-3
 Encoding: UTF-8
 Depends: 
-    R (>= 3.5)
+    R (>= 4.1)
 Imports:
     collapse (>= 2.1.5),
     kit (>= 0.0.5),
