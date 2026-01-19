@@ -108,12 +108,8 @@ computations - <code>sf</code> (&gt;= 1.0.0) - Spatial data handling</p>
 example datasets included with <code>flowr</code>:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://fastverse.github.io/fastverse/" class="external-link">fastverse</a></span><span class="op">)</span></span>
-<span><span class="co">#&gt; -- <span style="font-weight: bold;">Attaching packages</span> --------------------------------------- <span style="color: #0087FF;">fastverse</span> 0.3.4 --</span></span>
-<span><span class="co">#&gt; <span style="color: #0087FF;">v</span> <span style="color: #FF0087;">data.table</span> 1.18.0     <span style="color: #0087FF;">v</span> <span style="color: #FF0087;">kit       </span> 0.0.20</span></span>
-<span><span class="co">#&gt; <span style="color: #0087FF;">v</span> <span style="color: #FF0087;">magrittr  </span> 2.0.4      <span style="color: #0087FF;">v</span> <span style="color: #FF0087;">collapse  </span> 2.1.6</span></span>
-<span><span class="fu"><a href="https://fastverse.github.io/fastverse/reference/fastverse_extend.html" class="external-link">fastverse_extend</a></span><span class="op">(</span><span class="va">flowr</span>, <span class="va">sf</span><span class="op">)</span></span>
-<span><span class="co">#&gt; -- <span style="font-weight: bold;">Attaching extension packages</span> ----------------------------- <span style="color: #0087FF;">fastverse</span> 0.3.4 --</span></span>
-<span><span class="co">#&gt; <span style="color: #0087FF;">v</span> <span style="color: #FF0087;">flowr</span> 0.1.0      <span style="color: #0087FF;">v</span> <span style="color: #FF0087;">sf   </span> 1.0.24</span></span></code></pre></div>
+<span><span class="fu"><a href="https://fastverse.github.io/fastverse/reference/fastverse_extend.html" class="external-link">fastverse_extend</a></span><span class="op">(</span><span class="va">flowr</span>, <span class="va">sf</span>, <span class="va">tmap</span><span class="op">)</span></span>
+<span><span class="fu">tmap_mode</span><span class="op">(</span><span class="st">"plot"</span><span class="op">)</span></span></code></pre></div>
 <p>The package includes four example datasets for Africa: -
 <strong><code>africa_network</code></strong>: A road transport network
 with 2,825 LINESTRING features representing existing roads (2,344 edges)
@@ -134,9 +130,9 @@ categories). Values represent annual averages over 2012-2022.</p></li>
 <p>Let’s examine the data:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># View network structure (existing links only)</span></span>
-<span><span class="va">africa_net</span> <span class="op">&lt;-</span> <span class="va">africa_network</span><span class="op">[</span><span class="op">!</span><span class="va">africa_network</span><span class="op">$</span><span class="va">add</span>, <span class="op">]</span></span>
+<span><span class="va">africa_net</span> <span class="op">&lt;-</span> <span class="fu">fsubset</span><span class="op">(</span><span class="va">africa_network</span>, <span class="op">!</span><span class="va">add</span>, <span class="op">-</span><span class="va">add</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">africa_net</span>, max.level <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Classes 'sf' and 'data.frame':   2344 obs. of  29 variables:</span></span>
+<span><span class="co">#&gt; Classes 'sf' and 'data.frame':   2344 obs. of  28 variables:</span></span>
 <span><span class="co">#&gt;  $ from             : int  1 2 2 2 3 3 4 4 5 5 ...</span></span>
 <span><span class="co">#&gt;  $ to               : int  2 3 4 5 4 10 5 17 13 17 ...</span></span>
 <span><span class="co">#&gt;  $ from_ctry        : chr  "SEN" "SEN" "SEN" "SEN" ...</span></span>
@@ -164,14 +160,13 @@ categories). Values represent annual averages over 2012-2022.</p></li>
 <span><span class="co">#&gt;  $ cost_km          : num  699437 605210 607230 581290 520635 ...</span></span>
 <span><span class="co">#&gt;  $ upgrade_cat      : chr  "Asphalt Mix Resurfacing" "Mixed Works" "Asphalt Mix Resurfacing" "Asphalt Mix Resurfacing" ...</span></span>
 <span><span class="co">#&gt;  $ ug_cost_km       : num  165533 325805 143711 137572 440804 ...</span></span>
-<span><span class="co">#&gt;  $ add              : logi  FALSE FALSE FALSE FALSE FALSE FALSE ...</span></span>
 <span><span class="co">#&gt;  $ geometry         :sfc_LINESTRING of length 2344; first list element:  'XY' num [1:10, 1:2] -17.4 -17 -17 -17.1 -17.1 ...</span></span>
 <span><span class="co">#&gt;  - attr(*, "sf_column")= chr "geometry"</span></span>
 <span><span class="co">#&gt;  - attr(*, "agr")= Factor w/ 3 levels "constant","aggregate",..: NA NA NA NA NA NA NA NA NA NA ...</span></span>
-<span><span class="co">#&gt;   ..- attr(*, "names")= chr [1:28] "from" "to" NA NA ...</span></span>
+<span><span class="co">#&gt;   ..- attr(*, "names")= chr [1:24] "from" "to" NA NA ...</span></span>
 <span></span>
 <span><span class="co"># View cities/ports</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">africa_cities_ports</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"city"</span>, <span class="st">"country"</span>, <span class="st">"population"</span><span class="op">)</span><span class="op">]</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu">fselect</span><span class="op">(</span><span class="va">africa_cities_ports</span>, <span class="va">city</span>, <span class="va">country</span>, <span class="va">population</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Simple feature collection with 6 features and 3 fields</span></span>
 <span><span class="co">#&gt; Geometry type: POINT</span></span>
 <span><span class="co">#&gt; Dimension:     XY</span></span>
@@ -223,9 +218,16 @@ gravity-based OD matrix derived from city populations.</p>
 </h3>
 <p>First, let’s visualize the network to understand its structure:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Plot network colored by travel duration</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">africa_net</span><span class="op">[</span><span class="st">"speed_kmh"</span><span class="op">]</span>, main <span class="op">=</span> <span class="st">"Africa Road Network - Travel Speed (Km/h)"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="introduction_files/figure-html/visualize-network-1.png" class="r-plt" alt="" width="768"></p>
+<code class="sourceCode R"><span><span class="co"># Plot network colored by travel speed</span></span>
+<span><span class="fu">tm_basemap</span><span class="op">(</span><span class="st">"CartoDB.Positron"</span>, zoom <span class="op">=</span> <span class="fl">4</span><span class="op">)</span> <span class="op">+</span></span>
+<span><span class="fu">tm_shape</span><span class="op">(</span><span class="va">africa_net</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">tm_lines</span><span class="op">(</span>col <span class="op">=</span> <span class="st">"speed_kmh"</span>,</span>
+<span>           col.scale <span class="op">=</span> <span class="fu">tm_scale_continuous</span><span class="op">(</span>values <span class="op">=</span> <span class="st">"viridis"</span><span class="op">)</span>,</span>
+<span>           col.legend <span class="op">=</span> <span class="fu">tm_legend</span><span class="op">(</span><span class="st">"Speed (km/h)"</span>, position <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"left"</span>, <span class="st">"bottom"</span><span class="op">)</span>,</span>
+<span>                                  frame <span class="op">=</span> <span class="cn">FALSE</span>, text.size <span class="op">=</span> <span class="fl">0.8</span>, title.size <span class="op">=</span> <span class="fl">1</span>, </span>
+<span>                                  item.height <span class="op">=</span> <span class="fl">2.5</span><span class="op">)</span>, lwd <span class="op">=</span> <span class="fl">1.5</span><span class="op">)</span> <span class="op">+</span></span>
+<span><span class="fu">tm_layout</span><span class="op">(</span>frame <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
+<p><img src="introduction_files/figure-html/visualize-network-1.png" class="r-plt" alt="" width="100%"></p>
 </div>
 <div class="section level3">
 <h3 id="step-2-convert-network-to-graph">Step 2: Convert Network to Graph<a class="anchor" aria-label="anchor" href="#step-2-convert-network-to-graph"></a>
@@ -258,13 +260,13 @@ assignment:</p>
 <span><span class="co">#&gt; 4    99998.0           0      72.90         59.9988           59.9988 24773.338</span></span>
 <span><span class="co">#&gt; 5    61111.5           0      72.90         36.6669           36.6669 11331.973</span></span>
 <span><span class="co">#&gt; 6    73391.0           0      61.20         44.0346           44.0346  1745.889</span></span>
-<span><span class="co">#&gt;    pop_wpop pop_wpop_km2  cost_km             upgrade_cat ug_cost_km   add</span></span>
-<span><span class="co">#&gt; 1 670689.38    2262.9802 699437.0 Asphalt Mix Resurfacing   165533.4 FALSE</span></span>
-<span><span class="co">#&gt; 2 191412.11     450.2150 605210.4             Mixed Works   325804.9 FALSE</span></span>
-<span><span class="co">#&gt; 3 177027.86     415.0577 607229.6 Asphalt Mix Resurfacing   143711.0 FALSE</span></span>
-<span><span class="co">#&gt; 4 137874.58     262.0664 581289.6 Asphalt Mix Resurfacing   137571.9 FALSE</span></span>
-<span><span class="co">#&gt; 5  65316.04     216.0512 520634.9                 Upgrade   440804.2 FALSE</span></span>
-<span><span class="co">#&gt; 6 102835.91     212.9464 415457.6             Mixed Works   223654.7 FALSE</span></span></code></pre></div>
+<span><span class="co">#&gt;    pop_wpop pop_wpop_km2  cost_km             upgrade_cat ug_cost_km</span></span>
+<span><span class="co">#&gt; 1 670689.38    2262.9802 699437.0 Asphalt Mix Resurfacing   165533.4</span></span>
+<span><span class="co">#&gt; 2 191412.11     450.2150 605210.4             Mixed Works   325804.9</span></span>
+<span><span class="co">#&gt; 3 177027.86     415.0577 607229.6 Asphalt Mix Resurfacing   143711.0</span></span>
+<span><span class="co">#&gt; 4 137874.58     262.0664 581289.6 Asphalt Mix Resurfacing   137571.9</span></span>
+<span><span class="co">#&gt; 5  65316.04     216.0512 520634.9                 Upgrade   440804.2</span></span>
+<span><span class="co">#&gt; 6 102835.91     212.9464 415457.6             Mixed Works   223654.7</span></span></code></pre></div>
 <p>The resulting graph data frame contains: - <code>edge</code>: Edge
 identifier - <code>from</code>, <code>to</code>: Node IDs -
 <code>FX</code>, <code>FY</code>, <code>TX</code>, <code>TY</code>: Node
@@ -358,12 +360,15 @@ everything)</p>
 <code class="sourceCode R"><span><span class="co"># Add flows to network for visualization</span></span>
 <span><span class="va">africa_net</span><span class="op">$</span><span class="va">final_flows_log10</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log10</a></span><span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">final_flows</span> <span class="op">+</span> <span class="fl">1</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">africa_net</span><span class="op">[</span><span class="st">"final_flows_log10"</span><span class="op">]</span>,</span>
-<span>     main <span class="op">=</span> <span class="st">"Traffic Assignment Results (Log10 Flows)"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Add city points</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_geometry.html" class="external-link">st_geometry</a></span><span class="op">(</span><span class="va">africa_cities_ports</span><span class="op">)</span>, add <span class="op">=</span> <span class="cn">TRUE</span>, pch <span class="op">=</span> <span class="fl">20</span>, cex <span class="op">=</span> <span class="fl">0.5</span>, col <span class="op">=</span> <span class="st">"red"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="introduction_files/figure-html/visualize-results-1.png" class="r-plt" alt="" width="768"></p>
+<span><span class="fu">tm_basemap</span><span class="op">(</span><span class="st">"CartoDB.Positron"</span>, zoom <span class="op">=</span> <span class="fl">4</span><span class="op">)</span> <span class="op">+</span></span>
+<span><span class="fu">tm_shape</span><span class="op">(</span><span class="va">africa_net</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">tm_lines</span><span class="op">(</span>col <span class="op">=</span> <span class="st">"final_flows_log10"</span>,</span>
+<span>           col.scale <span class="op">=</span> <span class="fu">tm_scale_continuous</span><span class="op">(</span>values <span class="op">=</span> <span class="st">"brewer.yl_or_rd"</span><span class="op">)</span>,</span>
+<span>           col.legend <span class="op">=</span> <span class="fu">tm_legend</span><span class="op">(</span><span class="st">"Log10 Flows"</span>, position <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"left"</span>, <span class="st">"bottom"</span><span class="op">)</span>,</span>
+<span>                                  frame <span class="op">=</span> <span class="cn">FALSE</span>, text.size <span class="op">=</span> <span class="fl">0.8</span>, title.size <span class="op">=</span> <span class="fl">1</span><span class="op">)</span>, lwd <span class="op">=</span> <span class="fl">1.5</span><span class="op">)</span> <span class="op">+</span></span>
+<span><span class="fu">tm_shape</span><span class="op">(</span><span class="va">africa_cities_ports</span><span class="op">)</span> <span class="op">+</span> <span class="fu">tm_dots</span><span class="op">(</span>size <span class="op">=</span> <span class="fl">0.15</span>, fill <span class="op">=</span> <span class="st">"grey30"</span><span class="op">)</span> <span class="op">+</span></span>
+<span><span class="fu">tm_layout</span><span class="op">(</span>frame <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
+<p><img src="introduction_files/figure-html/visualize-results-1.png" class="r-plt" alt="" width="100%"></p>
 </div>
 </div>
 <div class="section level2">
@@ -456,6 +461,19 @@ population.</p>
 <span><span class="co">#&gt;    0   0    0  17330.95  142839.71  911817.37  3'624008.55  6'948734.38</span></span>
 <span><span class="co">#&gt;           99%</span></span>
 <span><span class="co">#&gt;   14'969459.2</span></span></code></pre></div>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Add flows to network for visualization</span></span>
+<span><span class="va">africa_net</span><span class="op">$</span><span class="va">final_flows_log10</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log10</a></span><span class="op">(</span><span class="va">result_trade</span><span class="op">$</span><span class="va">final_flows</span> <span class="op">+</span> <span class="fl">1</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">tm_basemap</span><span class="op">(</span><span class="st">"CartoDB.Positron"</span>, zoom <span class="op">=</span> <span class="fl">4</span><span class="op">)</span> <span class="op">+</span></span>
+<span><span class="fu">tm_shape</span><span class="op">(</span><span class="va">africa_net</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">tm_lines</span><span class="op">(</span>col <span class="op">=</span> <span class="st">"final_flows_log10"</span>,</span>
+<span>           col.scale <span class="op">=</span> <span class="fu">tm_scale_continuous</span><span class="op">(</span>values <span class="op">=</span> <span class="st">"brewer.yl_or_rd"</span><span class="op">)</span>,</span>
+<span>           col.legend <span class="op">=</span> <span class="fu">tm_legend</span><span class="op">(</span><span class="st">"Log10 Trade Flows"</span>, position <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"left"</span>, <span class="st">"bottom"</span><span class="op">)</span>,</span>
+<span>                                  frame <span class="op">=</span> <span class="cn">FALSE</span>, text.size <span class="op">=</span> <span class="fl">0.8</span>, title.size <span class="op">=</span> <span class="fl">1</span><span class="op">)</span>, lwd <span class="op">=</span> <span class="fl">1.5</span><span class="op">)</span> <span class="op">+</span></span>
+<span><span class="fu">tm_shape</span><span class="op">(</span><span class="va">africa_cities_ports</span><span class="op">)</span> <span class="op">+</span> <span class="fu">tm_dots</span><span class="op">(</span>size <span class="op">=</span> <span class="fl">0.15</span>, fill <span class="op">=</span> <span class="st">"grey30"</span><span class="op">)</span> <span class="op">+</span></span>
+<span><span class="fu">tm_layout</span><span class="op">(</span>frame <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
+<p><img src="introduction_files/figure-html/visualize-results-trade-1.png" class="r-plt" alt="" width="100%"></p>
 </div>
 </div>
 <div class="section level2">
@@ -471,7 +489,7 @@ significantly improve computational performance.</p>
 <p>The <code>africa_segments</code> dataset provides raw network
 segments that can be processed through the full consolidation
 workflow:</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Convert segments to sf and then to graph</span></span>
 <span><span class="va">graph_seg</span> <span class="op">&lt;-</span> <span class="va">africa_segments</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu"><a href="../reference/linestrings_from_graph.html">linestrings_from_graph</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
@@ -490,7 +508,7 @@ workflow:</p>
 </h3>
 <p>The <code><a href="../reference/consolidate_graph.html">consolidate_graph()</a></code> function removes intermediate
 nodes (nodes that occur exactly twice) and merges connecting edges:</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Consolidate graph, preserving city nodes</span></span>
 <span><span class="va">graph_cons</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/consolidate_graph.html">consolidate_graph</a></span><span class="op">(</span><span class="va">graph_seg</span>,</span>
 <span>                                keep <span class="op">=</span> <span class="va">nearest_nodes_seg</span>,</span>
@@ -536,18 +554,31 @@ of routes using each segment)</p>
 <div class="section level3">
 <h3 id="compare-original-vs-consolidated-network">Compare Original vs Consolidated Network<a class="anchor" aria-label="anchor" href="#compare-original-vs-consolidated-network"></a>
 </h3>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Visualize original segments</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span>mfrow <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu"><a href="../reference/linestrings_from_graph.html">linestrings_from_graph</a></span><span class="op">(</span><span class="va">graph_seg</span><span class="op">)</span><span class="op">[</span><span class="st">"passes"</span><span class="op">]</span>,</span>
-<span>     main <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="st">"Original:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">graph_seg</span><span class="op">)</span>, <span class="st">"edges"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<p><img src="introduction_files/figure-html/compare-networks-1.png" class="r-plt" alt="" width="768"></p>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu"><a href="../reference/linestrings_from_graph.html">linestrings_from_graph</a></span><span class="op">(</span><span class="va">graph_cons</span><span class="op">)</span><span class="op">[</span><span class="st">"passes"</span><span class="op">]</span>,</span>
-<span>     main <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="st">"Consolidated:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">graph_cons</span><span class="op">)</span>, <span class="st">"edges"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<p><img src="introduction_files/figure-html/compare-networks-2.png" class="r-plt" alt="" width="768"></p>
+<code class="sourceCode R"><span><span class="co"># Convert to sf for plotting</span></span>
+<span><span class="va">seg_sf</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linestrings_from_graph.html">linestrings_from_graph</a></span><span class="op">(</span><span class="va">graph_seg</span><span class="op">)</span></span>
+<span><span class="va">cons_sf</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linestrings_from_graph.html">linestrings_from_graph</a></span><span class="op">(</span><span class="va">graph_cons</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Side-by-side comparison</span></span>
+<span><span class="fu">tm_basemap</span><span class="op">(</span><span class="st">"CartoDB.Positron"</span>, zoom <span class="op">=</span> <span class="fl">4</span><span class="op">)</span> <span class="op">+</span></span>
+<span><span class="fu">tm_shape</span><span class="op">(</span><span class="va">seg_sf</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">tm_lines</span><span class="op">(</span>col <span class="op">=</span> <span class="st">"passes"</span>,</span>
+<span>           col.scale <span class="op">=</span> <span class="fu">tm_scale_continuous</span><span class="op">(</span>values <span class="op">=</span> <span class="st">"viridis"</span><span class="op">)</span>,</span>
+<span>           col.legend <span class="op">=</span> <span class="fu">tm_legend</span><span class="op">(</span><span class="st">"N. Passes"</span>,</span>
+<span>                                  position <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"left"</span>, <span class="st">"bottom"</span><span class="op">)</span>, frame <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>                                  text.size <span class="op">=</span> <span class="fl">0.8</span>, title.size <span class="op">=</span> <span class="fl">1</span><span class="op">)</span>, lwd <span class="op">=</span> <span class="fl">1.5</span><span class="op">)</span> <span class="op">+</span></span>
+<span><span class="fu">tm_layout</span><span class="op">(</span>frame <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span> <span class="op">+</span> <span class="fu">tm_title</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="st">"Original:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">graph_seg</span><span class="op">)</span>, <span class="st">"edges"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<p><img src="introduction_files/figure-html/compare-networks-1.png" class="r-plt" alt="" width="100%"></p>
 <div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span>mfrow <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu">tm_basemap</span><span class="op">(</span><span class="st">"CartoDB.Positron"</span>, zoom <span class="op">=</span> <span class="fl">4</span><span class="op">)</span> <span class="op">+</span></span>
+<span><span class="fu">tm_shape</span><span class="op">(</span><span class="va">cons_sf</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">tm_lines</span><span class="op">(</span>col <span class="op">=</span> <span class="st">"passes"</span>,</span>
+<span>           col.scale <span class="op">=</span> <span class="fu">tm_scale_continuous</span><span class="op">(</span>values <span class="op">=</span> <span class="st">"viridis"</span><span class="op">)</span>,</span>
+<span>           col.legend <span class="op">=</span> <span class="fu">tm_legend</span><span class="op">(</span><span class="st">"N. Passes"</span>,</span>
+<span>                                  position <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"left"</span>, <span class="st">"bottom"</span><span class="op">)</span>, frame <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>                                  text.size <span class="op">=</span> <span class="fl">0.8</span>, title.size <span class="op">=</span> <span class="fl">1</span><span class="op">)</span>, lwd <span class="op">=</span> <span class="fl">1.5</span><span class="op">)</span> <span class="op">+</span></span>
+<span><span class="fu">tm_layout</span><span class="op">(</span>frame <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span> <span class="op">+</span> <span class="fu">tm_title</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="st">"Consolidated:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">graph_cons</span><span class="op">)</span>, <span class="st">"edges"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<p><img src="introduction_files/figure-html/compare-networks-cons-1.png" class="r-plt" alt="" width="100%"></p>
 </div>
 </div>
 <div class="section level2">
@@ -581,9 +612,16 @@ retains only the edges that are traversed:</p>
 <span><span class="co">#&gt; Simplified edges: 4858</span></span>
 <span></span>
 <span><span class="co"># Visualize</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu"><a href="../reference/linestrings_from_graph.html">linestrings_from_graph</a></span><span class="op">(</span><span class="va">graph_simple</span><span class="op">)</span><span class="op">[</span><span class="st">"passes"</span><span class="op">]</span>,</span>
-<span>     main <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="st">"Consolidated and Simplified (SP):"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">graph_simple</span><span class="op">)</span>, <span class="st">"edges"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<p><img src="introduction_files/figure-html/simplify-shortest-paths-1.png" class="r-plt" alt="" width="672"></p>
+<span><span class="va">simple_sf</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linestrings_from_graph.html">linestrings_from_graph</a></span><span class="op">(</span><span class="va">graph_simple</span><span class="op">)</span></span>
+<span><span class="fu">tm_basemap</span><span class="op">(</span><span class="st">"CartoDB.Positron"</span>, zoom <span class="op">=</span> <span class="fl">4</span><span class="op">)</span> <span class="op">+</span></span>
+<span><span class="fu">tm_shape</span><span class="op">(</span><span class="va">simple_sf</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">tm_lines</span><span class="op">(</span>col <span class="op">=</span> <span class="st">"passes"</span>,</span>
+<span>           col.scale <span class="op">=</span> <span class="fu">tm_scale_continuous</span><span class="op">(</span>values <span class="op">=</span> <span class="st">"viridis"</span><span class="op">)</span>,</span>
+<span>           col.legend <span class="op">=</span> <span class="fu">tm_legend</span><span class="op">(</span><span class="st">"N. Passes"</span>,</span>
+<span>                                  position <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"left"</span>, <span class="st">"bottom"</span><span class="op">)</span>, frame <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>                                  text.size <span class="op">=</span> <span class="fl">0.8</span>, title.size <span class="op">=</span> <span class="fl">1</span><span class="op">)</span>, lwd <span class="op">=</span> <span class="fl">1.5</span><span class="op">)</span> <span class="op">+</span></span>
+<span><span class="fu">tm_layout</span><span class="op">(</span>frame <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span> <span class="op">+</span> <span class="fu">tm_title</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="st">"Simplified (SP):"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">graph_simple</span><span class="op">)</span>, <span class="st">"edges"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<p><img src="introduction_files/figure-html/simplify-shortest-paths-1.png" class="r-plt" alt="" width="100%"></p>
 </div>
 <div class="section level3">
 <h3 id="cluster-method">Cluster Method<a class="anchor" aria-label="anchor" href="#cluster-method"></a>
@@ -594,9 +632,8 @@ creating coarser network representations:</p>
 <div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Compute node weights for clustering (sum of gravity at each node)</span></span>
 <span><span class="va">node_weights</span> <span class="op">&lt;-</span> <span class="fu">rowbind</span><span class="op">(</span></span>
-<span>  <span class="fu">slt</span><span class="op">(</span><span class="va">graph_cons</span>, node <span class="op">=</span> <span class="va">from</span>, <span class="va">gravity_rd</span><span class="op">)</span>,</span>
-<span>  <span class="fu">slt</span><span class="op">(</span><span class="va">graph_cons</span>, <span class="va">to</span>, <span class="va">gravity_rd</span><span class="op">)</span>,</span>
-<span>  use.names <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu">fselect</span><span class="op">(</span><span class="va">graph_cons</span>, node <span class="op">=</span> <span class="va">from</span>, <span class="va">gravity_rd</span><span class="op">)</span>,</span>
+<span>  <span class="fu">fselect</span><span class="op">(</span><span class="va">graph_cons</span>, <span class="va">to</span>, <span class="va">gravity_rd</span><span class="op">)</span>,use.names <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">collap</span><span class="op">(</span><span class="op">~</span> <span class="va">node</span>, <span class="va">fsum</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Cluster-based simplification</span></span>
@@ -609,9 +646,16 @@ creating coarser network representations:</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Clustered edges:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">graph_cluster</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Clustered edges: 2430</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu"><a href="../reference/linestrings_from_graph.html">linestrings_from_graph</a></span><span class="op">(</span><span class="va">graph_cluster</span><span class="op">)</span><span class="op">[</span><span class="st">"passes"</span><span class="op">]</span>,</span>
-<span>     main <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="st">"Consolidated and Simplified (CL):"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">graph_cluster</span><span class="op">)</span>, <span class="st">"edges"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<p><img src="introduction_files/figure-html/simplify-cluster-1.png" class="r-plt" alt="" width="672"></p>
+<span><span class="va">cluster_sf</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linestrings_from_graph.html">linestrings_from_graph</a></span><span class="op">(</span><span class="va">graph_cluster</span><span class="op">)</span></span>
+<span><span class="fu">tm_basemap</span><span class="op">(</span><span class="st">"CartoDB.Positron"</span>, zoom <span class="op">=</span> <span class="fl">4</span><span class="op">)</span> <span class="op">+</span></span>
+<span><span class="fu">tm_shape</span><span class="op">(</span><span class="va">cluster_sf</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">tm_lines</span><span class="op">(</span>col <span class="op">=</span> <span class="st">"passes"</span>,</span>
+<span>           col.scale <span class="op">=</span> <span class="fu">tm_scale_continuous</span><span class="op">(</span>values <span class="op">=</span> <span class="st">"viridis"</span><span class="op">)</span>,</span>
+<span>           col.legend <span class="op">=</span> <span class="fu">tm_legend</span><span class="op">(</span><span class="st">"N. Passes"</span>,</span>
+<span>                                  position <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"left"</span>, <span class="st">"bottom"</span><span class="op">)</span>, frame <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>                                  text.size <span class="op">=</span> <span class="fl">0.8</span>, title.size <span class="op">=</span> <span class="fl">1</span><span class="op">)</span>, lwd <span class="op">=</span> <span class="fl">1.5</span><span class="op">)</span> <span class="op">+</span></span>
+<span><span class="fu">tm_layout</span><span class="op">(</span>frame <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span> <span class="op">+</span> <span class="fu">tm_title</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="st">"Simplified (CL):"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">graph_cluster</span><span class="op">)</span>, <span class="st">"edges"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<p><img src="introduction_files/figure-html/simplify-cluster-1.png" class="r-plt" alt="" width="100%"></p>
 <p>Key parameters:</p>
 <ul>
 <li>

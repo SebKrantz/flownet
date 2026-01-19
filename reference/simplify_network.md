@@ -7,7 +7,7 @@ methods.
 
 ``` r
 simplify_network(
-  graph,
+  graph_df,
   nodes,
   method = c("shortest-paths", "cluster"),
   directed = FALSE,
@@ -20,7 +20,7 @@ simplify_network(
 
 ## Arguments
 
-- graph:
+- graph_df:
 
   A data.frame with columns `from` and `to` representing the graph
   edges. For the cluster method, the graph must also have columns `FX`,
@@ -56,9 +56,9 @@ simplify_network(
 - cost.column:
 
   Character string (default: "cost"). Name of the cost column in
-  `graph`. Alternatively, a numeric vector of edge costs with length
-  equal to `nrow(graph)`. With `method = "cluster"`, a numeric vector of
-  node weights matching `nodes_from_graph(graph)` can be provided.
+  `graph_df`. Alternatively, a numeric vector of edge costs with length
+  equal to `nrow(graph_df)`. With `method = "cluster"`, a numeric vector
+  of node weights matching `nodes_from_graph(graph_df)` can be provided.
 
 - by:
 
@@ -91,7 +91,7 @@ A data.frame containing the simplified graph with:
 
 - For `method = "shortest-paths"`:
 
-  - All columns from the input `graph` (for edges that were kept)
+  - All columns from the input `graph_df` (for edges that were kept)
 
   - Attribute `"edges"`: integer vector of edge indices from the
     original graph
