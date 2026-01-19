@@ -35,8 +35,11 @@ are removed, keeping only unique node IDs with their coordinates.
 library(flowr)
 library(sf)
 
+# Load existing network edges and convert to graph
+africa_net <- africa_network[!africa_network$add, ]
+graph <- linestrings_to_graph(africa_net)
+
 # Extract nodes from graph
-graph <- linestrings_to_graph(network_gcc)
 nodes <- nodes_from_graph(graph)
 head(nodes)
 
@@ -44,7 +47,8 @@ head(nodes)
 nodes_sf <- nodes_from_graph(graph, sf = TRUE)
 class(nodes_sf)
 
-# Find nearest network nodes to zone centroids
-nearest <- nodes_sf$node[st_nearest_feature(zones_gcc, nodes_sf)]
+# Find nearest network nodes to cities/ports
+nearest_nodes <- nodes_sf$node[st_nearest_feature(africa_cities_ports, nodes_sf)]
+head(nearest_nodes)
 
 }

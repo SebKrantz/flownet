@@ -131,30 +131,30 @@ computational efficiency and route realism.
 library(flowr)
 library(sf)
 
-# Load Graph
-graph <- linestrings_to_graph(network_gcc)
+# Load existing network edges (exclude proposed new links)
+africa_net <- africa_network[!africa_network$add, ]
+
+# Convert to graph (use atomic_elem to drop sf geometry, qDF for data.frame)
+graph <- collapse::atomic_elem(africa_net) |> collapse::qDF()
 nodes <- nodes_from_graph(graph, sf = TRUE)
 
-# Map Zones to Nodes
-nearest_nodes <- nodes$node[st_nearest_feature(zones_gcc, nodes)]
+# Map cities/ports to nearest network nodes
+nearest_nodes <- nodes$node[st_nearest_feature(africa_cities_ports, nodes)]
 
-# Process OD Matrix
-od_matrix_long <- melt_od_matrix(od_matrices_gcc$container, nodes = nearest_nodes)
-
-# Run Traffic Assignment
-result <- run_assignment(graph, od_matrix_long, cost.column = "generalized_cost",
-                         return.extra = "all")
-print(result)
+# Simple gravity-based OD matrix
+od_mat <- outer(africa_cities_ports$population, africa_cities_ports$population) / 1e12
+dimnames(od_mat) <- list(nearest_nodes, nearest_nodes)
+od_matrix_long <- melt_od_matrix(od_mat)
 
 \dontrun{
-# Visualize Results
-network_gcc$final_flows_log10 <- log10(result$final_flows + 1)
+# Run Traffic Assignment (All-or-Nothing method)
+result <- run_assignment(graph, od_matrix_long, cost.column = "duration",
+                         method = "AoN", return.extra = "all")
+print(result)
 
-mapview(network_gcc, zcol = "final_flows_log10",
-        layer.name = "Container Flows (Log10)") +
-mapview(zones_gcc, alpha = 0, cex = 3,
-        col.regions = "red", alpha.regions = 0.8,
-        layer.name = "Zone Nodes")
+# Visualize Results
+africa_net$final_flows_log10 <- log10(result$final_flows + 1)
+plot(africa_net["final_flows_log10"])
 }
 
 }

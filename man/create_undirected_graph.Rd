@@ -43,12 +43,11 @@ This function converts a directed graph to an undirected graph by:
 \examples{
 library(flowr)
 
-# Create graph and convert to undirected
-graph <- linestrings_to_graph(network_gcc)
-graph_undir <- create_undirected_graph(graph)
-
-# Use 'by' to preserve mode-specific edges
-graph_undir_mm <- create_undirected_graph(graph, by = ~ mode)
+# Convert segments to graph and make undirected
+graph <- africa_segments |>
+  linestrings_from_graph() |>
+  linestrings_to_graph()
+graph_undir <- create_undirected_graph(graph, FUN = "fsum")
 
 # Fewer edges after removing directional duplicates
 c(directed = nrow(graph), undirected = nrow(graph_undir))

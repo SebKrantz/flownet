@@ -1,8 +1,8 @@
 ---
 title: "Introduction to flowr"
-author: "Sebastian Krantz, Kamol Roy"
+author: "Sebastian Krantz"
 date: "`r Sys.Date()`"
-output: 
+output:
   rmarkdown::html_vignette:
     toc: true
     toc_depth: 2
@@ -45,40 +45,43 @@ Let's start by loading the required packages and exploring the example datasets 
 
 ```{r load-packages}
 library(fastverse)
-fastverse_extend(flowr, sf, mapview)
+fastverse_extend(flowr, sf)
 ```
 
-The package includes three example datasets for the Gulf Cooperation Council (GCC) region:
+The package includes four example datasets for Africa:
+- **`africa_network`**: A road transport network with 2,825 LINESTRING features representing existing roads (2,344 edges) and proposed new links (481 edges). Each edge includes attributes such as distance, travel duration, border crossing costs, terrain ruggedness, and road upgrade costs.
 
-- **`network_gcc`**: A multimodal transport network with 2,800 LINESTRING features representing rail, HGV (Heavy Goods Vehicle), maritime, and CONNECT links. Each link includes attributes such as length, mode, speed, costs, times, and generalized cost.
+- **`africa_cities_ports`**: 453 African cities with population > 100,000 and international ports. Includes population data, capital status, and port cargo outflows.
 
-- **`zones_gcc`**: Zone locations and descriptions for origin-destination matrix locations in the GCC region.
+- **`africa_segments`**: 14,358 raw network segments representing intersected road routes. Useful for demonstrating network consolidation and simplification functions.
 
-- **`od_matrices_gcc`**: A list of origin-destination matrices for five cargo types (container, drybulk, general, highvalue, liquidbulk) across multiple years (2019, 2030, 2040).
+- **`africa_trade`**: Bilateral trade flows between 47 African countries aggregated by HS section (21 product categories). Values represent annual averages over 2012-2022.
 
-Let's examine the network structure:
+Let's examine the data:
 
 ```{r examine-data}
-# View network structure
-str(network_gcc, max.level = 1)
+# View network structure (existing links only)
+africa_net <- africa_network[!africa_network$add, ]
+str(africa_net, max.level = 1)
 
-# View available OD matrices
-names(od_matrices_gcc)
+# View cities/ports
+head(africa_cities_ports[, c("city", "country", "population")])
 
-# View zone information
-head(zones_gcc)
+# View trade data structure
+head(africa_trade)
 ```
 
 ## Basic Workflow Example
 
-This section demonstrates a complete workflow from network preparation to traffic assignment and visualization. We'll use the container flows from the GCC dataset.
+This section demonstrates a complete workflow from network preparation to traffic assignment and visualization. We'll use a gravity-based OD matrix derived from city populations.
 
 ### Step 1: Visualize the Network
 
 First, let's visualize the network to understand its structure:
 
-```{r visualize-network}
-mapview(network_gcc, zcol = "mode", layer.name = "Network Mode")
+```{r visualize-network, fig.width=8, fig.height=6}
+# Plot network colored by travel duration
+plot(africa_net["speed_kmh"], main = "Africa Road Network - Travel Speed (Km/h)")
 ```
 
 ### Step 2: Convert Network to Graph
@@ -86,8 +89,8 @@ mapview(network_gcc, zcol = "mode", layer.name = "Network Mode")
 The `linestrings_to_graph()` function converts LINESTRING geometries to a graph data frame format required for traffic assignment:
 
 ```{r convert-to-graph}
-# Load Graph
-graph <- linestrings_to_graph(network_gcc)
+# Convert to graph (use atomic_elem to drop sf geometry, qDF for data.frame)
+graph <- atomic_elem(africa_net) |> qDF()
 head(graph)
 ```
 
@@ -95,27 +98,31 @@ The resulting graph data frame contains:
 - `edge`: Edge identifier
 - `from`, `to`: Node IDs
 - `FX`, `FY`, `TX`, `TY`: Node coordinates
-- All original columns from the network (length_km, mode, generalized_cost, etc.)
+- All original columns from the network (distance, duration, total_time, etc.)
 
-### Step 3: Extract Nodes and Map Zones
+### Step 3: Extract Nodes and Map Cities
 
-We need to map the zone centroids to the nearest network nodes:
+We need to map the city/port locations to the nearest network nodes:
 
 ```{r extract-nodes}
 # Extract nodes with spatial coordinates
 nodes <- nodes_from_graph(graph, sf = TRUE)
 
-# Map zones to nearest nodes
-nearest_nodes <- nodes$node[st_nearest_feature(zones_gcc, nodes)]
+# Map cities/ports to nearest nodes
+nearest_nodes <- nodes$node[st_nearest_feature(africa_cities_ports, nodes)]
 ```
 
-### Step 4: Process OD Matrix
+### Step 4: Create OD Matrix
 
-The `melt_od_matrix()` function converts the origin-destination matrix to long format, which is required by `run_assignment()`. We use the `nodes` argument to map zone-based OD matrices to graph node IDs:
+For this example, we'll create a simple gravity-based OD matrix from city populations. The `melt_od_matrix()` function converts the matrix to long format required by `run_assignment()`:
 
 ```{r process-od}
-# Process OD Matrix
-od_matrix_long <- melt_od_matrix(od_matrices_gcc$container, nodes = nearest_nodes)
+# Create gravity-based OD matrix (population product scaled down)
+od_mat <- outer(africa_cities_ports$population, africa_cities_ports$population) / 1e12
+dimnames(od_mat) <- list(nearest_nodes, nearest_nodes)
+
+# Convert to long format
+od_matrix_long <- melt_od_matrix(od_mat)
 head(od_matrix_long)
 ```
 
@@ -123,107 +130,135 @@ The resulting data frame contains columns `from`, `to`, and `flow`, with only po
 
 ### Step 5: Run Traffic Assignment
 
-Now we can run the traffic assignment using the path-sized logit model. The `run_assignment()` function:
+Now we can run the traffic assignment. The `run_assignment()` function:
 
 - Enumerates alternative routes for each OD pair
-- Computes path probabilities accounting for route overlap
+- Computes path probabilities accounting for route overlap (PSL model)
 - Assigns flows to network edges
 
-In many applications, the default settings (`beta = 1`, `detour.max = 1.5`, `angle.max = 90`) already provide a good trade-off between behavioral realism and computational cost.
+For large networks like this one, we'll use the All-or-Nothing (AoN) method which is faster:
 
 ```{r run-assignment}
-# Run Traffic Assignment
-result <- run_assignment(graph, od_matrix_long, cost = "generalized_cost",
-                         return.extra = "all")
+# Run Traffic Assignment (All-or-Nothing method for speed)
+result <- run_assignment(graph, od_matrix_long, cost.column = "duration",
+                         method = "AoN", return.extra = "all")
 print(result)
 ```
 
 Key parameters:
-- `cost`: The cost column to use for route computation (here "generalized_cost")
+- `cost.column`: The cost column to use for route computation (here "duration" in minutes)
+- `method`: "PSL" (path-sized logit) or "AoN" (all-or-nothing)
 - `return.extra`: Additional results to return ("all" returns everything)
-- `beta`: Path-sized logit parameter (default: 1)
-- `detour.max`: Maximum detour factor for alternative routes (default: 1.5)
-- `angle.max`: Maximum detour angle in degrees (default: 90)
 
 ### Step 6: Visualize Results
 
 Finally, we can visualize the assigned flows on the network:
 
-```{r visualize-results}
+```{r visualize-results, fig.width=8, fig.height=6}
 # Add flows to network for visualization
-network_gcc$final_flows_log10 <- log10(result$final_flows+1)
+africa_net$final_flows_log10 <- log10(result$final_flows + 1)
 
-mapview(network_gcc, zcol = "final_flows_log10",
-        layer.name = "Container Flows (Log10)") +
-mapview(zones_gcc, alpha = 0, cex = 3,
-        col.regions = "red", alpha.regions = 0.8,
-        layer.name = "Zone Nodes")
+plot(africa_net["final_flows_log10"],
+     main = "Traffic Assignment Results (Log10 Flows)")
+
+# Add city points
+plot(st_geometry(africa_cities_ports), add = TRUE, pch = 20, cex = 0.5, col = "red")
+```
+
+## Advanced Workflow: Trade Flow Disaggregation
+
+For more realistic modeling, we can disaggregate country-level trade flows to city-level using population shares. This approach distributes trade between countries across their respective cities proportionally to population.
+
+### Step 1: Compute City Population Shares
+
+```{r city-pop-shares}
+# Compute each city's share of its country's population
+city_pop <- africa_cities_ports |> atomic_elem() |> qDF() |>
+  fcompute(node = nearest_nodes,
+           city = qF(city_country),
+           pop_share = fsum(population, iso3, TRA = "/"),
+           keep = "iso3")
+
+head(city_pop)
+```
+
+### Step 2: Disaggregate Trade Flows
+
+```{r disaggregate-trade}
+# Aggregate trade to country-country level (sum across HS sections)
+trade_agg <- africa_trade |> collap(quantity ~ iso3_o + iso3_d, fsum)
+
+# Join with city population shares for origin and destination
+# add_stub adds suffix to all columns, so iso3 -> iso3_o matches trade_agg$iso3_o
+od_matrix_trade <- trade_agg |>
+  join(city_pop |> add_stub("_o", FALSE), multiple = TRUE) |>
+  join(city_pop |> add_stub("_d", FALSE), multiple = TRUE) |>
+  fmutate(flow = quantity * pop_share_o * pop_share_d) |>
+  frename(node_o = from, node_d = to) |>
+  fsubset(flow > 0 & from != to)
+
+head(od_matrix_trade)
+```
+
+### Step 3: Run Assignment with Trade Flows
+
+```{r run-assignment-trade}
+# Run Traffic Assignment with trade-based OD matrix
+result_trade <- run_assignment(graph, od_matrix_trade, cost.column = "duration",
+                               method = "AoN", return.extra = "all")
+print(result_trade)
 ```
 
 ## Advanced Workflow with Network Consolidation
 
-For large networks, it's often beneficial to consolidate the graph by removing intermediate nodes and merging edges. This simplifies the network topology while preserving connectivity, which can significantly improve computational performance.
+For large or complex networks, it's often beneficial to consolidate the graph by removing intermediate nodes and merging edges. This simplifies the network topology while preserving connectivity, which can significantly improve computational performance.
 
-### Step 1: Create Undirected Graph
+### Using Raw Segments
 
-First, we convert the directed graph to an undirected graph. This is useful when transport links can be traversed in both directions:
+The `africa_segments` dataset provides raw network segments that can be processed through the full consolidation workflow:
 
-```{r create-undirected}
-# Load Graph and create undirected version
-graph <- linestrings_to_graph(network_gcc) |>
-  create_undirected_graph(by = ~ project + mode)
+```{r segments-workflow}
+# Convert segments to sf and then to graph
+graph_seg <- africa_segments |>
+  linestrings_from_graph() |>
+  linestrings_to_graph() |>
+  create_undirected_graph(FUN = "fsum")
 
-nodes <- nodes_from_graph(graph, sf = TRUE)
+# Get nodes and map cities
+nodes_seg <- nodes_from_graph(graph_seg, sf = TRUE)
+nearest_nodes_seg <- nodes_seg$node[st_nearest_feature(africa_cities_ports, nodes_seg)]
+
+cat("Original segments:", nrow(graph_seg), "\n")
 ```
 
-The `by` argument ensures that edges are only aggregated if they share the same `project` and `mode` characteristics.
+### Consolidate Graph
 
-### Step 2: Map Zones to Nodes
-
-```{r map-zones-advanced}
-# Map Zones to Nodes
-nearest_nodes <- nodes$node[st_nearest_feature(zones_gcc, nodes)]
-```
-
-### Step 3: Consolidate Graph
-
-The `consolidate_graph()` function removes intermediate nodes (nodes that occur exactly twice) and merges connecting edges. This is particularly useful for simplifying network topology:
+The `consolidate_graph()` function removes intermediate nodes (nodes that occur exactly twice) and merges connecting edges:
 
 ```{r consolidate-graph}
-# Consolidate Graph
-graph_cons <- consolidate_graph(graph, by = ~ project + mode, w = ~ length_km, 
-                                keep = nearest_nodes,
-                                custom = list(fsum_uw = .c(tariff_cost, tp_cost, tp_time, 
-                                                           link_time, total_cost, total_time, 
-                                                           generalized_cost),
-                                              fmean = .c(speed, tariff),
-                                              fmode = .c(numlanes, region, country)))
+# Consolidate graph, preserving city nodes
+graph_cons <- consolidate_graph(graph_seg,
+                                keep = nearest_nodes_seg,
+                                w = ~ passes)
+
+cat("After consolidation:", nrow(graph_cons), "\n")
 ```
 
 Key arguments:
-- `by`: Link characteristics to preserve during consolidation (project + mode)
-- `w`: Weight column for aggregation (length_km)
-- `keep`: Node IDs to preserve (zone nodes)
-- `custom`: Custom aggregation functions for different column types
-  - `fsum_uw`: Unweighted sum for cost/time columns
-  - `fmean`: Mean for speed and tariff
-  - `fmode`: Mode for categorical variables
+- `keep`: Node IDs to preserve (city/port nodes)
+- `w`: Weight column for aggregation (passes = number of routes using each segment)
 
-### Step 4: Compare Original vs Consolidated Network
+### Compare Original vs Consolidated Network
 
-Let's visualize the difference between the original and consolidated networks:
-
-```{r compare-networks}
-mapview(linestrings_from_graph(graph), color = "dodgerblue4",
-        layer.name = "Original") +
-mapview(linestrings_from_graph(graph_cons), color = "orange",
-        layer.name = "Consolidated") +
-mapview(zones_gcc, alpha = 0, cex = 3,
-        col.regions = "red", alpha.regions = 0.8,
-        layer.name = "Zone Nodes")
+```{r compare-networks, fig.width=8, fig.height=6}
+# Visualize original segments
+par(mfrow = c(1, 2))
+plot(linestrings_from_graph(graph_seg)["passes"],
+     main = paste("Original:", nrow(graph_seg), "edges"))
+plot(linestrings_from_graph(graph_cons)["passes"],
+     main = paste("Consolidated:", nrow(graph_cons), "edges"))
+par(mfrow = c(1, 1))
 ```
-
-The consolidated network typically has fewer edges while maintaining connectivity between important nodes (zones).
 
 ## Network Simplification with `simplify_network()`
 
@@ -232,34 +267,22 @@ The `simplify_network()` function provides two methods for reducing network comp
 1. **shortest-paths**: Keeps only edges traversed by shortest paths between specified nodes
 2. **cluster**: Spatially clusters nodes using the `leaderCluster` algorithm and contracts the graph
 
-Both methods support multimodal networks through the `by` argument, which prevents simplification across different transport modes.
-
 ### Shortest-Paths Method
 
 This method computes shortest paths between all specified nodes and retains only the edges that are traversed:
 
 ```{r simplify-shortest-paths}
 # Simplify network using shortest paths
-graph_simple <- simplify_network(graph_cons, nearest_nodes,
+graph_simple <- simplify_network(graph_cons, nearest_nodes_seg,
                                  method = "shortest-paths",
-                                 cost.column = "generalized_cost")
+                                 cost.column = "length")
 
-cat("Original edges:", nrow(graph_cons), "\n")
+cat("Consolidated edges:", nrow(graph_cons), "\n")
 cat("Simplified edges:", nrow(graph_simple), "\n")
-```
 
-### Multimodal Support
-
-For multimodal networks, use the `by` argument to compute paths separately for each mode. This ensures that each mode's shortest paths are computed independently, with edges of other modes penalized:
-
-```{r simplify-multimodal}
-# Simplify while preserving mode-specific routes
-graph_simple_mm <- simplify_network(graph_cons, nearest_nodes,
-                                    method = "shortest-paths",
-                                    cost.column = "generalized_cost",
-                                    by = ~ mode)
-
-cat("Edges with multimodal support:", nrow(graph_simple_mm), "\n")
+# Visualize
+plot(linestrings_from_graph(graph_simple)["passes"],
+     main = paste("Consolidated and Simplified (SP):", nrow(graph_simple), "edges"))
 ```
 
 ### Cluster Method
@@ -267,48 +290,30 @@ cat("Edges with multimodal support:", nrow(graph_simple_mm), "\n")
 The cluster method uses the `leaderCluster` algorithm to spatially group nearby nodes and contract the graph. This is useful for creating coarser network representations:
 
 ```{r simplify-cluster}
-# Cluster-based simplification (uses original graph with coordinates)
-graph_cluster <- simplify_network(graph, nearest_nodes,
-                                  method = "cluster",
-                                  radius_km = list(nodes = 10, cluster = 30),
-                                  by = ~ mode)
+# Compute node weights for clustering (sum of gravity at each node)
+node_weights <- rowbind(
+  slt(graph_cons, node = from, gravity_rd),
+  slt(graph_cons, to, gravity_rd),
+  use.names = FALSE) |>
+  collap(~ node, fsum)
 
-cat("Original edges:", nrow(graph), "\n")
+# Cluster-based simplification
+graph_cluster <- simplify_network(graph_cons, nearest_nodes_seg,
+                                  method = "cluster",
+                                  cost.column = node_weights$gravity_rd,
+                                  radius_km = list(nodes = 30, cluster = 27),
+                                  w = ~ passes)
+
 cat("Clustered edges:", nrow(graph_cluster), "\n")
+
+plot(linestrings_from_graph(graph_cluster)["passes"],
+     main = paste("Consolidated and Simplified (CL):", nrow(graph_cluster), "edges"))
 ```
 
 Key parameters:
 
 - `radius_km$nodes`: Radius (km) around preserved nodes to assign nearby nodes
 - `radius_km$cluster`: Clustering radius (km) for remaining nodes
-- `by`: Prevents merging edges of different modes during contraction
-
-## Traffic Assignment on Consolidated Network
-
-### Step 5: Process OD Matrix and Run Assignment
-
-```{r run-assignment-consolidated}
-# Process OD Matrix
-od_matrix_long <- melt_od_matrix(od_matrices_gcc$container, nodes = nearest_nodes)
-
-# Run Traffic Assignment on consolidated graph
-result <- run_assignment(graph_cons, od_matrix_long, cost = "generalized_cost",
-                         return.extra = "all")
-print(result)
-```
-
-### Step 6: Visualize Results
-
-```{r visualize-consolidated}
-# Add flows to consolidated graph for visualization
-graph_cons$final_flows_log10 <- log10(result$final_flows+1)
-
-mapview(linestrings_from_graph(graph_cons), zcol = "final_flows_log10",
-        layer.name = "Container Flows (Log10)") +
-mapview(zones_gcc, alpha = 0, cex = 3,
-        col.regions = "red", alpha.regions = 0.8,
-        layer.name = "Zone Nodes")
-```
 
 ## Key Concepts and Functions
 
@@ -356,6 +361,8 @@ This formulation ensures that the model assigns lower probabilities to routes th
 
 **`linestrings_to_graph()`**: Converts LINESTRING geometries to a graph data frame format. This is typically the first step when working with spatial network data.
 
+**`linestrings_from_graph()`**: Converts a graph data frame back to LINESTRING geometries. Useful for visualization and spatial operations.
+
 **`create_undirected_graph()`**: Converts a directed graph to an undirected graph by normalizing edge directions and aggregating duplicate connections. Useful when transport links can be traversed in both directions.
 
 **`consolidate_graph()`**: Simplifies network topology by removing intermediate nodes and merging connecting edges. This can significantly reduce computational complexity while preserving connectivity.
@@ -365,13 +372,9 @@ This formulation ensures that the model assigns lower probabilities to routes th
 - **shortest-paths**: Keeps only edges traversed by shortest paths between specified nodes
 - **cluster**: Spatially clusters nodes using the `leaderCluster` algorithm and contracts the graph
 
-Both methods support multimodal networks through the `by` argument, which ensures that edges of different modes are handled separately (penalized costs for shortest-paths, separate grouping for cluster).
-
 ### Graph Utilities
 
 **`nodes_from_graph()`**: Extracts unique nodes with coordinates from a graph. Essential for mapping zone centroids to network nodes.
-
-**`linestrings_from_graph()`**: Converts a graph data frame back to LINESTRING geometries. Useful for visualization and spatial operations.
 
 **`normalize_graph()`**: Normalizes node IDs to consecutive integers starting from 1. This can improve performance with some graph algorithms.
 
@@ -385,6 +388,7 @@ Both methods support multimodal networks through the `by` argument, which ensure
 
 **`run_assignment()`**: The core function for traffic assignment. Key parameters:
 
+- **`method`**: "PSL" (path-sized logit) or "AoN" (all-or-nothing). AoN is faster but doesn't account for route overlap.
 - **`beta`** (default: 1): Path-sized logit parameter. A positive value penalizes overlapping routes.
 - **`detour.max`** (default: 1.5): Maximum detour factor for alternative routes. Higher values consider more routes but increase computation time substantially.
 - **`angle.max`** (default: 90): Maximum detour angle in degrees. Routes outside this angle from the straight line between origin and destination are not considered.
@@ -401,8 +405,9 @@ Both methods support multimodal networks through the `by` argument, which ensure
 
 This vignette has demonstrated the basic and advanced workflows for using the `flowr` package:
 
-1. **Basic workflow**: Convert network to graph, map zones to nodes, process OD matrix, and run traffic assignment
-2. **Advanced workflow**: Create undirected graphs, consolidate networks for performance, and run assignment on simplified networks
+1. **Basic workflow**: Convert network to graph, map zones to nodes, create OD matrix, and run traffic assignment
+2. **Trade flow disaggregation**: Distribute country-level trade to city-level flows using population shares
+3. **Network consolidation**: Process raw segments through consolidation and simplification for efficient computation
 
 The package provides efficient tools for transport modeling with the path-sized logit model, accounting for route overlap in traffic assignment. The network processing utilities allow you to prepare and simplify networks for efficient computation.
 
@@ -410,9 +415,9 @@ The package provides efficient tools for transport modeling with the path-sized 
 
 - Explore the full function documentation: `?flowr-package`
 - Experiment with different parameter values (`beta`, `detour.max`, `angle.max`)
-- Try the other cargo types in `od_matrices_gcc` (drybulk, general, highvalue, liquidbulk)
-- Use `simplify_network()` to further reduce network size for specific OD pairs
-- Explore the additional results available through `return.extra` parameter
+- Try the PSL method instead of AoN for smaller networks or subsets
+- Use `africa_trade` to explore trade patterns by different HS sections
+- Experiment with `simplify_network()` cluster method for coarser network representations
 
 For more information, see the package documentation and examples in the help files for individual functions.
 

@@ -36,13 +36,15 @@ This function is the inverse operation of \code{\link{linestrings_to_graph}}. It
 library(flowr)
 library(sf)
 
-# Convert network to graph and back to linestrings
-graph <- linestrings_to_graph(network_gcc)
-lines <- linestrings_from_graph(graph)
+# Convert segments data frame to sf LINESTRING object
+segments_sf <- linestrings_from_graph(africa_segments)
+class(segments_sf)
+head(segments_sf)
 
-# Result is an sf object with LINESTRING geometry
-class(lines)
-head(lines)
+\dontrun{
+# Plot segments colored by route importance
+plot(segments_sf["passes"])
+}
 
 }
 \seealso{
