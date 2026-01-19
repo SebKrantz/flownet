@@ -17,7 +17,8 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
   fig.width = 7,
-  fig.height = 5,
+  fig.height = 6,
+  out.width = "100%",
   eval = TRUE
 )
 ```
@@ -43,9 +44,10 @@ The package leverages several high-performance R packages:
 
 Let's start by loading the required packages and exploring the example datasets included with `flowr`:
 
-```{r load-packages}
+```{r load-packages, message=FALSE}
 library(fastverse)
-fastverse_extend(flowr, sf)
+fastverse_extend(flowr, sf, tmap)
+tmap_mode("plot")
 ```
 
 The package includes four example datasets for Africa:
@@ -61,11 +63,11 @@ Let's examine the data:
 
 ```{r examine-data}
 # View network structure (existing links only)
-africa_net <- africa_network[!africa_network$add, ]
+africa_net <- fsubset(africa_network, !add, -add)
 str(africa_net, max.level = 1)
 
 # View cities/ports
-head(africa_cities_ports[, c("city", "country", "population")])
+head(fselect(africa_cities_ports, city, country, population))
 
 # View trade data structure
 head(africa_trade)
@@ -79,9 +81,16 @@ This section demonstrates a complete workflow from network preparation to traffi
 
 First, let's visualize the network to understand its structure:
 
-```{r visualize-network, fig.width=8, fig.height=6}
-# Plot network colored by travel duration
-plot(africa_net["speed_kmh"], main = "Africa Road Network - Travel Speed (Km/h)")
+```{r visualize-network}
+# Plot network colored by travel speed
+tm_basemap("CartoDB.Positron", zoom = 4) +
+tm_shape(africa_net) +
+  tm_lines(col = "speed_kmh",
+           col.scale = tm_scale_continuous(values = "viridis"),
+           col.legend = tm_legend("Speed (km/h)", position = c("left", "bottom"),
+                                  frame = FALSE, text.size = 0.8, title.size = 1, 
+                                  item.height = 2.5), lwd = 1.5) +
+tm_layout(frame = FALSE)
 ```
 
 ### Step 2: Convert Network to Graph
@@ -154,15 +163,18 @@ Key parameters:
 
 Finally, we can visualize the assigned flows on the network:
 
-```{r visualize-results, fig.width=8, fig.height=6}
+```{r visualize-results}
 # Add flows to network for visualization
 africa_net$final_flows_log10 <- log10(result$final_flows + 1)
 
-plot(africa_net["final_flows_log10"],
-     main = "Traffic Assignment Results (Log10 Flows)")
-
-# Add city points
-plot(st_geometry(africa_cities_ports), add = TRUE, pch = 20, cex = 0.5, col = "red")
+tm_basemap("CartoDB.Positron", zoom = 4) +
+tm_shape(africa_net) +
+  tm_lines(col = "final_flows_log10",
+           col.scale = tm_scale_continuous(values = "brewer.yl_or_rd"),
+           col.legend = tm_legend("Log10 Flows", position = c("left", "bottom"),
+                                  frame = FALSE, text.size = 0.8, title.size = 1), lwd = 1.5) +
+tm_shape(africa_cities_ports) + tm_dots(size = 0.15, fill = "grey30") +
+tm_layout(frame = FALSE)
 ```
 
 ## Advanced Workflow: Trade Flow Disaggregation
@@ -209,6 +221,20 @@ result_trade <- run_assignment(graph, od_matrix_trade, cost.column = "duration",
 print(result_trade)
 ```
 
+```{r visualize-results-trade}
+# Add flows to network for visualization
+africa_net$final_flows_log10 <- log10(result_trade$final_flows + 1)
+
+tm_basemap("CartoDB.Positron", zoom = 4) +
+tm_shape(africa_net) +
+  tm_lines(col = "final_flows_log10",
+           col.scale = tm_scale_continuous(values = "brewer.yl_or_rd"),
+           col.legend = tm_legend("Log10 Trade Flows", position = c("left", "bottom"),
+                                  frame = FALSE, text.size = 0.8, title.size = 1), lwd = 1.5) +
+tm_shape(africa_cities_ports) + tm_dots(size = 0.15, fill = "grey30") +
+tm_layout(frame = FALSE)
+```
+
 ## Advanced Workflow with Network Consolidation
 
 For large or complex networks, it's often beneficial to consolidate the graph by removing intermediate nodes and merging edges. This simplifies the network topology while preserving connectivity, which can significantly improve computational performance.
@@ -250,14 +276,31 @@ Key arguments:
 
 ### Compare Original vs Consolidated Network
 
-```{r compare-networks, fig.width=8, fig.height=6}
-# Visualize original segments
-par(mfrow = c(1, 2))
-plot(linestrings_from_graph(graph_seg)["passes"],
-     main = paste("Original:", nrow(graph_seg), "edges"))
-plot(linestrings_from_graph(graph_cons)["passes"],
-     main = paste("Consolidated:", nrow(graph_cons), "edges"))
-par(mfrow = c(1, 1))
+```{r compare-networks}
+# Convert to sf for plotting
+seg_sf <- linestrings_from_graph(graph_seg)
+cons_sf <- linestrings_from_graph(graph_cons)
+
+# Side-by-side comparison
+tm_basemap("CartoDB.Positron", zoom = 4) +
+tm_shape(seg_sf) +
+  tm_lines(col = "passes",
+           col.scale = tm_scale_continuous(values = "viridis"),
+           col.legend = tm_legend("N. Passes",
+                                  position = c("left", "bottom"), frame = FALSE,
+                                  text.size = 0.8, title.size = 1), lwd = 1.5) +
+tm_layout(frame = FALSE) + tm_title(paste("Original:", nrow(graph_seg), "edges"))
+```
+
+```{r compare-networks-cons}
+tm_basemap("CartoDB.Positron", zoom = 4) +
+tm_shape(cons_sf) +
+  tm_lines(col = "passes",
+           col.scale = tm_scale_continuous(values = "viridis"),
+           col.legend = tm_legend("N. Passes",
+                                  position = c("left", "bottom"), frame = FALSE,
+                                  text.size = 0.8, title.size = 1), lwd = 1.5) +
+tm_layout(frame = FALSE) + tm_title(paste("Consolidated:", nrow(graph_cons), "edges"))
 ```
 
 ## Network Simplification with `simplify_network()`
@@ -281,8 +324,15 @@ cat("Consolidated edges:", nrow(graph_cons), "\n")
 cat("Simplified edges:", nrow(graph_simple), "\n")
 
 # Visualize
-plot(linestrings_from_graph(graph_simple)["passes"],
-     main = paste("Consolidated and Simplified (SP):", nrow(graph_simple), "edges"))
+simple_sf <- linestrings_from_graph(graph_simple)
+tm_basemap("CartoDB.Positron", zoom = 4) +
+tm_shape(simple_sf) +
+  tm_lines(col = "passes",
+           col.scale = tm_scale_continuous(values = "viridis"),
+           col.legend = tm_legend("N. Passes",
+                                  position = c("left", "bottom"), frame = FALSE,
+                                  text.size = 0.8, title.size = 1), lwd = 1.5) +
+tm_layout(frame = FALSE) + tm_title(paste("Simplified (SP):", nrow(graph_simple), "edges"))
 ```
 
 ### Cluster Method
@@ -292,9 +342,8 @@ The cluster method uses the `leaderCluster` algorithm to spatially group nearby 
 ```{r simplify-cluster}
 # Compute node weights for clustering (sum of gravity at each node)
 node_weights <- rowbind(
-  slt(graph_cons, node = from, gravity_rd),
-  slt(graph_cons, to, gravity_rd),
-  use.names = FALSE) |>
+  fselect(graph_cons, node = from, gravity_rd),
+  fselect(graph_cons, to, gravity_rd),use.names = FALSE) |>
   collap(~ node, fsum)
 
 # Cluster-based simplification
@@ -306,8 +355,15 @@ graph_cluster <- simplify_network(graph_cons, nearest_nodes_seg,
 
 cat("Clustered edges:", nrow(graph_cluster), "\n")
 
-plot(linestrings_from_graph(graph_cluster)["passes"],
-     main = paste("Consolidated and Simplified (CL):", nrow(graph_cluster), "edges"))
+cluster_sf <- linestrings_from_graph(graph_cluster)
+tm_basemap("CartoDB.Positron", zoom = 4) +
+tm_shape(cluster_sf) +
+  tm_lines(col = "passes",
+           col.scale = tm_scale_continuous(values = "viridis"),
+           col.legend = tm_legend("N. Passes",
+                                  position = c("left", "bottom"), frame = FALSE,
+                                  text.size = 0.8, title.size = 1), lwd = 1.5) +
+tm_layout(frame = FALSE) + tm_title(paste("Simplified (CL):", nrow(graph_cluster), "edges"))
 ```
 
 Key parameters:
