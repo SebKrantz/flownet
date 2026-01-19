@@ -68,26 +68,25 @@ The function is useful for converting OD matrices to the long format required by
 library(flowr)
 library(sf)
 
-# Example 1: Using nodes argument to map zones to graph nodes
-# Load network and convert to graph
-graph <- linestrings_to_graph(africa_network)
+# Load existing network and convert to graph
+africa_net <- africa_network[!africa_network$add, ]
+graph <- linestrings_to_graph(africa_net)
 nodes <- nodes_from_graph(graph, sf = TRUE)
 
 # Map cities/ports to nearest network nodes
 nearest_nodes <- nodes$node[st_nearest_feature(africa_cities_ports, nodes)]
 
-# Create a simple OD matrix from city populations (for demonstration)
+# Example 1: Simple gravity-based OD matrix
 od_mat <- outer(africa_cities_ports$population, africa_cities_ports$population) / 1e12
-
-# Convert OD matrix with node mapping
-od_matrix_long <- melt_od_matrix(od_mat, nodes = nearest_nodes)
-head(od_matrix_long)
-
-# Example 2: Using matrix row/column names (when they match graph node IDs)
-# If matrix names already correspond to graph nodes, nodes argument can be omitted
 dimnames(od_mat) <- list(nearest_nodes, nearest_nodes)
-od_matrix_long2 <- melt_od_matrix(od_mat)
-head(od_matrix_long2)
+od_long <- melt_od_matrix(od_mat)
+head(od_long)
+
+# Example 2: Using nodes argument (when matrix has zone IDs, not node IDs)
+# Here zones are 1:n_cities, nodes argument maps them to graph nodes
+dimnames(od_mat) <- NULL
+od_long2 <- melt_od_matrix(od_mat, nodes = nearest_nodes)
+head(od_long2)
 
 }
 \seealso{

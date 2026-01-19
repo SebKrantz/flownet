@@ -90,28 +90,30 @@
 #' library(flowr)
 #' library(sf)
 #'
-#' # Load network and convert to graph
-#' graph <- linestrings_to_graph(africa_network)
+#' # Load existing network edges (exclude proposed new links)
+#' africa_net <- africa_network[!africa_network$add, ]
+#'
+#' # Convert to graph (use atomic_elem to drop sf geometry, qDF for data.frame)
+#' graph <- collapse::atomic_elem(africa_net) |> collapse::qDF()
 #' nodes <- nodes_from_graph(graph, sf = TRUE)
 #'
 #' # Map cities/ports to nearest network nodes
 #' nearest_nodes <- nodes$node[st_nearest_feature(africa_cities_ports, nodes)]
 #'
-#' # Create a simple OD matrix from city populations (for demonstration)
-#' n_cities <- nrow(africa_cities_ports)
+#' # Simple gravity-based OD matrix
 #' od_mat <- outer(africa_cities_ports$population, africa_cities_ports$population) / 1e12
 #' dimnames(od_mat) <- list(nearest_nodes, nearest_nodes)
 #' od_matrix_long <- melt_od_matrix(od_mat)
 #'
 #' \dontrun{
-#' # Run Traffic Assignment
-#' result <- run_assignment(graph, od_matrix_long, cost.column = "total_dist",
-#'                          return.extra = "all")
+#' # Run Traffic Assignment (All-or-Nothing method)
+#' result <- run_assignment(graph, od_matrix_long, cost.column = "duration",
+#'                          method = "AoN", return.extra = "all")
 #' print(result)
 #'
 #' # Visualize Results
-#' africa_network$final_flows_log10 <- log10(result$final_flows + 1)
-#' plot(africa_network["final_flows_log10"])
+#' africa_net$final_flows_log10 <- log10(result$final_flows + 1)
+#' plot(africa_net["final_flows_log10"])
 #' }
 #'
 #' @export
