@@ -770,7 +770,7 @@ compute_degrees <- function(from_vec, to_vec) {
 #'   contraction; if FALSE, edges are normalized so that \code{from < to} before grouping.
 #' @param cost.column Character string (default: "cost"). Name of the cost column in \code{graph}.
 #'   Alternatively, a numeric vector of edge costs with length equal to \code{nrow(graph)}.
-#'   Only used for \code{method = "shortest-paths"}.
+#'   With \code{method = "cluster"}, a numeric vector of node weights matching \code{nodes_from_graph(graph)} can be provided.
 #' @param by Link characteristics to preserve/not simplify across, passed as a one-sided
 #'   formula or character vector of column names. Typically includes attributes like
 #'   \emph{mode}, \emph{type}, or \emph{capacity}.
@@ -785,7 +785,6 @@ compute_degrees <- function(from_vec, to_vec) {
 #'   will be assigned to the nearest preserved node's cluster.
 #'   \code{cluster}: radius in kilometers for clustering remaining nodes using leaderCluster.
 #' @param \dots For \code{method = "cluster"}: additional arguments passed to
-#'   \code{\link[leaderCluster]{leaderCluster}} (e.g., \code{weights}) and to
 #'   \code{\link[collapse]{collap}} for edge attribute aggregation.
 #'
 #' @return A data.frame containing the simplified graph with:
@@ -876,7 +875,7 @@ compute_degrees <- function(from_vec, to_vec) {
 #' }
 #'
 #' @export
-#' @importFrom collapse fnrow ss ckmatch funique.default fmatch gsplit fmin dapply whichv %+=% GRP add_vars seq_row add_stub colorderv %!in% collap get_vars
+#' @importFrom collapse fnrow ss ckmatch funique.default fmatch gsplit fmin dapply whichv %+=% GRP add_vars seq_row add_stub colorderv %!in% collap get_vars alloc
 #' @importFrom igraph graph_from_data_frame delete_vertex_attr igraph_options shortest_paths
 #' @importFrom geodist geodist_vec geodist_min
 #' @importFrom leaderCluster leaderCluster
@@ -988,10 +987,13 @@ simplify_network <- function(graph, nodes, method = c("shortest-paths", "cluster
 
     # Extract nodes with coordinates
     nodes_df <- nodes_from_graph(graph, sf = FALSE)
+    # Optional node weights
+    if(is.numeric(cost.column) && length(cost.column) == fnrow(nodes_df)) nodes_df$weights <- cost.column
     # Cluster method
-    cl <- cluster_nodes(nodes_df, nodes, radius_km$nodes, radius_km$cluster, ...)
+    cl <- cluster_nodes(nodes_df, nodes, radius_km$nodes, radius_km$cluster)
     # Graph Contraction to Clusters
-    result <- contract_edges(graph, nodes_df, cl$clusters, cl$centroids, directed = directed, by = by, ...)
+    result <- contract_edges(graph, nodes = nodes_df, clusters = cl$clusters,
+                             centroids = cl$centroids, directed = directed, by = by, ...)
 
   }
 
@@ -1001,7 +1003,7 @@ simplify_network <- function(graph, nodes, method = c("shortest-paths", "cluster
 # Helper functions for simplify_network() with method = "cluster"
 cluster_nodes <- function(nodes, keep,
                           nodes_radius_km = 7,
-                          cluster_radius_km = 20, ...) {
+                          cluster_radius_km = 20) {
   # Nodes to preserve
   if(length(keep)) {
     clusters <- integer(fnrow(nodes))
@@ -1018,19 +1020,21 @@ cluster_nodes <- function(nodes, keep,
     ind <- whichv(clusters, 0L)
     if(length(ind)) {
       mat <- cbind(Y = nodes$Y[ind], X = nodes$X[ind])
-      res <- leaderCluster(mat, cluster_radius_km, max_iter = 100L, distance = "haversine", ...)
+      weights <- if(length(nodes$weights)) nodes$weights[ind] else alloc(1, nrow(mat))
+      res <- leaderCluster(mat, cluster_radius_km, weights, max_iter = 1000L, distance = "haversine")
       clusters[ind] <- res$cluster_id %+=% length(keep)
       centroids <- integer(length(keep) + res$num_clusters)
       centroids[seq_along(keep)] <- keep
-      centroids[-seq_along(keep)] <- ind[geodist_min(res$cluster_centroids[,2:1], mat[,2:1], measure = "haversine")]
+      centroids[-seq_along(keep)] <- suppressMessages(ind[geodist_min(res$cluster_centroids[,2:1], mat[,2:1], measure = "haversine", quiet = TRUE)])
     } else centroids <- keep
   } else {
     mat <- cbind(Y = nodes$Y, X = nodes$X)
-    res <- leaderCluster(mat, cluster_radius_km, max_iter = 100L, distance = "haversine", ...)
+    weights <- if(length(nodes$weights)) nodes$weights[ind] else alloc(1, nrow(mat))
+    res <- leaderCluster(mat, cluster_radius_km, weights, max_iter = 1000L, distance = "haversine")
     clusters <- res$cluster_id
     centroids <- res$cluster_centroids[,2:1]
     dimnames(centroids)[[2L]] <- c("X", "Y")
-    centroids <- geodist_min(centroids, mat[,2:1], measure = "haversine")
+    centroids <- suppressMessages(geodist_min(centroids, mat[,2:1], measure = "haversine", quiet = TRUE))
   }
   list(clusters = clusters, centroids = nodes$node[centroids])
 }
