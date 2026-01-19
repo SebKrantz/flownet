@@ -22,6 +22,10 @@ A data frame with 14,358 rows and 7 columns:
 \source{
 Derived from OpenStreetMap routing data via OSRM, processed through route intersection
 and aggregation.
+
+Dataset constructed for: Krantz, S. (2024). Optimal Investments in Africa's Road Network.
+Policy Research Working Paper 10893. World Bank. \doi{10.1596/1813-9450-10893}.
+Replication materials: \url{https://github.com/SebKrantz/OptimalAfricanRoads}.
 }
 \usage{
 data(africa_segments)

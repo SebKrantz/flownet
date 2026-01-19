@@ -163,6 +163,8 @@ The package includes four example datasets for Africa:
 
 - **`africa_trade`**: Bilateral trade flows between 47 African countries aggregated by HS section (21 product categories). Values represent annual averages over 2012-2022.
 
+The `africa_network`, `africa_cities_ports`, and `africa_segments` datasets are from Krantz, S. (2024). [Optimal Investments in Africa's Road Network](https://doi.org/10.1596/1813-9450-10893). Policy Research Working Paper 10893. World Bank. Replication materials are available at [github.com/SebKrantz/OptimalAfricanRoads](https://github.com/SebKrantz/OptimalAfricanRoads).
+
 ## Suggested Packages
 
 - **`fastverse`** (>= 0.3.4) - Enhanced data manipulation workflow
