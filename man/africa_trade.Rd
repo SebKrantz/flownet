@@ -7,20 +7,24 @@
 \format{
 A data.table with 27,721 rows and 8 columns:
 \describe{
-  \item{iso3_o}{Factor. Origin country ISO 3166-1 alpha-3 code (47 countries).}
-  \item{iso3_d}{Factor. Destination country ISO 3166-1 alpha-3 code (47 countries).}
+  \item{iso3_o}{Factor. Exporter (origin) country ISO 3166-1 alpha-3 code (47 countries).}
+  \item{iso3_d}{Factor. Importer (destination) country ISO 3166-1 alpha-3 code (47 countries).}
   \item{section_code}{Integer. HS section code (1 to 21).}
   \item{section_name}{Factor. HS section description (21 categories, e.g.,
     "Live animals and animal products", "Mineral products", "Machinery and mechanical appliances...").}
   \item{hs2_codes}{Factor. Comma-separated HS 2-digit codes within the section
     (e.g., "84, 85" for machinery).}
-  \item{value}{Numeric. Trade value in thousands of current USD. Range: 0 to 3.1 billion.}
-  \item{value_kd}{Numeric. Trade value in thousands of constant (deflated) USD.}
-  \item{quantity}{Numeric. Trade quantity in metric tons. Range: 0 to 15.2 million tons.}
+  \item{value}{Numeric. Trade value in thousands of USD (current prices).}
+  \item{value_kd}{Numeric. Trade value in thousands of constant 2015 USD.}
+  \item{quantity}{Numeric. Trade quantity in metric tons.}
 }
 }
 \source{
-CEPII BACI HS96 Database, Version 202401b (\url{http://www.cepii.fr/CEPII/en/bdd_modele/bdd_modele_item.asp?id=37}).
+CEPII BACI Database (HS96 nomenclature), Version 202401b, released 2024-04-09.
+Available at \url{http://www.cepii.fr/CEPII/en/bdd_modele/bdd_modele_item.asp?id=37}.
+
+Reference: Gaulier, G. and Zignago, S. (2010). BACI: International Trade Database
+at the Product-Level. The 1994-2007 Version. CEPII Working Paper, N 2010-23.
 }
 \usage{
 data(africa_trade)
@@ -28,12 +32,12 @@ data(africa_trade)
 \description{
 A dataset containing bilateral trade flows between 47 African countries, aggregated by
 HS (Harmonized System) section. Values represent annual averages over 2012-2022 from
-the CEPII BACI database.
+the CEPII BACI database (HS96 nomenclature).
 }
 \details{
-The dataset provides bilateral trade flows aggregated from HS 2-digit product codes to
-21 HS sections. Trade values and quantities are annual averages computed over the
-2012-2022 period.
+The dataset provides bilateral trade flows aggregated from HS 6-digit product codes
+(via HS 2-digit) to 21 HS sections. Trade values and quantities are annual averages
+computed over the 2012-2022 period.
 
 HS sections cover broad product categories:
 \itemize{
@@ -44,8 +48,8 @@ HS sections cover broad product categories:
   \item Sections 17-21: Transport, instruments, and miscellaneous
 }
 
-Note: Some country pairs may have sparse trade relationships. Zero values indicate
-either no recorded trade or values below the reporting threshold.
+Note: Some country pairs may have sparse trade relationships. Very small values
+indicate limited trade below typical reporting thresholds.
 }
 \examples{
 data(africa_trade)

@@ -40,7 +40,7 @@ A Simple feature collection (sf object) with 2,825 LINESTRING features and 28 fi
 }
 \source{
 Road network derived from OpenStreetMap via OSRM routing.
-Border crossing data from AfCFTA and World Bank estimates.
+Border crossing data from World Bank estimates.
 Terrain data from SRTM elevation models.
 Population data from WorldPop.
 }

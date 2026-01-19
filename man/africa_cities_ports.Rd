@@ -14,11 +14,11 @@ A Simple feature collection (sf object, also inheriting from data.table) with 45
   \item{iso3}{Character. ISO 3166-1 alpha-3 country code.}
   \item{admin_name}{Character. Administrative region or province name.}
   \item{capital}{Character. Capital status: "" (none), "admin" (administrative), "minor", or "primary" (national capital).}
-  \item{population}{Numeric. City population including nearby settlements within 30km. Range: 1,000 to 28.6 million.}
-  \item{port_locode}{Character. UN/LOCODE port identifier (NA for non-port cities). 51 cities have port data.}
-  \item{port_name}{Character. Official port name (NA for non-port cities).}
-  \item{port_status}{Character. Port status code (NA for non-port cities).}
-  \item{outflows}{Numeric. Annual cargo outflows in tons (NA for non-port cities). Range: 114,309 to 30.6 million tons.}
+  \item{population}{Numeric. City population including nearby settlements within 30km.}
+  \item{port_locode}{Character. UN/LOCODE port identifier (empty string for non-port cities).}
+  \item{port_name}{Character. Official port name (empty string for non-port cities).}
+  \item{port_status}{Character. Port status code (empty string for non-port cities).}
+  \item{outflows}{Numeric. Outflows in TEU in Q1 of 2020 (NA for non-port cities). 51 cities have port outflow data.}
   \item{geometry}{POINT. Spatial geometry in WGS 84 (EPSG:4326) coordinate reference system.}
 }
 }

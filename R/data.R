@@ -16,11 +16,11 @@
 #'   \item{iso3}{Character. ISO 3166-1 alpha-3 country code.}
 #'   \item{admin_name}{Character. Administrative region or province name.}
 #'   \item{capital}{Character. Capital status: "" (none), "admin" (administrative), "minor", or "primary" (national capital).}
-#'   \item{population}{Numeric. City population including nearby settlements within 30km. Range: 1,000 to 28.6 million.}
-#'   \item{port_locode}{Character. UN/LOCODE port identifier (NA for non-port cities). 51 cities have port data.}
-#'   \item{port_name}{Character. Official port name (NA for non-port cities).}
-#'   \item{port_status}{Character. Port status code (NA for non-port cities).}
-#'   \item{outflows}{Numeric. Annual cargo outflows in tons (NA for non-port cities). Range: 114,309 to 30.6 million tons.}
+#'   \item{population}{Numeric. City population including nearby settlements within 30km.}
+#'   \item{port_locode}{Character. UN/LOCODE port identifier (empty string for non-port cities).}
+#'   \item{port_name}{Character. Official port name (empty string for non-port cities).}
+#'   \item{port_status}{Character. Port status code (empty string for non-port cities).}
+#'   \item{outflows}{Numeric. Outflows in TEU in Q1 of 2020 (NA for non-port cities). 51 cities have port outflow data.}
 #'   \item{geometry}{POINT. Spatial geometry in WGS 84 (EPSG:4326) coordinate reference system.}
 #' }
 #'
@@ -130,7 +130,7 @@
 #'
 #' @source
 #' Road network derived from OpenStreetMap via OSRM routing.
-#' Border crossing data from AfCFTA and World Bank estimates.
+#' Border crossing data from World Bank estimates.
 #' Terrain data from SRTM elevation models.
 #' Population data from WorldPop.
 #'
@@ -183,9 +183,9 @@
 #'   \item{passes}{Integer. Number of optimal inter-city routes passing through this segment.
 #'     Range: 1 to 1,615, median: 46.}
 #'   \item{gravity}{Numeric. Sum of population gravity weights from routes using this segment.
-#'     Computed as sum of (pop_origin * pop_destination / spherical_distance).}
+#'     Computed as sum of (pop_origin * pop_destination / spherical_distance_km) / 1e9.}
 #'   \item{gravity_rd}{Numeric. Sum of road-distance-weighted gravity from routes.
-#'     Computed as sum of (pop_origin * pop_destination / road_distance).}
+#'     Computed as sum of (pop_origin * pop_destination / road_distance_m) / 1e9.}
 #' }
 #'
 #' @details
@@ -240,27 +240,27 @@
 #' @description
 #' A dataset containing bilateral trade flows between 47 African countries, aggregated by
 #' HS (Harmonized System) section. Values represent annual averages over 2012-2022 from
-#' the CEPII BACI database.
+#' the CEPII BACI database (HS96 nomenclature).
 #'
 #' @format
 #' A data.table with 27,721 rows and 8 columns:
 #' \describe{
-#'   \item{iso3_o}{Factor. Origin country ISO 3166-1 alpha-3 code (47 countries).}
-#'   \item{iso3_d}{Factor. Destination country ISO 3166-1 alpha-3 code (47 countries).}
+#'   \item{iso3_o}{Factor. Exporter (origin) country ISO 3166-1 alpha-3 code (47 countries).}
+#'   \item{iso3_d}{Factor. Importer (destination) country ISO 3166-1 alpha-3 code (47 countries).}
 #'   \item{section_code}{Integer. HS section code (1 to 21).}
 #'   \item{section_name}{Factor. HS section description (21 categories, e.g.,
 #'     "Live animals and animal products", "Mineral products", "Machinery and mechanical appliances...").}
 #'   \item{hs2_codes}{Factor. Comma-separated HS 2-digit codes within the section
 #'     (e.g., "84, 85" for machinery).}
-#'   \item{value}{Numeric. Trade value in thousands of current USD. Range: 0 to 3.1 billion.}
-#'   \item{value_kd}{Numeric. Trade value in thousands of constant (deflated) USD.}
-#'   \item{quantity}{Numeric. Trade quantity in metric tons. Range: 0 to 15.2 million tons.}
+#'   \item{value}{Numeric. Trade value in thousands of USD (current prices).}
+#'   \item{value_kd}{Numeric. Trade value in thousands of constant 2015 USD.}
+#'   \item{quantity}{Numeric. Trade quantity in metric tons.}
 #' }
 #'
 #' @details
-#' The dataset provides bilateral trade flows aggregated from HS 2-digit product codes to
-#' 21 HS sections. Trade values and quantities are annual averages computed over the
-#' 2012-2022 period.
+#' The dataset provides bilateral trade flows aggregated from HS 6-digit product codes
+#' (via HS 2-digit) to 21 HS sections. Trade values and quantities are annual averages
+#' computed over the 2012-2022 period.
 #'
 #' HS sections cover broad product categories:
 #' \itemize{
@@ -271,14 +271,18 @@
 #'   \item Sections 17-21: Transport, instruments, and miscellaneous
 #' }
 #'
-#' Note: Some country pairs may have sparse trade relationships. Zero values indicate
-#' either no recorded trade or values below the reporting threshold.
+#' Note: Some country pairs may have sparse trade relationships. Very small values
+#' indicate limited trade below typical reporting thresholds.
 #'
 #' @usage
 #' data(africa_trade)
 #'
 #' @source
-#' CEPII BACI HS96 Database, Version 202401b (\url{http://www.cepii.fr/CEPII/en/bdd_modele/bdd_modele_item.asp?id=37}).
+#' CEPII BACI Database (HS96 nomenclature), Version 202401b, released 2024-04-09.
+#' Available at \url{http://www.cepii.fr/CEPII/en/bdd_modele/bdd_modele_item.asp?id=37}.
+#'
+#' Reference: Gaulier, G. and Zignago, S. (2010). BACI: International Trade Database
+#' at the Product-Level. The 1994-2007 Version. CEPII Working Paper, N 2010-23.
 #'
 #' @seealso \code{\link{africa_cities_ports}}, \code{\link{africa_network}}, \link{flowr-package}
 #'

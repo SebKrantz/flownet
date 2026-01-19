@@ -14,9 +14,9 @@ A data frame with 14,358 rows and 7 columns:
   \item{passes}{Integer. Number of optimal inter-city routes passing through this segment.
     Range: 1 to 1,615, median: 46.}
   \item{gravity}{Numeric. Sum of population gravity weights from routes using this segment.
-    Computed as sum of (pop_origin * pop_destination / spherical_distance).}
+    Computed as sum of (pop_origin * pop_destination / spherical_distance_km) / 1e9.}
   \item{gravity_rd}{Numeric. Sum of road-distance-weighted gravity from routes.
-    Computed as sum of (pop_origin * pop_destination / road_distance).}
+    Computed as sum of (pop_origin * pop_destination / road_distance_m) / 1e9.}
 }
 }
 \source{
