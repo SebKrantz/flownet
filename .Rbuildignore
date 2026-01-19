@@ -4,6 +4,7 @@
 ^\.DS\_Store$
 .DS_Store
 .claude
+.cursor
 misc
 LICENSE
 ^\.github$
