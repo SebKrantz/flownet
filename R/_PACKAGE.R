@@ -36,9 +36,11 @@
 #' \strong{Data}
 #'
 #'  \code{\link{africa_trade}} --- Average BACI HS96 2012-22 trade flows by section between 47 continental African countries\cr
-#'  \code{\link{africa_cities_ports}} --- The 453 largest (port-)cities in continental Africa within a 70km radius - from Krantz (2024)\cr
-#'  \code{\link{africa_network}} --- African continental road network + extensions to optimally connect the 453 cities - from Krantz (2024)\cr
-#'  \code{\link{africa_segments}} --- Primary segments derived from OpenStreetMap routes between the 453 cities - from Krantz (2024)\cr
+#'  \code{\link{africa_cities_ports}} --- The 453 largest (port-)cities in continental Africa within a 70km radius - from Krantz (2024), \doi{10.1596/1813-9450-10893}\cr
+#'  \code{\link{africa_network}} --- African continental road network + extensions to optimally connect the 453 cities - from Krantz (2024), \doi{10.1596/1813-9450-10893}\cr
+#'  \code{\link{africa_segments}} --- Primary segments derived from OpenStreetMap routes between the 453 cities - from Krantz (2024), \doi{10.1596/1813-9450-10893}\cr
+#'
+#'  Replication materials: \url{https://github.com/SebKrantz/OptimalAfricanRoads}
 #'
 #' @details
 #' The package uses efficient C implementations for critical path operations and leverages:

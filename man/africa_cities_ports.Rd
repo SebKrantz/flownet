@@ -25,6 +25,10 @@ A Simple feature collection (sf object, also inheriting from data.table) with 45
 \source{
 City data from Simplemaps World Cities Database (\url{https://simplemaps.com/data/world-cities}).
 Port data from World Bank Global International Ports dataset (\url{https://datacatalog.worldbank.org/search/dataset/0038118}).
+
+Dataset constructed for: Krantz, S. (2024). Optimal Investments in Africa's Road Network.
+Policy Research Working Paper 10893. World Bank. \doi{10.1596/1813-9450-10893}.
+Replication materials: \url{https://github.com/SebKrantz/OptimalAfricanRoads}.
 }
 \usage{
 data(africa_cities_ports)

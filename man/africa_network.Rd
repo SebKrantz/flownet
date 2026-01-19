@@ -43,6 +43,10 @@ Road network derived from OpenStreetMap via OSRM routing.
 Border crossing data from World Bank estimates.
 Terrain data from SRTM elevation models.
 Population data from WorldPop.
+
+Dataset constructed for: Krantz, S. (2024). Optimal Investments in Africa's Road Network.
+Policy Research Working Paper 10893. World Bank. \doi{10.1596/1813-9450-10893}.
+Replication materials: \url{https://github.com/SebKrantz/OptimalAfricanRoads}.
 }
 \usage{
 data(africa_network)

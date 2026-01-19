@@ -44,6 +44,10 @@
 #' City data from Simplemaps World Cities Database (\url{https://simplemaps.com/data/world-cities}).
 #' Port data from World Bank Global International Ports dataset (\url{https://datacatalog.worldbank.org/search/dataset/0038118}).
 #'
+#' Dataset constructed for: Krantz, S. (2024). Optimal Investments in Africa's Road Network.
+#' Policy Research Working Paper 10893. World Bank. \doi{10.1596/1813-9450-10893}.
+#' Replication materials: \url{https://github.com/SebKrantz/OptimalAfricanRoads}.
+#'
 #' @seealso \code{\link{africa_network}}, \code{\link{africa_trade}}, \link{flowr-package}
 #'
 #' @examples
@@ -135,6 +139,10 @@
 #' Terrain data from SRTM elevation models.
 #' Population data from WorldPop.
 #'
+#' Dataset constructed for: Krantz, S. (2024). Optimal Investments in Africa's Road Network.
+#' Policy Research Working Paper 10893. World Bank. \doi{10.1596/1813-9450-10893}.
+#' Replication materials: \url{https://github.com/SebKrantz/OptimalAfricanRoads}.
+#'
 #' @seealso \code{\link{africa_cities_ports}}, \code{\link{africa_segments}},
 #'   \code{\link{africa_trade}}, \link{flowr-package}
 #'
@@ -211,6 +219,10 @@
 #' @source
 #' Derived from OpenStreetMap routing data via OSRM, processed through route intersection
 #' and aggregation.
+#'
+#' Dataset constructed for: Krantz, S. (2024). Optimal Investments in Africa's Road Network.
+#' Policy Research Working Paper 10893. World Bank. \doi{10.1596/1813-9450-10893}.
+#' Replication materials: \url{https://github.com/SebKrantz/OptimalAfricanRoads}.
 #'
 #' @seealso \code{\link{africa_network}}, \code{\link[=consolidate_graph]{consolidate_graph()}},
 #'   \code{\link[=simplify_network]{simplify_network()}}, \code{\link[=linestrings_from_graph]{linestrings_from_graph()}},
