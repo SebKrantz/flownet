@@ -194,7 +194,7 @@ od_matrix_trade <- trade_agg |>
   join(city_pop |> add_stub("_o", FALSE), multiple = TRUE) |>
   join(city_pop |> add_stub("_d", FALSE), multiple = TRUE) |>
   fmutate(flow = quantity * pop_share_o * pop_share_d) |>
-  frename(node_o = from, node_d = to) |>
+  frename(from = node_o, to = node_d) |>
   fsubset(flow > 0 & from != to)
 
 head(od_matrix_trade)
