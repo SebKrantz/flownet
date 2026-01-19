@@ -5,7 +5,7 @@
 \title{Simplify Network}
 \usage{
 simplify_network(
-  graph,
+  graph_df,
   nodes,
   method = c("shortest-paths", "cluster"),
   directed = FALSE,
@@ -16,7 +16,7 @@ simplify_network(
 )
 }
 \arguments{
-\item{graph}{A data.frame with columns \code{from} and \code{to} representing the graph edges.
+\item{graph_df}{A data.frame with columns \code{from} and \code{to} representing the graph edges.
 For the cluster method, the graph must also have columns \code{FX}, \code{FY}, \code{TX}, \code{TY}
 representing node coordinates.}
 
@@ -35,9 +35,9 @@ For \code{method = "shortest-paths"}: controls path computation direction.
 For \code{method = "cluster"}: if TRUE, A->B and B->A remain as separate edges after
 contraction; if FALSE, edges are normalized so that \code{from < to} before grouping.}
 
-\item{cost.column}{Character string (default: "cost"). Name of the cost column in \code{graph}.
-Alternatively, a numeric vector of edge costs with length equal to \code{nrow(graph)}.
-With \code{method = "cluster"}, a numeric vector of node weights matching \code{nodes_from_graph(graph)} can be provided.}
+\item{cost.column}{Character string (default: "cost"). Name of the cost column in \code{graph_df}.
+Alternatively, a numeric vector of edge costs with length equal to \code{nrow(graph_df)}.
+With \code{method = "cluster"}, a numeric vector of node weights matching \code{nodes_from_graph(graph_df)} can be provided.}
 
 \item{by}{Link characteristics to preserve/not simplify across, passed as a one-sided
 formula or character vector of column names. Typically includes attributes like
@@ -62,7 +62,7 @@ A data.frame containing the simplified graph with:
   \itemize{
     \item For \code{method = "shortest-paths"}:
       \itemize{
-        \item All columns from the input \code{graph} (for edges that were kept)
+        \item All columns from the input \code{graph_df} (for edges that were kept)
         \item Attribute \code{"edges"}: integer vector of edge indices from the original graph
         \item Attribute \code{"edge_counts"}: integer vector indicating how many times each edge was traversed
       }

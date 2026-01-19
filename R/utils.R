@@ -744,7 +744,7 @@ compute_degrees <- function(from_vec, to_vec) {
 #' @title Simplify Network
 #' @description Simplify a network graph using shortest paths or node clustering methods.
 #'
-#' @param graph A data.frame with columns \code{from} and \code{to} representing the graph edges.
+#' @param graph_df A data.frame with columns \code{from} and \code{to} representing the graph edges.
 #'   For the cluster method, the graph must also have columns \code{FX}, \code{FY}, \code{TX}, \code{TY}
 #'   representing node coordinates.
 #' @param nodes For \code{method = "shortest-paths"}: either an atomic vector of node IDs, or a
@@ -759,9 +759,9 @@ compute_degrees <- function(from_vec, to_vec) {
 #'   For \code{method = "shortest-paths"}: controls path computation direction.
 #'   For \code{method = "cluster"}: if TRUE, A->B and B->A remain as separate edges after
 #'   contraction; if FALSE, edges are normalized so that \code{from < to} before grouping.
-#' @param cost.column Character string (default: "cost"). Name of the cost column in \code{graph}.
-#'   Alternatively, a numeric vector of edge costs with length equal to \code{nrow(graph)}.
-#'   With \code{method = "cluster"}, a numeric vector of node weights matching \code{nodes_from_graph(graph)} can be provided.
+#' @param cost.column Character string (default: "cost"). Name of the cost column in \code{graph_df}.
+#'   Alternatively, a numeric vector of edge costs with length equal to \code{nrow(graph_df)}.
+#'   With \code{method = "cluster"}, a numeric vector of node weights matching \code{nodes_from_graph(graph_df)} can be provided.
 #' @param by Link characteristics to preserve/not simplify across, passed as a one-sided
 #'   formula or character vector of column names. Typically includes attributes like
 #'   \emph{mode}, \emph{type}, or \emph{capacity}.
@@ -782,7 +782,7 @@ compute_degrees <- function(from_vec, to_vec) {
 #'   \itemize{
 #'     \item For \code{method = "shortest-paths"}:
 #'       \itemize{
-#'         \item All columns from the input \code{graph} (for edges that were kept)
+#'         \item All columns from the input \code{graph_df} (for edges that were kept)
 #'         \item Attribute \code{"edges"}: integer vector of edge indices from the original graph
 #'         \item Attribute \code{"edge_counts"}: integer vector indicating how many times each edge was traversed
 #'       }
@@ -866,15 +866,15 @@ compute_degrees <- function(from_vec, to_vec) {
 #' @importFrom igraph graph_from_data_frame delete_vertex_attr igraph_options shortest_paths
 #' @importFrom geodist geodist_vec geodist_min
 #' @importFrom leaderCluster leaderCluster
-simplify_network <- function(graph, nodes, method = c("shortest-paths", "cluster"),
+simplify_network <- function(graph_df, nodes, method = c("shortest-paths", "cluster"),
                              directed = FALSE, cost.column = "cost", by = NULL,
                              radius_km = list(nodes = 7, cluster = 20), ...) {
 
   method <- match.arg(method)
 
   # Validate graph input
-  if (!is.data.frame(graph) || !all(c("from", "to") %in% names(graph)))
-    stop("graph must be a data.frame with 'from' and 'to' columns")
+  if (!is.data.frame(graph_df) || !all(c("from", "to") %in% names(graph_df)))
+    stop("graph_df must be a data.frame with 'from' and 'to' columns")
 
   # Validate by argument
   if(length(by)) {
@@ -885,12 +885,12 @@ simplify_network <- function(graph, nodes, method = c("shortest-paths", "cluster
   if (method == "shortest-paths") {
 
     # Shortest-paths method
-    cost <- if(is.character(cost.column) && length(cost.column) == 1L) graph[[cost.column]] else
-      if(is.numeric(cost.column) && length(cost.column) == fnrow(graph)) cost.column else
-        stop("cost.column needs to be a column name in graph or a numeric vector matching nrow(graph)")
+    cost <- if(is.character(cost.column) && length(cost.column) == 1L) graph_df[[cost.column]] else
+      if(is.numeric(cost.column) && length(cost.column) == fnrow(graph_df)) cost.column else
+        stop("cost.column needs to be a column name in graph_df or a numeric vector matching nrow(graph_df)")
 
-    from_node <- as.integer(graph$from)
-    to_node <- as.integer(graph$to)
+    from_node <- as.integer(graph_df$from)
+    to_node <- as.integer(graph_df$to)
     all_nodes <- funique.default(c(from_node, to_node), sort = TRUE)
 
     # Internally use normalized graph node indices
@@ -905,7 +905,7 @@ simplify_network <- function(graph, nodes, method = c("shortest-paths", "cluster
     iopt <- igraph_options(return.vs.es = FALSE)
     on.exit(igraph_options(iopt))
 
-    edges_traversed <- integer(fnrow(graph))
+    edges_traversed <- integer(fnrow(graph_df))
 
     # Pre-process nodes input ONCE (before any group loop)
     if(is.atomic(nodes)) {
@@ -949,7 +949,7 @@ simplify_network <- function(graph, nodes, method = c("shortest-paths", "cluster
 
     if(length(by)) {
       # Multimodal: iterate over groups, penalizing edges not in the current group
-      by_grp <- GRP(graph, by, return.order = FALSE)
+      by_grp <- GRP(graph_df, by, return.order = FALSE)
       max_cost <- 100 * max(cost, na.rm = TRUE)
 
       for(grp_idx in seq_len(by_grp$N.groups)) {
@@ -963,23 +963,23 @@ simplify_network <- function(graph, nodes, method = c("shortest-paths", "cluster
     }
 
     edges <- which(edges_traversed > 0L)
-    result <- ss(graph, edges, check = FALSE)
+    result <- ss(graph_df, edges, check = FALSE)
     attr(result, "edges") <- edges
     attr(result, "edge_counts") <- edges_traversed[edges]
 
   } else {
 
-    if (!all(c("FX", "FY", "TX", "TY") %in% names(graph)))
-      stop("graph must have columns 'FX', 'FY', 'TX', 'TY' for method = 'cluster'")
+    if (!all(c("FX", "FY", "TX", "TY") %in% names(graph_df)))
+      stop("graph_df must have columns 'FX', 'FY', 'TX', 'TY' for method = 'cluster'")
 
     # Extract nodes with coordinates
-    nodes_df <- nodes_from_graph(graph, sf = FALSE)
+    nodes_df <- nodes_from_graph(graph_df, sf = FALSE)
     # Optional node weights
     if(is.numeric(cost.column) && length(cost.column) == fnrow(nodes_df)) nodes_df$weights <- cost.column
     # Cluster method
     cl <- cluster_nodes(nodes_df, nodes, radius_km$nodes, radius_km$cluster)
     # Graph Contraction to Clusters
-    result <- contract_edges(graph, nodes = nodes_df, clusters = cl$clusters,
+    result <- contract_edges(graph_df, nodes = nodes_df, clusters = cl$clusters,
                              centroids = cl$centroids, directed = directed, by = by, ...)
 
   }
