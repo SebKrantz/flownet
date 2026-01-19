@@ -95,9 +95,9 @@ The `africa_network`, `africa_cities_ports`, and `africa_segments` datasets are 
 - **progress** (>= 1.2.3) - Progress bars for long-running operations
 
 ## Suggested Packages
-- **fastverse** (>= 0.3.4) - Enhanced data manipulation workflow
+- **fastverse** (>= 0.3.4) - Efficient data manipulation workflow
 - **mapview** (>= 2.11.2) - Interactive visualization of results
-- **testthat** (>= 3.0.0) - Unit testing framework
+- **tmap** (>= 4.0) - Static visualization of results
 
 ## License
 GPL-3
