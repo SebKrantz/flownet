@@ -30,6 +30,7 @@ Imports:
 Suggests:
     fastverse (>= 0.3.4),
     mapview (>= 2.11.2),
+    tmap (>= 4.0),
     testthat (>= 3.0.0),
     knitr,
     rmarkdown
