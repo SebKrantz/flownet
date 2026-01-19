@@ -53,7 +53,8 @@ data(africa_cities_ports)
 head(africa_cities_ports)
 
 # View largest cities
-africa_cities_ports[order(-africa_cities_ports$population), ][1:10, c("city", "country", "population")]
+largest <- africa_cities_ports[order(-africa_cities_ports$population), ]
+largest[1:10, c("city", "country", "population")]
 
 # Filter port cities
 ports <- africa_cities_ports[!is.na(africa_cities_ports$port_locode), ]
