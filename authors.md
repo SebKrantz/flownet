@@ -9,7 +9,7 @@
 ## Citation
 
 Source:
-[`DESCRIPTION`](https://github.com/SebKrantz/flowr/blob/master/DESCRIPTION)
+[`DESCRIPTION`](https://github.com/SebKrantz/flowr/blob/v0.1.0/DESCRIPTION)
 
 Krantz S (2026). *flowr: Transport Modeling (Network Processing, Route
 Enumeration, and Traffic Assignment) in R*. R package version 0.1.0,

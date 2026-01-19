@@ -44,13 +44,19 @@ provides utilities for network processing.
 continental African countries  
 [`africa_cities_ports`](https://sebkrantz.github.io/flowr/reference/africa_cities_ports.md)
 — The 453 largest (port-)cities in continental Africa within a 70km
-radius - from Krantz (2024)  
+radius - from Krantz (2024),
+[doi:10.1596/1813-9450-10893](https://doi.org/10.1596/1813-9450-10893)  
 [`africa_network`](https://sebkrantz.github.io/flowr/reference/africa_network.md)
 — African continental road network + extensions to optimally connect the
-453 cities - from Krantz (2024)  
+453 cities - from Krantz (2024),
+[doi:10.1596/1813-9450-10893](https://doi.org/10.1596/1813-9450-10893)  
 [`africa_segments`](https://sebkrantz.github.io/flowr/reference/africa_segments.md)
 — Primary segments derived from OpenStreetMap routes between the 453
-cities - from Krantz (2024)  
+cities - from Krantz (2024),
+[doi:10.1596/1813-9450-10893](https://doi.org/10.1596/1813-9450-10893)  
+
+Replication materials:
+<https://github.com/SebKrantz/OptimalAfricanRoads>
 
 ## Details
 

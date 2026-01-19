@@ -81,6 +81,12 @@ City data from Simplemaps World Cities Database
 Global International Ports dataset
 (<https://datacatalog.worldbank.org/search/dataset/0038118>).
 
+Dataset constructed for: Krantz, S. (2024). Optimal Investments in
+Africa's Road Network. Policy Research Working Paper 10893. World Bank.
+[doi:10.1596/1813-9450-10893](https://doi.org/10.1596/1813-9450-10893) .
+Replication materials:
+<https://github.com/SebKrantz/OptimalAfricanRoads>.
+
 ## Details
 
 The dataset was constructed by:
