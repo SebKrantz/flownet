@@ -167,9 +167,9 @@ The `africa_network`, `africa_cities_ports`, and `africa_segments` datasets are 
 
 ## Suggested Packages
 
-- **`fastverse`** (>= 0.3.4) - Enhanced data manipulation workflow
-- **`mapview`** (>= 2.11.2) - Interactive visualization of results
-- **`testthat`** (>= 3.0.0) - Unit testing framework
+- **fastverse** (>= 0.3.4) - Efficient data manipulation workflow
+- **mapview** (>= 2.11.2) - Interactive visualization of results
+- **tmap** (>= 4.0) - Static visualization of results
 
 ## Authors
 
