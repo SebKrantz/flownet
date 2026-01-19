@@ -141,6 +141,7 @@ run_assignment <- function(graph_df, od_matrix_long,
     if(is.numeric(cost.column) && length(cost.column) == fnrow(graph_df)) cost.column else
     stop("cost.column needs to be a column name in graph_df or a numeric vector matching nrow(graph_df)")
 
+  if(length(cost) != fnrow(graph)) stop("cost.column needs to be provided either externally or found in the dataset")
   # Validate method
   method <- match.arg(method)
   is_aon <- method == "AoN"
@@ -406,6 +407,11 @@ run_assignment <- function(graph_df, od_matrix_long,
         # if(anyNA(theta)) stop(sprintf("k is %d, j is %d, chunk_size is %d, window size is %d", k, j, dmat_chunk_nrow, length(window)))
         # if(k > dmat_chunk_nrow) stop("k too large")
       }
+      # # Skip self-loops (d_ij == 0) and invalid paths
+      # if(d_ij <= .Machine$double.eps || !is.finite(d_ij)) {
+      #   sve(od_pairs, i, NA_integer_)
+      #   next
+      # }
       short_detour_ij = if(geol) d_ikj < detour.max * d_ij & b < a & theta < angle.max else
                                  d_ikj < detour.max * d_ij
       short_detour_ij[d_ikj < d_ij + .Machine$double.eps*1e3] <- FALSE # Exclude nodes k that are on the shortest path
