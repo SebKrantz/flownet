@@ -96,7 +96,7 @@ graph <- simplify_network(graph, nearest_nodes, cost.column = "cost", by = ~ mod
   - Supports directed and undirected graphs
   - Returns flows and optional path/route information
   - **Key Parameters**:
-    - **`beta`** (default: -1): Path-sized logit parameter (beta_PSL)
+    - **`beta`** (default: 1): Path-sized logit parameter (beta_PSL)
     - **`detour.max`** (default: 1.5): Maximum detour factor for alternative routes. Higher values consider more routes but increase computation time
     - **`angle.max`** (default: 90): Maximum detour angle in degrees (two-sided)
     - **`return.extra`**: Additional results to return from the route enumeration stage (`"graph"`, `"dmat"`, `"paths"`, `"edges"`, `"counts"`, `"costs"`, `"weights"`, or `"all"`)
@@ -145,7 +145,7 @@ nearest_nodes <- nodes$node[st_nearest_feature(od_zones, nodes)]
 od_matrix_long <- melt_od_matrix(od_matrix, nodes = nearest_nodes)
 
 # 5. Run assignment
-result <- run_assignment(graph, od_matrix_long, cost = "cost_column")
+result <- run_assignment(graph, od_matrix_long, cost.column = "cost_column")
 
 # 6. Visualize results (optional)
 network$final_flows <- NA_real_
@@ -155,11 +155,15 @@ mapview(network, zcol = "final_flows")
 
 ## Example Data
 
-The package includes example datasets for the Gulf Cooperation Council (GCC) region:
+The package includes four example datasets for Africa:
 
-- **`network_gcc`**: Multimodal transport network including road, rail, and maritime connections
-- **`od_matrices_gcc`**: Origin-destination matrices for five cargo types (Container, Drybulk, Liquidbulk, General, HighValue) across multiple time periods (2019, 2030, 2040)
-- **`zones_gcc`**: Zone locations and descriptions for OD-matrix locations
+- **`africa_network`**: A road transport network with 2,825 LINESTRING features representing existing roads (2,344 edges) and proposed new links (481 edges). Each edge includes attributes such as distance, travel duration, border crossing costs, terrain ruggedness, and road upgrade costs.
+
+- **`africa_cities_ports`**: 453 African cities with population > 100,000 and international ports. Includes population data, capital status, and port cargo outflows.
+
+- **`africa_segments`**: 14,358 raw network segments representing intersected road routes. Useful for demonstrating network consolidation and simplification functions.
+
+- **`africa_trade`**: Bilateral trade flows between 47 African countries aggregated by HS section (21 product categories). Values represent annual averages over 2012-2022.
 
 ## Suggested Packages
 

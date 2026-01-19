@@ -58,17 +58,13 @@
   - Handles missing values and zero flows
 
 ### Example Data
-- **`network_gcc`**: Multimodal transport network for the Gulf Cooperation Council (GCC) region
-  - Includes road, rail, and maritime connections
-  - Pre-processed and ready for analysis
+- **`africa_network`**: A road transport network with 2,825 LINESTRING features representing existing roads (2,344 edges) and proposed new links (481 edges). Each edge includes attributes such as distance, travel duration, border crossing costs, terrain ruggedness, and road upgrade costs.
 
-- **`od_matrices_gcc`**: Origin-destination matrices for five cargo types
-  - Container, Drybulk, Liquidbulk, General, and HighValue cargo flows
-  - Multiple time periods (2019, 2030, 2040)
+- **`africa_cities_ports`**: 453 African cities with population > 100,000 and international ports. Includes population data, capital status, and port cargo outflows.
 
-- **`zones_gcc`**: Zone locations and descriptions for OD-matrix locations
-  - Geographic coordinates and zone metadata
-  - Compatible with GCC network and OD matrices
+- **`africa_segments`**: 14,358 raw network segments representing intersected road routes. Useful for demonstrating network consolidation and simplification functions.
+
+- **`africa_trade`**: Bilateral trade flows between 47 African countries aggregated by HS section (21 product categories). Values represent annual averages over 2012-2022.
 
 ## Technical Details
 - High-performance C implementations for path-sized logit computations
