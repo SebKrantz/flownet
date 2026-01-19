@@ -1,5 +1,8 @@
 # flowr
 
+[![R-CMD-check](https://github.com/SebKrantz/flowr/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/SebKrantz/flowr/actions/workflows/R-CMD-check.yaml)
+[![r-universe](https://sebkrantz.r-universe.dev/badges/flowr)](https://sebkrantz.r-universe.dev)
+
 **Transport Modeling: Route Enumeration and Traffic Assignment with the Path-Sized Logit**
 
 `flowr` provides efficient tools for transportation modeling, specifically route enumeration and traffic assignment tasks. The package implements the path-sized logit (PSL) model for traffic assignment and provides powerful utilities for network processing.
@@ -15,11 +18,11 @@
 ## Installation
 
 ```r
-# Install development version from GitHub
-remotes::install_github("CPCS-IAU/flowr")
+# Install from R-universe (recommended)
+install.packages("flowr", repos = c("https://sebkrantz.r-universe.dev", getOption("repos")))
 
-# Alternatively download the repo, extract it, and run
-install.packages("path/to/flowr", repos = NULL, type = "source")
+# Or install development version from GitHub
+remotes::install_github("SebKrantz/flowr")
 ```
 
 ## Dependencies
@@ -173,8 +176,8 @@ The `africa_network`, `africa_cities_ports`, and `africa_segments` datasets are 
 
 ## Authors
 
-- Sebastian Krantz (sebastian.krantz@graduateinstitute.ch)
-- Kamol Roy (kamol.roy08@gmail.com)
+- Sebastian Krantz
+- Kamol Roy
 
 ## License
 
