@@ -73,11 +73,12 @@ reference:
 - contents:
   - melt_od_matrix
 - title: "Data"
-  desc: "Multimodal Transport Network for the Gulf Cooperation Council (GCC) Region"
+  desc: "Trans-African Road Network and Trade Data"
 - contents:
-  - network_gcc
-  - od_matrices_gcc
-  - zones_gcc
+  - africa_cities_ports
+  - africa_network
+  - africa_segments
+  - africa_trade
 
 articles:
   - title: Introduction to flows
