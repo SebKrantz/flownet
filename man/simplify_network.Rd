@@ -37,7 +37,7 @@ contraction; if FALSE, edges are normalized so that \code{from < to} before grou
 
 \item{cost.column}{Character string (default: "cost"). Name of the cost column in \code{graph}.
 Alternatively, a numeric vector of edge costs with length equal to \code{nrow(graph)}.
-Only used for \code{method = "shortest-paths"}.}
+With \code{method = "cluster"}, a numeric vector of node weights matching \code{nodes_from_graph(graph)} can be provided.}
 
 \item{by}{Link characteristics to preserve/not simplify across, passed as a one-sided
 formula or character vector of column names. Typically includes attributes like
@@ -55,7 +55,6 @@ will be assigned to the nearest preserved node's cluster.
 \code{cluster}: radius in kilometers for clustering remaining nodes using leaderCluster.}
 
 \item{\dots}{For \code{method = "cluster"}: additional arguments passed to
-\code{\link[leaderCluster]{leaderCluster}} (e.g., \code{weights}) and to
 \code{\link[collapse]{collap}} for edge attribute aggregation.}
 }
 \value{
