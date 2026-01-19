@@ -2,8 +2,6 @@
 
 **Transport Modeling: Route Enumeration and Traffic Assignment with the Path-Sized Logit**
 
-***NOTE: Package is still under development***
-
 `flowr` provides efficient tools for transportation modeling, specifically route enumeration and traffic assignment tasks. The package implements the path-sized logit (PSL) model for traffic assignment and provides powerful utilities for network processing.
 
 ## Features
