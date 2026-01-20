@@ -1,11 +1,11 @@
-# flowr
+# flownet
 
-[![R-CMD-check](https://github.com/SebKrantz/flowr/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/SebKrantz/flowr/actions/workflows/R-CMD-check.yaml)
-[![r-universe](https://sebkrantz.r-universe.dev/badges/flowr)](https://sebkrantz.r-universe.dev)
+[![R-CMD-check](https://github.com/SebKrantz/flownet/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/SebKrantz/flownet/actions/workflows/R-CMD-check.yaml)
+[![r-universe](https://sebkrantz.r-universe.dev/badges/flownet)](https://sebkrantz.r-universe.dev)
 
-**Transport Modeling: Route Enumeration and Traffic Assignment with the Path-Sized Logit**
+**Transport Modeling in R:** Network Processing, Route Enumeration, and Traffic Assignment with the Path-Sized Logit
 
-`flowr` provides efficient tools for transportation modeling, specifically route enumeration and traffic assignment tasks. The package implements the path-sized logit (PSL) model for traffic assignment and provides powerful utilities for network processing.
+`flownet` provides efficient tools for transportation modeling, specifically network processing, route enumeration, and traffic assignment tasks. It implements the path-sized logit (PSL) model for traffic assignment and provides powerful utilities for network processing.
 
 ## Features
 
@@ -19,10 +19,10 @@
 
 ```r
 # Install from R-universe (recommended)
-install.packages("flowr", repos = c("https://sebkrantz.r-universe.dev", getOption("repos")))
+install.packages("flownet", repos = c("https://sebkrantz.r-universe.dev", getOption("repos")))
 
 # Or install development version from GitHub
-remotes::install_github("SebKrantz/flowr")
+remotes::install_github("SebKrantz/flownet")
 ```
 
 ## Dependencies
@@ -41,7 +41,7 @@ remotes::install_github("SebKrantz/flowr")
 ### Basic Usage
 
 ``` r
-library(flowr)
+library(flownet)
 
 # Create a small graph data frame
 graph <- data.frame(from = c(1, 2, 2, 3),
@@ -66,7 +66,7 @@ result$final_flows
 ### Working with Spatial Networks
 
 ```r
-library(flowr)
+library(flownet)
 library(sf)
 
 # Read network from shapefile and create undirected graph (optional)
@@ -125,7 +125,7 @@ graph <- simplify_network(graph, nearest_nodes, cost.column = "cost", by = ~ mod
 
 ```r
 library(fastverse)
-fastverse_extend(flowr, sf, mapview)
+fastverse_extend(flownet, sf, mapview)
 
 # 1. Load network and OD zone nodes
 network <- st_read("data/network.shp")
@@ -185,9 +185,9 @@ GPL-3
 
 ## Citation
 
-If you use `flowr` in your research, please cite:
+If you use `flownet` in your research, please cite:
 
 ```r
-citation("flowr")
+citation("flownet")
 ```
 

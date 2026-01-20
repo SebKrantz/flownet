@@ -1,4 +1,4 @@
-Package: flowr
+Package: flownet
 Type: Package
 Title: Transport Modeling (Network Processing, Route Enumeration, and Traffic Assignment) in R
 Version: 0.1.0
@@ -9,11 +9,11 @@ Description: High-performance tools for transport modeling---network processing,
     model for traffic assignment, an efficient route enumeration algorithm, and provides 
     powerful utility functions for (multimodal) network generation, consolidation, and/or 
     simplification. The user is expected to provide a transport network (either a graph data 
-    frame or collection of LINESTRING's representing a graph) and an origin-destination (OD) 
+    frame or collection of linestrings representing a graph) and an origin-destination (OD) 
     matrix of trade/traffic flows. Maintained by transport consultants at CPCS (cpcs.ca) 
     to support applied wokflows on large-scale (national/continental) transport networks.
-URL: https://sebkrantz.github.io/flowr/, https://github.com/SebKrantz/flowr
-BugReports: https://github.com/SebKrantz/flowr/issues
+URL: https://sebkrantz.github.io/flownet/, https://github.com/SebKrantz/flownet
+BugReports: https://github.com/SebKrantz/flownet/issues
 License: GPL-3
 Encoding: UTF-8
 Depends: 

@@ -32,7 +32,7 @@ columns of the graph, along with their corresponding coordinates. Duplicate node
 are removed, keeping only unique node IDs with their coordinates.
 }
 \examples{
-library(flowr)
+library(flownet)
 library(sf)
 
 # Load existing network edges and convert to graph

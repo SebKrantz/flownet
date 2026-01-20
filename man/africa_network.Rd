@@ -101,6 +101,6 @@ plot(africa_network[africa_network$add, "geometry"], col = "red", add = TRUE)
 }
 \seealso{
 \code{\link{africa_cities_ports}}, \code{\link{africa_segments}},
-  \code{\link{africa_trade}}, \link{flowr-package}
+  \code{\link{africa_trade}}, \link{flownet-package}
 }
 \keyword{datasets}

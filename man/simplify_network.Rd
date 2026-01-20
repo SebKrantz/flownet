@@ -109,7 +109,7 @@ Simplify a network graph using shortest paths or node clustering methods.
 }
 }
 \examples{
-library(flowr)
+library(flownet)
 library(sf)
 
 # Convert segments to undirected graph

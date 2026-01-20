@@ -48,7 +48,7 @@
 #' Policy Research Working Paper 10893. World Bank. \doi{10.1596/1813-9450-10893}.
 #' Replication materials: \url{https://github.com/SebKrantz/OptimalAfricanRoads}.
 #'
-#' @seealso \code{\link{africa_network}}, \code{\link{africa_trade}}, \link{flowr-package}
+#' @seealso \code{\link{africa_network}}, \code{\link{africa_trade}}, \link{flownet-package}
 #'
 #' @examples
 #' library(sf)
@@ -144,7 +144,7 @@
 #' Replication materials: \url{https://github.com/SebKrantz/OptimalAfricanRoads}.
 #'
 #' @seealso \code{\link{africa_cities_ports}}, \code{\link{africa_segments}},
-#'   \code{\link{africa_trade}}, \link{flowr-package}
+#'   \code{\link{africa_trade}}, \link{flownet-package}
 #'
 #' @examples
 #' library(sf)
@@ -202,7 +202,7 @@
 #' intersected but before network simplification. The segments have been simplified using
 #' \code{\link[=linestrings_from_graph]{linestrings_from_graph()}} to retain only start and end coordinates.
 #'
-#' The segments can be used to demonstrate the flowr network processing workflow:
+#' The segments can be used to demonstrate the flownet network processing workflow:
 #' \enumerate{
 #'   \item Convert segments to an sf LINESTRING object using \code{\link[=linestrings_from_graph]{linestrings_from_graph()}}
 #'   \item Apply \code{\link[=consolidate_graph]{consolidate_graph()}} to merge nearby nodes
@@ -226,7 +226,7 @@
 #'
 #' @seealso \code{\link{africa_network}}, \code{\link[=consolidate_graph]{consolidate_graph()}},
 #'   \code{\link[=simplify_network]{simplify_network()}}, \code{\link[=linestrings_from_graph]{linestrings_from_graph()}},
-#'   \link{flowr-package}
+#'   \link{flownet-package}
 #'
 #' @examples
 #' data(africa_segments)
@@ -297,7 +297,7 @@
 #' Reference: Gaulier, G. and Zignago, S. (2010). BACI: International Trade Database
 #' at the Product-Level. The 1994-2007 Version. CEPII Working Paper, N 2010-23.
 #'
-#' @seealso \code{\link{africa_cities_ports}}, \code{\link{africa_network}}, \link{flowr-package}
+#' @seealso \code{\link{africa_cities_ports}}, \code{\link{africa_network}}, \link{flownet-package}
 #'
 #' @examples
 #' data(africa_trade)

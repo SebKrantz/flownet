@@ -41,7 +41,7 @@ This function converts a directed graph to an undirected graph by:
 }
 }
 \examples{
-library(flowr)
+library(flownet)
 
 # Convert segments to graph and make undirected
 graph <- africa_segments |>

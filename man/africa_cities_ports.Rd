@@ -70,6 +70,6 @@ plot(africa_cities_ports["population"])
 
 }
 \seealso{
-\code{\link{africa_network}}, \code{\link{africa_trade}}, \link{flowr-package}
+\code{\link{africa_network}}, \code{\link{africa_trade}}, \link{flownet-package}
 }
 \keyword{datasets}

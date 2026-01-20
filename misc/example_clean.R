@@ -1,5 +1,5 @@
 library(fastverse)
-fastverse_extend(flowr, sf, mapview)
+fastverse_extend(flownet, sf, mapview)
 
 # --------------------------------------
 # Basic GCC Example

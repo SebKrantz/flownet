@@ -89,7 +89,7 @@ If coordinate columns (\code{FX}, \code{FY}, \code{TX}, \code{TY}) are present i
 they are preserved and updated based on the consolidated node coordinates from the original graph.
 }
 \examples{
-library(flowr)
+library(flownet)
 library(sf)
 
 # Convert segments to undirected graph
@@ -110,5 +110,5 @@ c(original = nrow(graph), consolidated = nrow(graph_cons))
 
 }
 \seealso{
-\link{create_undirected_graph} \link{simplify_network} \link{flowr-package}
+\link{create_undirected_graph} \link{simplify_network} \link{flownet-package}
 }

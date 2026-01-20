@@ -33,7 +33,7 @@ This function is the inverse operation of \code{\link{linestrings_to_graph}}. It
 }
 }
 \examples{
-library(flowr)
+library(flownet)
 library(sf)
 
 # Convert segments data frame to sf LINESTRING object
@@ -48,5 +48,5 @@ plot(segments_sf["passes"])
 
 }
 \seealso{
-\link{linestrings_to_graph} \link{flowr-package}
+\link{linestrings_to_graph} \link{flownet-package}
 }

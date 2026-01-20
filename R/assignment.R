@@ -33,7 +33,7 @@
 #' @param nthreads Integer (default: 1L). Number of threads (daemons) to use for parallel processing with \code{\link[mirai]{mirai}}. Should not exceed the number of logical processors.
 #'
 #'
-#' @return A list of class \code{"flowr"} containing:
+#' @return A list of class \code{"flownet"} containing:
 #'   \itemize{
 #'     \item \code{call} - The function call
 #'     \item \code{final_flows} - Numeric vector of assigned flows for each edge (same length as \code{nrow(graph_df)})
@@ -84,10 +84,10 @@
 #' calculations to restrict detours to those within the specified angle, improving
 #' computational efficiency and route realism.
 #'
-#' @seealso \link{flowr-package}
+#' @seealso \link{flownet-package}
 #'
 #' @examples
-#' library(flowr)
+#' library(flownet)
 #' library(sf)
 #'
 #' # Load existing network edges (exclude proposed new links)
@@ -251,12 +251,12 @@ run_assignment <- function(graph_df, od_matrix_long,
       igraph_options <- igraph::igraph_options
       GRP <- collapse::GRP
       gsplit <- collapse::gsplit
-      flowr <- getNamespace("flowr")
-      C_assign_flows_to_paths <- flowr$C_assign_flows_to_paths
+      flownet <- getNamespace("flownet")
+      C_assign_flows_to_paths <- flownet$C_assign_flows_to_paths
       if(retvals) {
-        sve <- flowr$sve
-        if(countsl) C_mark_edges_traversed <- flowr$C_mark_edges_traversed
-        if(costsl) C_sum_path_costs <- flowr$C_sum_path_costs
+        sve <- flownet$sve
+        if(countsl) C_mark_edges_traversed <- flownet$C_mark_edges_traversed
+        if(costsl) C_sum_path_costs <- flownet$C_sum_path_costs
       }
     }
 
@@ -332,11 +332,11 @@ run_assignment <- function(graph_df, od_matrix_long,
       `%+=%` <- collapse::`%+=%`
       any_duplicated <- collapse::any_duplicated
       fduplicated <- collapse::fduplicated
-      flowr <- getNamespace("flowr")
-      sve <- flowr$sve
-      C_check_path_duplicates <- flowr$C_check_path_duplicates
-      C_compute_path_sized_logit <- flowr$C_compute_path_sized_logit
-      C_free_delta_ks <- flowr$C_free_delta_ks
+      flownet <- getNamespace("flownet")
+      sve <- flownet$sve
+      C_check_path_duplicates <- flownet$C_check_path_duplicates
+      C_compute_path_sized_logit <- flownet$C_compute_path_sized_logit
+      C_free_delta_ks <- flownet$C_free_delta_ks
     }
 
     # Don't return vertex/edge names
@@ -574,17 +574,17 @@ run_assignment <- function(graph_df, od_matrix_long,
     }
   }
 
-  class(res) <- "flowr" # , method
+  class(res) <- "flownet" # , method
   return(res)
 }
 
 #' @rdname run_assignment
 #'
-#' @param x An object of class \code{flowr}, typically returned by \code{\link{run_assignment}}.
+#' @param x An object of class \code{flownet}, typically returned by \code{\link{run_assignment}}.
 #'
 #' @export
 #' @importFrom collapse fmean fsd vlengths descr print.qsu
-print.flowr <- function(x, ...) {
+print.flownet <- function(x, ...) {
   cat("Flowr object\n")
   cat("Call:", deparse(x$call), "\n\n")
   if (!is.null(x$dmat) && is.matrix(x$dmat))
