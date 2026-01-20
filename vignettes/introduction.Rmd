@@ -363,7 +363,7 @@ Let's see if we can assign to this network:
 dimnames(od_mat) <- list(nearest_nodes_seg, nearest_nodes_seg)
 od_matrix_long <- melt_od_matrix(od_mat)
 
-# Run Traffic Assignment with trade-based OD matrix
+# Run Traffic Assignment with gravity-based OD matrix
 result_cl <- run_assignment(graph_cluster, od_matrix_long, cost.column = ".length",
                             method = "AoN", return.extra = "all")
 print(result_cl)
