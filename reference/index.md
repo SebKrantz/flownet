@@ -2,7 +2,7 @@
 
 - [`flownet-package`](https://sebkrantz.github.io/flownet/reference/flownet-package.md)
   [`flownet`](https://sebkrantz.github.io/flownet/reference/flownet-package.md)
-  : Transport Modeling
+  : Efficient Transport Modeling
 
 ## Network Processing
 

@@ -56,7 +56,7 @@ A data.table with 27,721 rows and 8 columns:
 
 CEPII BACI Database (HS96 nomenclature), Version 202401b, released
 2024-04-09. Available at
-<http://www.cepii.fr/CEPII/en/bdd_modele/bdd_modele_item.asp?id=37>.
+<https://www.cepii.fr/DATA_DOWNLOAD/baci/doc/baci_webpage.html>.
 
 Reference: Gaulier, G. and Zignago, S. (2010). BACI: International Trade
 Database at the Product-Level. The 1994-2007 Version. CEPII Working

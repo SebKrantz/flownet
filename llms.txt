@@ -4,7 +4,7 @@
 [![r-universe](https://sebkrantz.r-universe.dev/badges/flownet)](https://sebkrantz.r-universe.dev)
 
 **Transport Modeling:** Network Processing, Route Enumeration, and
-Traffic Assignment with the Path-Sized Logit
+Traffic Assignment with Path-Sized Logit
 
 `flownet` provides efficient tools for transportation modeling in R,
 supporting network processing, route enumeration, and traffic assignment
@@ -230,7 +230,7 @@ citation("flownet")
 
 - [`flownet-package`](https://sebkrantz.github.io/flownet/reference/flownet-package.md)
   [`flownet`](https://sebkrantz.github.io/flownet/reference/flownet-package.md)
-  : Transport Modeling
+  : Efficient Transport Modeling
 
 ## Network Processing
 
