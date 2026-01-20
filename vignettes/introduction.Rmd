@@ -19,13 +19,15 @@ knitr::opts_chunk$set(
   fig.width = 7,
   fig.height = 6,
   out.width = "100%",
+  #dpi = 72,
+  fig.retina = 1,
   eval = TRUE
 )
 ```
 
 ## Introduction
 
-The `flowr` package provides efficient tools for transportation modeling, specifically route enumeration and traffic assignment tasks. The package implements the **path-sized logit (PSL) model** for traffic assignment, which accounts for route overlap when assigning traffic flows to network edges. This makes it particularly suitable for modeling transport networks where multiple alternative routes may share common segments.
+The `flowr` package provides efficient tools for transportation modeling, specifically route enumeration and traffic assignment tasks. The package implements the **path-sized logit (PSL) model** for traffic assignment, which accounts for route overlap when assigning traffic flows to network edges. <!-- This makes it particularly suitable for modeling transport networks where multiple alternative routes may share common segments. -->
 
 ### Key Features
 
