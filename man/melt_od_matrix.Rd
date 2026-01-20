@@ -65,7 +65,7 @@ The function is useful for converting OD matrices to the long format required by
 \code{\link[=run_assignment]{run_assignment()}}.
 }
 \examples{
-library(flowr)
+library(flownet)
 library(sf)
 
 # Load existing network and convert to graph
@@ -92,5 +92,5 @@ head(od_long2)
 \seealso{
 \code{\link{africa_cities_ports}}, \code{\link{africa_network}},
   \code{\link[=nodes_from_graph]{nodes_from_graph()}},
-  \code{\link[=run_assignment]{run_assignment()}}, \link{flowr-package}
+  \code{\link[=run_assignment]{run_assignment()}}, \link{flownet-package}
 }

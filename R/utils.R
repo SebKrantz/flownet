@@ -25,10 +25,10 @@ sve <- function(x, i, elt) .Call(C_set_vector_elt, x, i, elt)
 #'  \item \code{TY} - Ending node Y-coordinate (latitude)
 #' }
 #'
-#' @seealso \link{simplify_network} \link{flowr-package}
+#' @seealso \link{simplify_network} \link{flownet-package}
 #'
 #' @examples
-#' library(flowr)
+#' library(flownet)
 #' library(sf)
 #'
 #' # Load existing network edges (exclude proposed new links)
@@ -94,10 +94,10 @@ linestrings_to_graph <- function(lines, digits = 6, keep.cols = is.atomic, compu
 #'   \item Returns an sf object suitable for spatial operations and visualization
 #' }
 #'
-#' @seealso \link{linestrings_to_graph} \link{flowr-package}
+#' @seealso \link{linestrings_to_graph} \link{flownet-package}
 #'
 #' @examples
-#' library(flowr)
+#' library(flownet)
 #' library(sf)
 #'
 #' # Convert segments data frame to sf LINESTRING object
@@ -160,7 +160,7 @@ linestrings_from_graph <- function(graph_df, crs = 4326) {
 #' }
 #'
 #' @examples
-#' library(flowr)
+#' library(flownet)
 #'
 #' # Convert segments to graph and make undirected
 #' graph <- africa_segments |>
@@ -217,7 +217,7 @@ create_undirected_graph <- function(graph_df, by = NULL, ...) {
 #' are removed, keeping only unique node IDs with their coordinates.
 #'
 #' @examples
-#' library(flowr)
+#' library(flownet)
 #' library(sf)
 #'
 #' # Load existing network edges and convert to graph
@@ -273,7 +273,7 @@ nodes_from_graph <- function(graph_df, sf = FALSE, crs = 4326) {
 #' }
 #'
 #' @examples
-#' library(flowr)
+#' library(flownet)
 #'
 #' # Create a simple graph
 #' graph <- data.frame(
@@ -335,10 +335,10 @@ distances_from_graph <- function(graph_df, directed = FALSE, cost.column = "cost
 #' Note: This function only normalizes the node IDs; it does not modify the graph structure
 #' or any other attributes. The mapping preserves the relative ordering of nodes.
 #'
-#' @seealso \link{nodes_from_graph} \link{flowr-package}
+#' @seealso \link{nodes_from_graph} \link{flownet-package}
 #'
 #' @examples
-#' library(flowr)
+#' library(flownet)
 #'
 #' # Create graph with non-consecutive node IDs
 #' graph <- data.frame(
@@ -424,10 +424,10 @@ normalize_graph <- function(graph_df) {
 #' If coordinate columns (\code{FX}, \code{FY}, \code{TX}, \code{TY}) are present in the input,
 #' they are preserved and updated based on the consolidated node coordinates from the original graph.
 #'
-#' @seealso \link{create_undirected_graph} \link{simplify_network} \link{flowr-package}
+#' @seealso \link{create_undirected_graph} \link{simplify_network} \link{flownet-package}
 #'
 #' @examples
-#' library(flowr)
+#' library(flownet)
 #' library(sf)
 #'
 #' # Convert segments to undirected graph
@@ -835,7 +835,7 @@ compute_degrees <- function(from_vec, to_vec) {
 #' }
 #'
 #' @examples
-#' library(flowr)
+#' library(flownet)
 #' library(sf)
 #'
 #' # Convert segments to undirected graph
@@ -1159,10 +1159,10 @@ contract_edges <- function(graph, nodes, clusters, centroids, directed = FALSE, 
 #'
 #' @seealso \code{\link{africa_cities_ports}}, \code{\link{africa_network}},
 #'   \code{\link[=nodes_from_graph]{nodes_from_graph()}},
-#'   \code{\link[=run_assignment]{run_assignment()}}, \link{flowr-package}
+#'   \code{\link[=run_assignment]{run_assignment()}}, \link{flownet-package}
 #'
 #' @examples
-#' library(flowr)
+#' library(flownet)
 #' library(sf)
 #'
 #' # Load existing network and convert to graph

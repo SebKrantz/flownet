@@ -36,7 +36,7 @@ A data.frame representing the graph with columns:
 Convert Linestring to Graph
 }
 \examples{
-library(flowr)
+library(flownet)
 library(sf)
 
 # Load existing network edges (exclude proposed new links)
@@ -51,5 +51,5 @@ names(graph)
 
 }
 \seealso{
-\link{simplify_network} \link{flowr-package}
+\link{simplify_network} \link{flownet-package}
 }

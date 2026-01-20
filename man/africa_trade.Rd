@@ -69,6 +69,6 @@ subset(africa_trade, iso3_o == "ZAF" & iso3_d == "NGA")
 
 }
 \seealso{
-\code{\link{africa_cities_ports}}, \code{\link{africa_network}}, \link{flowr-package}
+\code{\link{africa_cities_ports}}, \code{\link{africa_network}}, \link{flownet-package}
 }
 \keyword{datasets}

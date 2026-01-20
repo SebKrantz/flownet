@@ -2,7 +2,7 @@
 #'
 #' @description
 #'
-#' \emph{flowr} provides efficient tools for transportation modeling, specifically route
+#' \emph{flownet} provides efficient tools for transportation modeling, specifically route
 #' enumeration and traffic assignment tasks. The package implements the path-sized logit model for
 #' traffic assignment and provides utilities for network processing.
 #'
@@ -52,8 +52,8 @@
 #' }
 #'
 #' @author Sebastian Krantz \email{sebastian.krantz@graduateinstitute.ch} and Kamol Roy \email{kamol.roy08@gmail.com}
-#' @name flowr-package
-#' @aliases flowr
-#' @useDynLib flowr, .registration = TRUE
+#' @name flownet-package
+#' @aliases flownet
+#' @useDynLib flownet, .registration = TRUE
 NULL
 

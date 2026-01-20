@@ -1,4 +1,4 @@
-# flowr 0.1.0 (Initial Release)
+# flownet 0.1.0 (Initial Release)
 
 ## Major Features
 
@@ -81,7 +81,7 @@ The `africa_network`, `africa_cities_ports`, and `africa_segments` datasets are 
 - Complete function documentation with roxygen2
 - README with quick start guide and examples
 - Introduction vignette demonstrating package workflow
-- Package-level documentation in `?flowr-package`
+- Package-level documentation in `?flownet-package`
 
 ## Dependencies
 - **R** (>= 3.5)

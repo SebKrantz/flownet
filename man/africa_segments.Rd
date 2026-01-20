@@ -43,7 +43,7 @@ This dataset represents an intermediate stage in network construction, after rou
 intersected but before network simplification. The segments have been simplified using
 \code{\link[=linestrings_from_graph]{linestrings_from_graph()}} to retain only start and end coordinates.
 
-The segments can be used to demonstrate the flowr network processing workflow:
+The segments can be used to demonstrate the flownet network processing workflow:
 \enumerate{
   \item Convert segments to an sf LINESTRING object using \code{\link[=linestrings_from_graph]{linestrings_from_graph()}}
   \item Apply \code{\link[=consolidate_graph]{consolidate_graph()}} to merge nearby nodes
@@ -75,6 +75,6 @@ plot(segments_sf["passes"])
 \seealso{
 \code{\link{africa_network}}, \code{\link[=consolidate_graph]{consolidate_graph()}},
   \code{\link[=simplify_network]{simplify_network()}}, \code{\link[=linestrings_from_graph]{linestrings_from_graph()}},
-  \link{flowr-package}
+  \link{flownet-package}
 }
 \keyword{datasets}

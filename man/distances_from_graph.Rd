@@ -35,7 +35,7 @@ This function:
 }
 }
 \examples{
-library(flowr)
+library(flownet)
 
 # Create a simple graph
 graph <- data.frame(

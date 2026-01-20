@@ -2,7 +2,7 @@
 % Please edit documentation in R/assignment.R
 \name{run_assignment}
 \alias{run_assignment}
-\alias{print.flowr}
+\alias{print.flownet}
 \title{Run Traffic Assignment}
 \usage{
 run_assignment(
@@ -23,7 +23,7 @@ run_assignment(
   nthreads = 1L
 )
 
-\method{print}{flowr}(x, ...)
+\method{print}{flownet}(x, ...)
 }
 \arguments{
 \item{graph_df}{A data.frame with columns \code{from}, \code{to}, and optionally a cost column.
@@ -69,10 +69,10 @@ Use \code{"all"} to return all available extra results for the selected method.}
 
 \item{nthreads}{Integer (default: 1L). Number of threads (daemons) to use for parallel processing with \code{\link[mirai]{mirai}}. Should not exceed the number of logical processors.}
 
-\item{x}{An object of class \code{flowr}, typically returned by \code{\link{run_assignment}}.}
+\item{x}{An object of class \code{flownet}, typically returned by \code{\link{run_assignment}}.}
 }
 \value{
-A list of class \code{"flowr"} containing:
+A list of class \code{"flownet"} containing:
   \itemize{
     \item \code{call} - The function call
     \item \code{final_flows} - Numeric vector of assigned flows for each edge (same length as \code{nrow(graph_df)})
@@ -128,7 +128,7 @@ calculations to restrict detours to those within the specified angle, improving
 computational efficiency and route realism.
 }
 \examples{
-library(flowr)
+library(flownet)
 library(sf)
 
 # Load existing network edges (exclude proposed new links)
@@ -159,5 +159,5 @@ plot(africa_net["final_flows_log10"])
 
 }
 \seealso{
-\link{flowr-package}
+\link{flownet-package}
 }
