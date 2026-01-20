@@ -53,7 +53,7 @@ This function:
 ## Examples
 
 ``` r
-library(flowr)
+library(flownet)
 
 # Create a simple graph
 graph <- data.frame(

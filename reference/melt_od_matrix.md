@@ -53,7 +53,7 @@ Only rows with finite, positive flow values are included.
 
 This function converts a square OD matrix to long format, which is
 required by
-[`run_assignment()`](https://sebkrantz.github.io/flowr/reference/run_assignment.md).
+[`run_assignment()`](https://sebkrantz.github.io/flownet/reference/run_assignment.md).
 The behavior depends on whether `nodes` is provided:
 
 **When `nodes` is provided:**
@@ -85,20 +85,20 @@ In both cases, the function:
 
 The function is useful for converting OD matrices to the long format
 required by
-[`run_assignment()`](https://sebkrantz.github.io/flowr/reference/run_assignment.md).
+[`run_assignment()`](https://sebkrantz.github.io/flownet/reference/run_assignment.md).
 
 ## See also
 
-[`africa_cities_ports`](https://sebkrantz.github.io/flowr/reference/africa_cities_ports.md),
-[`africa_network`](https://sebkrantz.github.io/flowr/reference/africa_network.md),
-[`nodes_from_graph()`](https://sebkrantz.github.io/flowr/reference/nodes_from_graph.md),
-[`run_assignment()`](https://sebkrantz.github.io/flowr/reference/run_assignment.md),
-[flowr-package](https://sebkrantz.github.io/flowr/reference/flowr-package.md)
+[`africa_cities_ports`](https://sebkrantz.github.io/flownet/reference/africa_cities_ports.md),
+[`africa_network`](https://sebkrantz.github.io/flownet/reference/africa_network.md),
+[`nodes_from_graph()`](https://sebkrantz.github.io/flownet/reference/nodes_from_graph.md),
+[`run_assignment()`](https://sebkrantz.github.io/flownet/reference/run_assignment.md),
+[flownet-package](https://sebkrantz.github.io/flownet/reference/flownet-package.md)
 
 ## Examples
 
 ``` r
-library(flowr)
+library(flownet)
 library(sf)
 
 # Load existing network and convert to graph

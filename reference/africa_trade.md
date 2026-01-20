@@ -85,9 +85,9 @@ values indicate limited trade below typical reporting thresholds.
 
 ## See also
 
-[`africa_cities_ports`](https://sebkrantz.github.io/flowr/reference/africa_cities_ports.md),
-[`africa_network`](https://sebkrantz.github.io/flowr/reference/africa_network.md),
-[flowr-package](https://sebkrantz.github.io/flowr/reference/flowr-package.md)
+[`africa_cities_ports`](https://sebkrantz.github.io/flownet/reference/africa_cities_ports.md),
+[`africa_network`](https://sebkrantz.github.io/flownet/reference/africa_network.md),
+[flownet-package](https://sebkrantz.github.io/flownet/reference/flownet-package.md)
 
 ## Examples
 

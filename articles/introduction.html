@@ -5,14 +5,14 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>Introduction to flowr • flowr</title>
+<title>Introduction to flownet • flownet</title>
 <!-- katex math --><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script><script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous" onload="renderMathInElement(document.body);"></script><script src="../katex-auto.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><link href="../extra.css" rel="stylesheet">
-<meta property="og:title" content="Introduction to flowr">
+<meta property="og:title" content="Introduction to flownet">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -20,7 +20,7 @@
 
     <nav class="navbar navbar-expand-lg fixed-top bg-primary" data-bs-theme="dark" aria-label="Site navigation"><div class="container">
 
-    <a class="navbar-brand me-2" href="../index.html">flowr</a>
+    <a class="navbar-brand me-2" href="../index.html">flownet</a>
 
     <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0</small>
 
@@ -40,7 +40,7 @@
 <li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json">
 </form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/SebKrantz/flowr" aria-label="GitHub"><span class="fa fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/SebKrantz/flownet" aria-label="GitHub"><span class="fa fa-github"></span></a></li>
       </ul>
 </div>
 
@@ -54,13 +54,13 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
 
-      <h1>Introduction to flowr</h1>
+      <h1>Introduction to flownet</h1>
                         <h4 data-toc-skip class="author">Sebastian
 Krantz</h4>
             
-            <h4 data-toc-skip class="date">2026-01-19</h4>
+            <h4 data-toc-skip class="date">2026-01-20</h4>
       
-      <small class="dont-index">Source: <a href="https://github.com/SebKrantz/flowr/blob/v0.1.0/vignettes/introduction.Rmd" class="external-link"><code>vignettes/introduction.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/SebKrantz/flownet/blob/master/vignettes/introduction.Rmd" class="external-link"><code>vignettes/introduction.Rmd</code></a></small>
       <div class="d-none name"><code>introduction.Rmd</code></div>
     </div>
 
@@ -69,54 +69,36 @@ Krantz</h4>
 <div class="section level2">
 <h2 id="introduction">Introduction<a class="anchor" aria-label="anchor" href="#introduction"></a>
 </h2>
-<p>The <code>flowr</code> package provides efficient tools for
-transportation modeling, specifically route enumeration and traffic
-assignment tasks. The package implements the <strong>path-sized logit
-(PSL) model</strong> for traffic assignment, which accounts for route
-overlap when assigning traffic flows to network edges. This makes it
-particularly suitable for modeling transport networks where multiple
-alternative routes may share common segments.</p>
-<div class="section level3">
-<h3 id="key-features">Key Features<a class="anchor" aria-label="anchor" href="#key-features"></a>
-</h3>
-<ul>
-<li>
-<strong>Path-Sized Logit Model</strong>: Efficient traffic
-assignment accounting for route overlap</li>
-<li>
-<strong>Network Processing</strong>: Convert LINESTRING geometries
-to graphs, consolidate graphs, simplify networks, and handle
-directed/undirected graphs</li>
-<li>
-<strong>Route Enumeration</strong>: Efficient algorithm for finding
-alternative routes between origin-destination pairs</li>
-<li>
-<strong>High Performance</strong>: C implementations for critical
-path operations</li>
-</ul>
-<p>The package leverages several high-performance R packages: -
-<code>collapse</code> (&gt;= 2.1.5) - Fast data transformations -
-<code>igraph</code> (&gt;= 2.1.4) - Graph operations and shortest path
-algorithms - <code>geodist</code> (&gt;= 0.1.1) - Fast geodesic distance
-computations - <code>sf</code> (&gt;= 1.0.0) - Spatial data handling</p>
-</div>
+<p>The <code>flownet</code> package provides efficient tools for
+transportation modeling, specifically network processing/preparation,
+route enumeration and traffic assignment tasks. The package implements
+the <strong>path-sized logit (PSL) model</strong> for traffic
+assignment, which accounts for route overlap when assigning traffic
+flows to network edges. It can handle directed or undirected graphs, and
+it’s network processing functions/algorithms support multimodal
+networks. A key design decision was to represent networks graphs using
+simple data frames with <code>from</code> and <code>to</code> node
+columns. This facilitates applied work, e.g., further manual network
+edits such as adding multimodal connector links, and the development of
+generalized cost functions using network features.
+<!-- This makes it particularly suitable for modeling transport networks where multiple alternative routes may share common segments. --></p>
 </div>
 <div class="section level2">
 <h2 id="getting-started">Getting Started<a class="anchor" aria-label="anchor" href="#getting-started"></a>
 </h2>
 <p>Let’s start by loading the required packages and exploring the
-example datasets included with <code>flowr</code>:</p>
+example datasets included with <code>flownet</code>:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://fastverse.github.io/fastverse/" class="external-link">fastverse</a></span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://fastverse.github.io/fastverse/reference/fastverse_extend.html" class="external-link">fastverse_extend</a></span><span class="op">(</span><span class="va">flowr</span>, <span class="va">sf</span>, <span class="va">tmap</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://fastverse.github.io/fastverse/reference/fastverse_extend.html" class="external-link">fastverse_extend</a></span><span class="op">(</span><span class="va">flownet</span>, <span class="va">sf</span>, <span class="va">tmap</span><span class="op">)</span></span>
 <span><span class="fu">tmap_mode</span><span class="op">(</span><span class="st">"plot"</span><span class="op">)</span></span></code></pre></div>
-<p>The package includes four example datasets for Africa: -
-<strong><code>africa_network</code></strong>: A road transport network
-with 2,825 LINESTRING features representing existing roads (2,344 edges)
-and proposed new links (481 edges). Each edge includes attributes such
-as distance, travel duration, border crossing costs, terrain ruggedness,
-and road upgrade costs.</p>
+<p>The package includes four example datasets for Africa:</p>
 <ul>
+<li><p><strong><code>africa_network</code></strong>: A road transport
+network with 2,825 LINESTRING features representing existing roads
+(2,344 edges) and proposed new links (481 edges). Each edge includes
+attributes such as distance, travel duration, border crossing costs,
+terrain ruggedness, and road upgrade costs.</p></li>
 <li><p><strong><code>africa_cities_ports</code></strong>: 453 African
 cities with population &gt; 100,000 and international ports. Includes
 population data, capital status, and port cargo outflows.</p></li>
@@ -237,8 +219,10 @@ gravity-based OD matrix derived from city populations.</p>
 <h3 id="step-2-convert-network-to-graph">Step 2: Convert Network to Graph<a class="anchor" aria-label="anchor" href="#step-2-convert-network-to-graph"></a>
 </h3>
 <p>The <code><a href="../reference/linestrings_to_graph.html">linestrings_to_graph()</a></code> function converts LINESTRING
-geometries to a graph data frame format required for traffic
-assignment:</p>
+geometries to a graph data frame format required for traffic assignment.
+In this case, the relevant columns are already provided, thus we only
+need to strip the geometry column and turn it into a normal data
+frame.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Convert to graph (use atomic_elem to drop sf geometry, qDF for data.frame)</span></span>
 <span><span class="va">graph</span> <span class="op">&lt;-</span> <span class="fu">atomic_elem</span><span class="op">(</span><span class="va">africa_net</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu">qDF</span><span class="op">(</span><span class="op">)</span></span>
@@ -272,15 +256,15 @@ assignment:</p>
 <span><span class="co">#&gt; 5  65316.04     216.0512 520634.9                 Upgrade   440804.2</span></span>
 <span><span class="co">#&gt; 6 102835.91     212.9464 415457.6             Mixed Works   223654.7</span></span></code></pre></div>
 <p>The resulting graph data frame contains: - <code>edge</code>: Edge
-identifier - <code>from</code>, <code>to</code>: Node IDs -
+identifier (optional) - <code>from</code>, <code>to</code>: Node IDs -
 <code>FX</code>, <code>FY</code>, <code>TX</code>, <code>TY</code>: Node
-coordinates - All original columns from the network (distance, duration,
-total_time, etc.)</p>
+coordinates (optional) - All original columns from the network
+(distance, duration, total_time, etc.)</p>
 </div>
 <div class="section level3">
 <h3 id="step-3-extract-nodes-and-map-cities">Step 3: Extract Nodes and Map Cities<a class="anchor" aria-label="anchor" href="#step-3-extract-nodes-and-map-cities"></a>
 </h3>
-<p>We need to map the city/port locations to the nearest network
+<p>Next, we need to map the city/port locations to the nearest network
 nodes:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Extract nodes with spatial coordinates</span></span>
@@ -334,7 +318,7 @@ method which is faster:</p>
 <span><span class="co">#&gt; Created graph with 1379 nodes and 2344 edges...</span></span>
 <span><span class="co">#&gt; 495 OD-pairs have zero or non-finite flow values and will be skipped...</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">result</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Flowr object</span></span>
+<span><span class="co">#&gt; FlowNet object</span></span>
 <span><span class="co">#&gt; Call: run_assignment(graph_df = graph, od_matrix_long = od_matrix_long,      cost.column = "duration", method = "AoN", return.extra = "all") </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Number of nodes: 1379 </span></span>
@@ -447,7 +431,7 @@ population.</p>
 <span>                               method <span class="op">=</span> <span class="st">"AoN"</span>, return.extra <span class="op">=</span> <span class="st">"all"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Created graph with 1379 nodes and 2344 edges...</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">result_trade</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Flowr object</span></span>
+<span><span class="co">#&gt; FlowNet object</span></span>
 <span><span class="co">#&gt; Call: run_assignment(graph_df = graph, od_matrix_long = od_matrix_trade,      cost.column = "duration", method = "AoN", return.extra = "all") </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Number of nodes: 1379 </span></span>
@@ -491,8 +475,16 @@ significantly improve computational performance.</p>
 <h3 id="using-raw-segments">Using Raw Segments<a class="anchor" aria-label="anchor" href="#using-raw-segments"></a>
 </h3>
 <p>The <code>africa_segments</code> dataset provides raw network
-segments that can be processed through the full consolidation
-workflow:</p>
+segments that can be processed through the full consolidation workflow.
+It was obtained by computing fastest car routes between all of the 453
+African (port-)cities that are less than 2000km apart using <a href="https://cran.r-project.org/package=osrm" class="external-link">osrm</a>, feeding them
+through <a href="https://docs.ropensci.org/stplanr/reference/overline.html" class="external-link"><code>stplanr::overline()</code></a>
+and <a href="https://andyteucher.ca/rmapshaper/reference/ms_simplify.html" class="external-link"><code>rmapshaper::ms_simplify()</code></a>,
+and then just taking the start and end coordinate of each segment. The
+final network <code>africa_network</code> used above was created using
+these segments in a similar way to how I will demonstrate below
+(consolidation followed by clustering simplification + a <a href="https://cran.r-project.org/package=osrm" class="external-link">osrm</a> to get
+simplified edge geometries).</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Convert segments to sf and then to graph</span></span>
 <span><span class="va">graph_seg</span> <span class="op">&lt;-</span> <span class="va">africa_segments</span> <span class="op">|&gt;</span></span>
@@ -510,8 +502,13 @@ workflow:</p>
 <div class="section level3">
 <h3 id="consolidate-graph">Consolidate Graph<a class="anchor" aria-label="anchor" href="#consolidate-graph"></a>
 </h3>
-<p>The <code><a href="../reference/consolidate_graph.html">consolidate_graph()</a></code> function removes intermediate
-nodes (nodes that occur exactly twice) and merges connecting edges:</p>
+<p>The <code><a href="../reference/consolidate_graph.html">consolidate_graph()</a></code> function recursively removes
+intermediate nodes (nodes that occur exactly twice) and merges
+connecting edges. At each step, network attributes are aggregated using
+<a href="https://fastverse.org/collapse/reference/collap.html" class="external-link"><code>collap()</code></a>,
+which, by default uses the mean for numeric and the statistical mode for
+categorical attributes (columns), and supports weights (here the number
+of passes through a segment along different routes generated by <a href="https://docs.ropensci.org/stplanr/reference/overline.html" class="external-link"><code>stplanr::overline()</code></a>).</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Consolidate graph, preserving city nodes</span></span>
 <span><span class="va">graph_cons</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/consolidate_graph.html">consolidate_graph</a></span><span class="op">(</span><span class="va">graph_seg</span>,</span>
@@ -551,21 +548,15 @@ nodes (nodes that occur exactly twice) and merges connecting edges:</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"After consolidation:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">graph_cons</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; After consolidation: 6221</span></span></code></pre></div>
-<p>Key arguments: - <code>keep</code>: Node IDs to preserve (city/port
-nodes) - <code>w</code>: Weight column for aggregation (passes = number
-of routes using each segment)</p>
+<p>The use of <code>keep</code> here indicates node IDs to preserve
+(city/port closest nodes).</p>
 </div>
 <div class="section level3">
 <h3 id="compare-original-vs-consolidated-network">Compare Original vs Consolidated Network<a class="anchor" aria-label="anchor" href="#compare-original-vs-consolidated-network"></a>
 </h3>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Convert to sf for plotting</span></span>
-<span><span class="va">seg_sf</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linestrings_from_graph.html">linestrings_from_graph</a></span><span class="op">(</span><span class="va">graph_seg</span><span class="op">)</span></span>
-<span><span class="va">cons_sf</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linestrings_from_graph.html">linestrings_from_graph</a></span><span class="op">(</span><span class="va">graph_cons</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Side-by-side comparison</span></span>
-<span><span class="fu">tm_basemap</span><span class="op">(</span><span class="st">"CartoDB.Positron"</span>, zoom <span class="op">=</span> <span class="fl">4</span><span class="op">)</span> <span class="op">+</span></span>
-<span><span class="fu">tm_shape</span><span class="op">(</span><span class="va">seg_sf</span><span class="op">)</span> <span class="op">+</span></span>
+<code class="sourceCode R"><span><span class="fu">tm_basemap</span><span class="op">(</span><span class="st">"CartoDB.Positron"</span>, zoom <span class="op">=</span> <span class="fl">4</span><span class="op">)</span> <span class="op">+</span></span>
+<span><span class="fu">tm_shape</span><span class="op">(</span><span class="fu"><a href="../reference/linestrings_from_graph.html">linestrings_from_graph</a></span><span class="op">(</span><span class="va">graph_seg</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">tm_lines</span><span class="op">(</span>col <span class="op">=</span> <span class="st">"passes"</span>,</span>
 <span>           col.scale <span class="op">=</span> <span class="fu">tm_scale_continuous</span><span class="op">(</span>values <span class="op">=</span> <span class="st">"viridis"</span><span class="op">)</span>,</span>
 <span>           col.legend <span class="op">=</span> <span class="fu">tm_legend</span><span class="op">(</span><span class="st">"N. Passes"</span>,</span>
@@ -575,7 +566,7 @@ of routes using each segment)</p>
 <p><img src="introduction_files/figure-html/compare-networks-1.png" class="r-plt" alt="" width="100%"></p>
 <div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">tm_basemap</span><span class="op">(</span><span class="st">"CartoDB.Positron"</span>, zoom <span class="op">=</span> <span class="fl">4</span><span class="op">)</span> <span class="op">+</span></span>
-<span><span class="fu">tm_shape</span><span class="op">(</span><span class="va">cons_sf</span><span class="op">)</span> <span class="op">+</span></span>
+<span><span class="fu">tm_shape</span><span class="op">(</span><span class="fu"><a href="../reference/linestrings_from_graph.html">linestrings_from_graph</a></span><span class="op">(</span><span class="va">graph_cons</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">tm_lines</span><span class="op">(</span>col <span class="op">=</span> <span class="st">"passes"</span>,</span>
 <span>           col.scale <span class="op">=</span> <span class="fu">tm_scale_continuous</span><span class="op">(</span>values <span class="op">=</span> <span class="st">"viridis"</span><span class="op">)</span>,</span>
 <span>           col.legend <span class="op">=</span> <span class="fu">tm_legend</span><span class="op">(</span><span class="st">"N. Passes"</span>,</span>
@@ -588,9 +579,11 @@ of routes using each segment)</p>
 <div class="section level2">
 <h2 id="network-simplification-with-simplify_network">Network Simplification with <code>simplify_network()</code><a class="anchor" aria-label="anchor" href="#network-simplification-with-simplify_network"></a>
 </h2>
-<p>The <code><a href="../reference/simplify_network.html">simplify_network()</a></code> function provides two methods for
-reducing network complexity while preserving connectivity between
-important nodes:</p>
+<p>While <code><a href="../reference/consolidate_graph.html">consolidate_graph()</a></code> already simplifies the network
+topography preserving full connectivity, the
+<code><a href="../reference/simplify_network.html">simplify_network()</a></code> function provides two methods for
+further reducing network complexity while preserving connectivity
+between important nodes:</p>
 <ol style="list-style-type: decimal">
 <li>
 <strong>shortest-paths</strong>: Keeps only edges traversed by
@@ -603,7 +596,7 @@ shortest paths between specified nodes</li>
 <h3 id="shortest-paths-method">Shortest-Paths Method<a class="anchor" aria-label="anchor" href="#shortest-paths-method"></a>
 </h3>
 <p>This method computes shortest paths between all specified nodes and
-retains only the edges that are traversed:</p>
+retains only the traversed edges:</p>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Simplify network using shortest paths</span></span>
 <span><span class="va">graph_simple</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simplify_network.html">simplify_network</a></span><span class="op">(</span><span class="va">graph_cons</span>, <span class="va">nearest_nodes_seg</span>,</span>
@@ -616,9 +609,8 @@ retains only the edges that are traversed:</p>
 <span><span class="co">#&gt; Simplified edges: 4858</span></span>
 <span></span>
 <span><span class="co"># Visualize</span></span>
-<span><span class="va">simple_sf</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linestrings_from_graph.html">linestrings_from_graph</a></span><span class="op">(</span><span class="va">graph_simple</span><span class="op">)</span></span>
 <span><span class="fu">tm_basemap</span><span class="op">(</span><span class="st">"CartoDB.Positron"</span>, zoom <span class="op">=</span> <span class="fl">4</span><span class="op">)</span> <span class="op">+</span></span>
-<span><span class="fu">tm_shape</span><span class="op">(</span><span class="va">simple_sf</span><span class="op">)</span> <span class="op">+</span></span>
+<span><span class="fu">tm_shape</span><span class="op">(</span><span class="fu"><a href="../reference/linestrings_from_graph.html">linestrings_from_graph</a></span><span class="op">(</span><span class="va">graph_simple</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">tm_lines</span><span class="op">(</span>col <span class="op">=</span> <span class="st">"passes"</span>,</span>
 <span>           col.scale <span class="op">=</span> <span class="fu">tm_scale_continuous</span><span class="op">(</span>values <span class="op">=</span> <span class="st">"viridis"</span><span class="op">)</span>,</span>
 <span>           col.legend <span class="op">=</span> <span class="fu">tm_legend</span><span class="op">(</span><span class="st">"N. Passes"</span>,</span>
@@ -650,9 +642,8 @@ creating coarser network representations:</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Clustered edges:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">graph_cluster</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Clustered edges: 2430</span></span>
 <span></span>
-<span><span class="va">cluster_sf</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linestrings_from_graph.html">linestrings_from_graph</a></span><span class="op">(</span><span class="va">graph_cluster</span><span class="op">)</span></span>
 <span><span class="fu">tm_basemap</span><span class="op">(</span><span class="st">"CartoDB.Positron"</span>, zoom <span class="op">=</span> <span class="fl">4</span><span class="op">)</span> <span class="op">+</span></span>
-<span><span class="fu">tm_shape</span><span class="op">(</span><span class="va">cluster_sf</span><span class="op">)</span> <span class="op">+</span></span>
+<span><span class="fu">tm_shape</span><span class="op">(</span><span class="fu"><a href="../reference/linestrings_from_graph.html">linestrings_from_graph</a></span><span class="op">(</span><span class="va">graph_cluster</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">tm_lines</span><span class="op">(</span>col <span class="op">=</span> <span class="st">"passes"</span>,</span>
 <span>           col.scale <span class="op">=</span> <span class="fu">tm_scale_continuous</span><span class="op">(</span>values <span class="op">=</span> <span class="st">"viridis"</span><span class="op">)</span>,</span>
 <span>           col.legend <span class="op">=</span> <span class="fu">tm_legend</span><span class="op">(</span><span class="st">"N. Passes"</span>,</span>
@@ -660,7 +651,7 @@ creating coarser network representations:</p>
 <span>                                  text.size <span class="op">=</span> <span class="fl">0.8</span>, title.size <span class="op">=</span> <span class="fl">1</span><span class="op">)</span>, lwd <span class="op">=</span> <span class="fl">1.5</span><span class="op">)</span> <span class="op">+</span></span>
 <span><span class="fu">tm_layout</span><span class="op">(</span>frame <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span> <span class="op">+</span> <span class="fu">tm_title</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="st">"Simplified (CL):"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">graph_cluster</span><span class="op">)</span>, <span class="st">"edges"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p><img src="introduction_files/figure-html/simplify-cluster-1.png" class="r-plt" alt="" width="100%"></p>
-<p>Key parameters:</p>
+<p>Key cluster parameters:</p>
 <ul>
 <li>
 <code>radius_km$nodes</code>: Radius (km) around preserved nodes to
@@ -669,11 +660,61 @@ assign nearby nodes</li>
 <code>radius_km$cluster</code>: Clustering radius (km) for remaining
 nodes</li>
 </ul>
+<p>Let’s see if we can assign to this network:</p>
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/dimnames.html" class="external-link">dimnames</a></span><span class="op">(</span><span class="va">od_mat</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">nearest_nodes_seg</span>, <span class="va">nearest_nodes_seg</span><span class="op">)</span></span>
+<span><span class="va">od_matrix_long</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/melt_od_matrix.html">melt_od_matrix</a></span><span class="op">(</span><span class="va">od_mat</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Run Traffic Assignment with trade-based OD matrix</span></span>
+<span><span class="va">result_cl</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/run_assignment.html">run_assignment</a></span><span class="op">(</span><span class="va">graph_cluster</span>, <span class="va">od_matrix_long</span>, cost.column <span class="op">=</span> <span class="st">".length"</span>,</span>
+<span>                            method <span class="op">=</span> <span class="st">"AoN"</span>, return.extra <span class="op">=</span> <span class="st">"all"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Created graph with 1448 nodes and 2430 edges...</span></span>
+<span><span class="co">#&gt; 455 OD-pairs have zero or non-finite flow values and will be skipped...</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">result_cl</span><span class="op">)</span></span>
+<span><span class="co">#&gt; FlowNet object</span></span>
+<span><span class="co">#&gt; Call: run_assignment(graph_df = graph_cluster, od_matrix_long = od_matrix_long,      cost.column = ".length", method = "AoN", return.extra = "all") </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Number of nodes: 1448 </span></span>
+<span><span class="co">#&gt; Number of edges: 2430 </span></span>
+<span><span class="co">#&gt; Number of simulations/OD-pairs: 204754 </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Average path length in edges (SD): 38.05575  (20.70196)</span></span>
+<span><span class="co">#&gt; Average number of visits per edge (SD): 3206.612  (7020.48)</span></span>
+<span><span class="co">#&gt; Average path cost (SD): 1687373  (835562.6)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Final flows summary statistics:</span></span>
+<span><span class="co">#&gt;      N  Ndist     Mean      SD  Min       Max  Skew   Kurt</span></span>
+<span><span class="co">#&gt;   2430   1487  2314.72  5466.4    0  38831.84  3.45  16.16</span></span>
+<span><span class="co">#&gt;   1%  5%  10%   25%    50%      75%      90%       95%      99%</span></span>
+<span><span class="co">#&gt;    0   0    0  0.18  136.3  1444.91  7877.63  14665.89  27837.5</span></span>
+<span></span>
+<span><span class="co"># Add flows to network for visualization</span></span>
+<span><span class="va">graph_cluster</span><span class="op">$</span><span class="va">final_flows_log10</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log10</a></span><span class="op">(</span><span class="va">result_cl</span><span class="op">$</span><span class="va">final_flows</span> <span class="op">+</span> <span class="fl">1</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">tm_basemap</span><span class="op">(</span><span class="st">"CartoDB.Positron"</span>, zoom <span class="op">=</span> <span class="fl">4</span><span class="op">)</span> <span class="op">+</span></span>
+<span><span class="fu">tm_shape</span><span class="op">(</span><span class="fu"><a href="../reference/linestrings_from_graph.html">linestrings_from_graph</a></span><span class="op">(</span><span class="va">graph_cluster</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">tm_lines</span><span class="op">(</span>col <span class="op">=</span> <span class="st">"final_flows_log10"</span>,</span>
+<span>           col.scale <span class="op">=</span> <span class="fu">tm_scale_continuous</span><span class="op">(</span>values <span class="op">=</span> <span class="st">"brewer.yl_or_rd"</span><span class="op">)</span>,</span>
+<span>           col.legend <span class="op">=</span> <span class="fu">tm_legend</span><span class="op">(</span><span class="st">"Log10 Flows"</span>, position <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"left"</span>, <span class="st">"bottom"</span><span class="op">)</span>,</span>
+<span>                                  frame <span class="op">=</span> <span class="cn">FALSE</span>, text.size <span class="op">=</span> <span class="fl">0.8</span>, title.size <span class="op">=</span> <span class="fl">1</span><span class="op">)</span>, lwd <span class="op">=</span> <span class="fl">1.5</span><span class="op">)</span> <span class="op">+</span></span>
+<span><span class="fu">tm_shape</span><span class="op">(</span><span class="va">africa_cities_ports</span><span class="op">)</span> <span class="op">+</span> <span class="fu">tm_dots</span><span class="op">(</span>size <span class="op">=</span> <span class="fl">0.15</span>, fill <span class="op">=</span> <span class="st">"grey30"</span><span class="op">)</span> <span class="op">+</span></span>
+<span><span class="fu">tm_layout</span><span class="op">(</span>frame <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
+<p><img src="introduction_files/figure-html/simplify-cluster-assign-1.png" class="r-plt" alt="" width="100%"></p>
 </div>
 </div>
 <div class="section level2">
 <h2 id="key-concepts-and-functions">Key Concepts and Functions<a class="anchor" aria-label="anchor" href="#key-concepts-and-functions"></a>
 </h2>
+<p>The above overview showcased essential package functions. The
+Path-Sized Logit (PSL) assignment model was not used as it should take a
+few minutes to process around 200k OD-pairs with the PSL, minding that a
+selection of routes must be generated for each OD pairs. PSL flow
+assignments are smoother/more distributed, and more realistic than the
+all-or-nothing method which assigns the entire flow to the shortest path
+without regard for alternative routes.</p>
+<p>The remainder of this vignette provides a theoretical overview of the
+PSL model, followed by a summary of the key functions of this
+package.</p>
 <div class="section level3">
 <h3 id="path-sized-logit-model">Path-Sized Logit Model<a class="anchor" aria-label="anchor" href="#path-sized-logit-model"></a>
 </h3>
@@ -697,7 +738,7 @@ routes <span class="math inline">K</span> is given by:</p>
 e^{V_j}}</span></p>
 <p>where <span class="math inline">V_k</span> is the deterministic
 utility of route <span class="math inline">k</span>, defined in
-<code>flowr</code> as:</p>
+<code>flownet</code> as:</p>
 <p><span class="math display">V_k = -C_k + \beta_{PSL}
 \ln(PS_k)</span></p>
 <p>Here: - <span class="math inline">C_k</span> is the generalized cost
@@ -711,7 +752,7 @@ for route <span class="math inline">k</span>.</p>
 <p>The Path-Size factor <span class="math inline">PS_k</span> quantifies
 the uniqueness of route <span class="math inline">k</span>. It is
 defined as the ratio of the length (or cost) of the links in path <span class="math inline">k</span> to the number of alternatives sharing those
-links. The formula implemented in <code>flowr</code> is:</p>
+links. The formula implemented in <code>flownet</code> is:</p>
 <p><span class="math display">PS_k = \frac{1}{C_k} \sum_{a \in \Gamma_k}
 \frac{c_a}{\delta_a}</span></p>
 <p>Where: - <span class="math inline">\Gamma_k</span> is the set of
@@ -836,7 +877,7 @@ and 1 make the model closer to a standard MNL.</li>
 <h2 id="conclusion">Conclusion<a class="anchor" aria-label="anchor" href="#conclusion"></a>
 </h2>
 <p>This vignette has demonstrated the basic and advanced workflows for
-using the <code>flowr</code> package:</p>
+using the <code>flownet</code> package:</p>
 <ol style="list-style-type: decimal">
 <li>
 <strong>Basic workflow</strong>: Convert network to graph, map zones
@@ -857,7 +898,7 @@ simplify networks for efficient computation.</p>
 </h3>
 <ul>
 <li>Explore the full function documentation:
-<code>?flowr-package</code>
+<code>?flownet-package</code>
 </li>
 <li>Experiment with different parameter values (<code>beta</code>,
 <code>detour.max</code>, <code>angle.max</code>)</li>

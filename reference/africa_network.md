@@ -187,10 +187,10 @@ latitude and 17W to 49E longitude.
 
 ## See also
 
-[`africa_cities_ports`](https://sebkrantz.github.io/flowr/reference/africa_cities_ports.md),
-[`africa_segments`](https://sebkrantz.github.io/flowr/reference/africa_segments.md),
-[`africa_trade`](https://sebkrantz.github.io/flowr/reference/africa_trade.md),
-[flowr-package](https://sebkrantz.github.io/flowr/reference/flowr-package.md)
+[`africa_cities_ports`](https://sebkrantz.github.io/flownet/reference/africa_cities_ports.md),
+[`africa_segments`](https://sebkrantz.github.io/flownet/reference/africa_segments.md),
+[`africa_trade`](https://sebkrantz.github.io/flownet/reference/africa_trade.md),
+[flownet-package](https://sebkrantz.github.io/flownet/reference/flownet-package.md)
 
 ## Examples
 

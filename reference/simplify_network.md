@@ -167,7 +167,7 @@ A data.frame containing the simplified graph with:
 ## Examples
 
 ``` r
-library(flowr)
+library(flownet)
 library(sf)
 
 # Convert segments to undirected graph

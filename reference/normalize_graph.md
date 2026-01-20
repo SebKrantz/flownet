@@ -49,13 +49,13 @@ relative ordering of nodes.
 
 ## See also
 
-[nodes_from_graph](https://sebkrantz.github.io/flowr/reference/nodes_from_graph.md)
-[flowr-package](https://sebkrantz.github.io/flowr/reference/flowr-package.md)
+[nodes_from_graph](https://sebkrantz.github.io/flownet/reference/nodes_from_graph.md)
+[flownet-package](https://sebkrantz.github.io/flownet/reference/flownet-package.md)
 
 ## Examples
 
 ``` r
-library(flowr)
+library(flownet)
 
 # Create graph with non-consecutive node IDs
 graph <- data.frame(

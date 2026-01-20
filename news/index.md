@@ -1,12 +1,12 @@
 # Changelog
 
-## flowr 0.1.0 (Initial Release)
+## flownet 0.1.0 (Initial Release)
 
 ### Major Features
 
 #### Traffic Assignment and Route Enumeration
 
-- **[`run_assignment()`](https://sebkrantz.github.io/flowr/reference/run_assignment.md)**:
+- **[`run_assignment()`](https://sebkrantz.github.io/flownet/reference/run_assignment.md)**:
   Core function for traffic assignment using the path-sized logit (PSL)
   model
   - Efficient route enumeration algorithm that generates sensible
@@ -23,27 +23,27 @@
 
 #### Network Processing
 
-- **[`linestrings_to_graph()`](https://sebkrantz.github.io/flowr/reference/linestrings_to_graph.md)**:
+- **[`linestrings_to_graph()`](https://sebkrantz.github.io/flownet/reference/linestrings_to_graph.md)**:
   Convert LINESTRING geometries (sf objects) to graph data frames
   - Extracts node coordinates and creates edge representations
   - Optional coordinate rounding for precision handling
   - Preserves additional columns from input data
   - Automatic computation of edge lengths
-- **[`create_undirected_graph()`](https://sebkrantz.github.io/flowr/reference/create_undirected_graph.md)**:
+- **[`create_undirected_graph()`](https://sebkrantz.github.io/flownet/reference/create_undirected_graph.md)**:
   Convert directed graphs to undirected graphs
   - Normalizes edge directions and aggregates duplicate connections
   - Flexible aggregation using
     [`collapse::collap()`](https://fastverse.org/collapse/reference/collap.html)
     with customizable functions
   - Preserves spatial coordinates and line identifiers
-- **[`consolidate_graph()`](https://sebkrantz.github.io/flowr/reference/consolidate_graph.md)**:
+- **[`consolidate_graph()`](https://sebkrantz.github.io/flownet/reference/consolidate_graph.md)**:
   Simplify network topology by removing intermediate nodes
   - Removes nodes that occur exactly twice, merging connecting edges
   - Optional removal of loops, duplicate edges, and singleton edges
   - Recursive consolidation for complete simplification
   - Weighted aggregation of edge attributes
   - Preserves coordinate information when present
-- **[`simplify_network()`](https://sebkrantz.github.io/flowr/reference/simplify_network.md)**:
+- **[`simplify_network()`](https://sebkrantz.github.io/flownet/reference/simplify_network.md)**:
   Simplify networks using shortest-paths or spatial clustering methods
   - **Method “shortest-paths”**: Filters network to edges used in
     shortest paths between specified nodes
@@ -52,27 +52,27 @@
 
 #### Graph Utilities
 
-- **[`normalize_graph()`](https://sebkrantz.github.io/flowr/reference/normalize_graph.md)**:
+- **[`normalize_graph()`](https://sebkrantz.github.io/flownet/reference/normalize_graph.md)**:
   Normalize node IDs to consecutive integers starting from 1
   - Essential for graph algorithms requiring sequential node IDs
   - Preserves graph structure while remapping identifiers
-- **[`nodes_from_graph()`](https://sebkrantz.github.io/flowr/reference/nodes_from_graph.md)**:
+- **[`nodes_from_graph()`](https://sebkrantz.github.io/flownet/reference/nodes_from_graph.md)**:
   Extract unique nodes with coordinates from graph
   - Returns data frame or sf POINT object with node locations
   - Useful for mapping zones to network nodes
-- **[`linestrings_from_graph()`](https://sebkrantz.github.io/flowr/reference/linestrings_from_graph.md)**:
+- **[`linestrings_from_graph()`](https://sebkrantz.github.io/flownet/reference/linestrings_from_graph.md)**:
   Convert graph data frames back to LINESTRING geometries
   - Inverse operation of
-    [`linestrings_to_graph()`](https://sebkrantz.github.io/flowr/reference/linestrings_to_graph.md)
+    [`linestrings_to_graph()`](https://sebkrantz.github.io/flownet/reference/linestrings_to_graph.md)
   - Preserves all graph attributes in output sf object
-- **[`distances_from_graph()`](https://sebkrantz.github.io/flowr/reference/distances_from_graph.md)**:
+- **[`distances_from_graph()`](https://sebkrantz.github.io/flownet/reference/distances_from_graph.md)**:
   Compute distance matrices for all node pairs
   - Uses igraph for efficient shortest path distance computation
   - Supports both directed and undirected graphs
 
 #### OD Matrix Utilities
 
-- **[`melt_od_matrix()`](https://sebkrantz.github.io/flowr/reference/melt_od_matrix.md)**:
+- **[`melt_od_matrix()`](https://sebkrantz.github.io/flownet/reference/melt_od_matrix.md)**:
   Convert origin-destination matrices to long format
   - Transforms matrix format to edge list suitable for traffic
     assignment
@@ -119,7 +119,7 @@ Working Paper 10893. World Bank. Replication materials are available at
 - Complete function documentation with roxygen2
 - README with quick start guide and examples
 - Introduction vignette demonstrating package workflow
-- Package-level documentation in `?flowr-package`
+- Package-level documentation in `?flownet-package`
 
 ### Dependencies
 

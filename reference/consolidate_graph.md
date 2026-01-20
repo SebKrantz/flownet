@@ -143,14 +143,14 @@ coordinates from the original graph.
 
 ## See also
 
-[create_undirected_graph](https://sebkrantz.github.io/flowr/reference/create_undirected_graph.md)
-[simplify_network](https://sebkrantz.github.io/flowr/reference/simplify_network.md)
-[flowr-package](https://sebkrantz.github.io/flowr/reference/flowr-package.md)
+[create_undirected_graph](https://sebkrantz.github.io/flownet/reference/create_undirected_graph.md)
+[simplify_network](https://sebkrantz.github.io/flownet/reference/simplify_network.md)
+[flownet-package](https://sebkrantz.github.io/flownet/reference/flownet-package.md)
 
 ## Examples
 
 ``` r
-library(flowr)
+library(flownet)
 library(sf)
 
 # Convert segments to undirected graph

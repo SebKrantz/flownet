@@ -24,7 +24,7 @@ run_assignment(
   nthreads = 1L
 )
 
-# S3 method for class 'flowr'
+# S3 method for class 'flownet'
 print(x, ...)
 ```
 
@@ -130,11 +130,11 @@ print(x, ...)
 
 - x:
 
-  An object of class `flowr`, typically returned by `run_assignment`.
+  An object of class `flownet`, typically returned by `run_assignment`.
 
 ## Value
 
-A list of class `"flowr"` containing:
+A list of class `"flownet"` containing:
 
 - `call` - The function call
 
@@ -226,12 +226,12 @@ improving computational efficiency and route realism.
 
 ## See also
 
-[flowr-package](https://sebkrantz.github.io/flowr/reference/flowr-package.md)
+[flownet-package](https://sebkrantz.github.io/flownet/reference/flownet-package.md)
 
 ## Examples
 
 ``` r
-library(flowr)
+library(flownet)
 library(sf)
 
 # Load existing network edges (exclude proposed new links)

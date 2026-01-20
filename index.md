@@ -1,37 +1,41 @@
-# flowr
+# flownet
 
-**Transport Modeling: Route Enumeration and Traffic Assignment with the
-Path-Sized Logit**
+[![R-CMD-check](https://github.com/SebKrantz/flownet/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/SebKrantz/flownet/actions/workflows/R-CMD-check.yaml)
+[![r-universe](https://sebkrantz.r-universe.dev/badges/flownet)](https://sebkrantz.r-universe.dev)
 
-`flowr` provides efficient tools for transportation modeling,
-specifically route enumeration and traffic assignment tasks. The package
-implements the path-sized logit (PSL) model for traffic assignment and
-provides powerful utilities for network processing.
+**Transport Modeling:** Network Processing, Route Enumeration, and
+Traffic Assignment with the Path-Sized Logit
 
-## Features
+`flownet` provides efficient tools for transportation modeling in R,
+supporting network processing, route enumeration, and traffic assignment
+tasks. It implements the path-sized logit (PSL) model for traffic
+assignment and provides powerful utilities for network
+processing/preparation.
 
-- **Path-Sized Logit Model**: Efficient traffic assignment accounting
+### Key Features
+
+- **Path-Sized Logit Model**: Stochastic traffic assignment accounting
   for route overlap
 - **Network Processing**: Convert LINESTRING geometries to graphs,
-  consolidate graphs, simplify networks, and handle directed/undirected
-  graphs
+  consolidate graphs, and simplify networks
 - **Route Enumeration**: Efficient algorithm for finding alternative
   routes between origin-destination pairs
-- **High Performance**: C implementations for critical path operations
+- **High Performance**: [fastverse](https://fastverse.org/fastverse/)
+  packages and custom C implementations for critical path operations
 - **Multithreading**: Asynchronous parallelism using `mirai` for faster
   processing of large networks
 
 ## Installation
 
 ``` r
-# Install development version from GitHub
-remotes::install_github("CPCS-IAU/flowr")
+# Install from R-universe (recommended)
+install.packages("flownet", repos = c("https://sebkrantz.r-universe.dev", getOption("repos")))
 
-# Alternatively download the repo, extract it, and run
-install.packages("path/to/flowr", repos = NULL, type = "source")
+# Or install development version from GitHub
+remotes::install_github("SebKrantz/flownet")
 ```
 
-## Dependencies
+### Dependencies
 
 - `collapse` (\>= 2.1.5) - Fast data transformations and memory
   efficient programming
@@ -46,10 +50,14 @@ install.packages("path/to/flowr", repos = NULL, type = "source")
 
 ## Quick Start
 
+Below I provide some boilerplate code. See also the [introductory
+vignette](https://sebkrantz.github.io/flownet/articles/introduction.html)
+for richer examples.
+
 ### Basic Usage
 
 ``` r
-library(flowr)
+library(flownet)
 
 # Create a small graph data frame
 graph <- data.frame(from = c(1, 2, 2, 3),
@@ -69,12 +77,10 @@ result$final_flows
 #> [1] 100.00000  16.13649 196.13649  43.86351
 ```
 
-^(Created on 2025-11-24 with [reprex v2.1.1](https://reprex.tidyverse.org))
-
 ### Working with Spatial Networks
 
 ``` r
-library(flowr)
+library(flownet)
 library(sf)
 
 # Read network from shapefile and create undirected graph (optional)
@@ -95,59 +101,11 @@ graph <- consolidate_graph(graph, keep = nearest_nodes, w = ~ cost)
 graph <- simplify_network(graph, nearest_nodes, cost.column = "cost", by = ~ mode)
 ```
 
-## Main Functions
-
-### Traffic Assignment and Route Enumeration
-
-- **[`run_assignment()`](https://sebkrantz.github.io/flowr/reference/run_assignment.md)**:
-  - Iterates through OD-pairs generating sensible alternative routes
-  - Assigns traffic flows to network edges using path-sized logit model
-  - Supports directed and undirected graphs
-  - Returns flows and optional path/route information
-  - **Key Parameters**:
-    - **`beta`** (default: 1): Path-sized logit parameter (beta_PSL)
-    - **`detour.max`** (default: 1.5): Maximum detour factor for
-      alternative routes. Higher values consider more routes but
-      increase computation time
-    - **`angle.max`** (default: 90): Maximum detour angle in degrees
-      (two-sided)
-    - **`return.extra`**: Additional results to return from the route
-      enumeration stage (`"graph"`, `"dmat"`, `"paths"`, `"edges"`,
-      `"counts"`, `"costs"`, `"weights"`, or `"all"`)
-
-### Network Processing
-
-- **[`linestrings_to_graph()`](https://sebkrantz.github.io/flowr/reference/linestrings_to_graph.md)** -
-  Convert LINESTRING geometries to graph data frame
-- **[`create_undirected_graph()`](https://sebkrantz.github.io/flowr/reference/create_undirected_graph.md)** -
-  Convert directed graph to undirected with edge aggregation
-- **[`consolidate_graph()`](https://sebkrantz.github.io/flowr/reference/consolidate_graph.md)** -
-  Consolidate graph by removing intermediate nodes and merging edges
-- **[`simplify_network()`](https://sebkrantz.github.io/flowr/reference/simplify_network.md)** -
-  Simplify network using shortest-paths or spatial clustering methods.
-  Supports multimodal networks via `by` argument
-
-### Graph Utilities
-
-- **[`nodes_from_graph()`](https://sebkrantz.github.io/flowr/reference/nodes_from_graph.md)** -
-  Extract unique nodes with coordinates from graph
-- **[`normalize_graph()`](https://sebkrantz.github.io/flowr/reference/normalize_graph.md)** -
-  Normalize node IDs to consecutive integers starting from 1
-- **[`linestrings_from_graph()`](https://sebkrantz.github.io/flowr/reference/linestrings_from_graph.md)** -
-  Convert graph to LINESTRING geometries
-- **[`distances_from_graph()`](https://sebkrantz.github.io/flowr/reference/distances_from_graph.md)** -
-  Compute distance matrix for all node pairs
-
-### OD Matrix Utilities
-
-- **[`melt_od_matrix()`](https://sebkrantz.github.io/flowr/reference/melt_od_matrix.md)** -
-  Convert origin-destination matrices to long format
-
-## Example Workflow
+### Example Workflow
 
 ``` r
 library(fastverse)
-fastverse_extend(flowr, sf, mapview)
+fastverse_extend(flownet, sf, mapview)
 
 # 1. Load network and OD zone nodes
 network <- st_read("data/network.shp")
@@ -176,7 +134,7 @@ network$final_flows[attr(graph, "group.starts")] <- result$final_flows
 mapview(network, zcol = "final_flows")
 ```
 
-## Example Data
+### Included Data
 
 The package includes four example datasets for Africa:
 
@@ -204,16 +162,57 @@ Road Network](https://doi.org/10.1596/1813-9450-10893). Policy Research
 Working Paper 10893. World Bank. Replication materials are available at
 [github.com/SebKrantz/OptimalAfricanRoads](https://github.com/SebKrantz/OptimalAfricanRoads).
 
-## Suggested Packages
+## Main Functions
 
-- **fastverse** (\>= 0.3.4) - Efficient data manipulation workflow
-- **mapview** (\>= 2.11.2) - Interactive visualization of results
-- **tmap** (\>= 4.0) - Static visualization of results
+### Traffic Assignment and Route Enumeration
+
+- **[`run_assignment()`](https://sebkrantz.github.io/flownet/reference/run_assignment.md)**:
+  - Iterates through OD-pairs generating sensible alternative routes
+  - Assigns traffic flows to network edges using path-sized logit model
+  - Supports directed and undirected graphs
+  - Returns flows and optional path/route information
+  - **Key Parameters**:
+    - **`beta`** (default: 1): Path-sized logit parameter (beta_PSL)
+    - **`detour.max`** (default: 1.5): Maximum detour factor for
+      alternative routes. Higher values consider more routes but
+      increase computation time
+    - **`angle.max`** (default: 90): Maximum detour angle in degrees
+      (two-sided)
+    - **`return.extra`**: Additional results to return from the route
+      enumeration stage (`"paths"`, `"edges"`, `"counts"`, `"costs"`,
+      `"weights"`)
+
+### Network Processing
+
+- **[`linestrings_to_graph()`](https://sebkrantz.github.io/flownet/reference/linestrings_to_graph.md)** -
+  Convert LINESTRING geometries to graph data frame
+- **[`create_undirected_graph()`](https://sebkrantz.github.io/flownet/reference/create_undirected_graph.md)** -
+  Convert directed graph to undirected with edge aggregation
+- **[`consolidate_graph()`](https://sebkrantz.github.io/flownet/reference/consolidate_graph.md)** -
+  Consolidate graph by removing intermediate nodes and merging edges
+- **[`simplify_network()`](https://sebkrantz.github.io/flownet/reference/simplify_network.md)** -
+  Simplify network using shortest-paths or spatial clustering methods
+
+### Graph Utilities
+
+- **[`nodes_from_graph()`](https://sebkrantz.github.io/flownet/reference/nodes_from_graph.md)** -
+  Extract unique nodes with coordinates from graph
+- **[`normalize_graph()`](https://sebkrantz.github.io/flownet/reference/normalize_graph.md)** -
+  Normalize node IDs to consecutive integers starting from 1
+- **[`linestrings_from_graph()`](https://sebkrantz.github.io/flownet/reference/linestrings_from_graph.md)** -
+  Convert graph to LINESTRING geometries
+- **[`distances_from_graph()`](https://sebkrantz.github.io/flownet/reference/distances_from_graph.md)** -
+  Compute distance matrix for all node pairs
+
+### OD Matrix Utilities
+
+- **[`melt_od_matrix()`](https://sebkrantz.github.io/flownet/reference/melt_od_matrix.md)** -
+  Convert origin-destination matrices to long format
 
 ## Authors
 
-- Sebastian Krantz (<sebastian.krantz@graduateinstitute.ch>)
-- Kamol Roy (<kamol.roy08@gmail.com>)
+- Sebastian Krantz
+- Kamol Roy
 
 ## License
 
@@ -221,8 +220,8 @@ GPL-3
 
 ## Citation
 
-If you use `flowr` in your research, please cite:
+If you use `flownet` in your research, please cite:
 
 ``` r
-citation("flowr")
+citation("flownet")
 ```

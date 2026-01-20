@@ -47,7 +47,7 @@ coordinates.
 ## Examples
 
 ``` r
-library(flowr)
+library(flownet)
 library(sf)
 
 # Load existing network edges and convert to graph

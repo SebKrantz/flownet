@@ -107,9 +107,9 @@ The bounding box spans from approximately 34S to 37N latitude and 17W to
 
 ## See also
 
-[`africa_network`](https://sebkrantz.github.io/flowr/reference/africa_network.md),
-[`africa_trade`](https://sebkrantz.github.io/flowr/reference/africa_trade.md),
-[flowr-package](https://sebkrantz.github.io/flowr/reference/flowr-package.md)
+[`africa_network`](https://sebkrantz.github.io/flownet/reference/africa_network.md),
+[`africa_trade`](https://sebkrantz.github.io/flownet/reference/africa_trade.md),
+[flownet-package](https://sebkrantz.github.io/flownet/reference/flownet-package.md)
 
 ## Examples
 

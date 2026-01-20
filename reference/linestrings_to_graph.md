@@ -55,13 +55,13 @@ A data.frame representing the graph with columns:
 
 ## See also
 
-[simplify_network](https://sebkrantz.github.io/flowr/reference/simplify_network.md)
-[flowr-package](https://sebkrantz.github.io/flowr/reference/flowr-package.md)
+[simplify_network](https://sebkrantz.github.io/flownet/reference/simplify_network.md)
+[flownet-package](https://sebkrantz.github.io/flownet/reference/flownet-package.md)
 
 ## Examples
 
 ``` r
-library(flowr)
+library(flownet)
 library(sf)
 
 # Load existing network edges (exclude proposed new links)

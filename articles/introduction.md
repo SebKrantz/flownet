@@ -1,49 +1,37 @@
-# Introduction to flowr
+# Introduction to flownet
 
 ## Introduction
 
-The `flowr` package provides efficient tools for transportation
-modeling, specifically route enumeration and traffic assignment tasks.
-The package implements the **path-sized logit (PSL) model** for traffic
-assignment, which accounts for route overlap when assigning traffic
-flows to network edges. This makes it particularly suitable for modeling
-transport networks where multiple alternative routes may share common
-segments.
-
-### Key Features
-
-- **Path-Sized Logit Model**: Efficient traffic assignment accounting
-  for route overlap
-- **Network Processing**: Convert LINESTRING geometries to graphs,
-  consolidate graphs, simplify networks, and handle directed/undirected
-  graphs
-- **Route Enumeration**: Efficient algorithm for finding alternative
-  routes between origin-destination pairs
-- **High Performance**: C implementations for critical path operations
-
-The package leverages several high-performance R packages: - `collapse`
-(\>= 2.1.5) - Fast data transformations - `igraph` (\>= 2.1.4) - Graph
-operations and shortest path algorithms - `geodist` (\>= 0.1.1) - Fast
-geodesic distance computations - `sf` (\>= 1.0.0) - Spatial data
-handling
+The `flownet` package provides efficient tools for transportation
+modeling, specifically network processing/preparation, route enumeration
+and traffic assignment tasks. The package implements the **path-sized
+logit (PSL) model** for traffic assignment, which accounts for route
+overlap when assigning traffic flows to network edges. It can handle
+directed or undirected graphs, and it’s network processing
+functions/algorithms support multimodal networks. A key design decision
+was to represent networks graphs using simple data frames with `from`
+and `to` node columns. This facilitates applied work, e.g., further
+manual network edits such as adding multimodal connector links, and the
+development of generalized cost functions using network features.
 
 ## Getting Started
 
 Let’s start by loading the required packages and exploring the example
-datasets included with `flowr`:
+datasets included with `flownet`:
 
 ``` r
 library(fastverse)
-fastverse_extend(flowr, sf, tmap)
+fastverse_extend(flownet, sf, tmap)
 tmap_mode("plot")
 ```
 
-The package includes four example datasets for Africa: -
-**`africa_network`**: A road transport network with 2,825 LINESTRING
-features representing existing roads (2,344 edges) and proposed new
-links (481 edges). Each edge includes attributes such as distance,
-travel duration, border crossing costs, terrain ruggedness, and road
-upgrade costs.
+The package includes four example datasets for Africa:
+
+- **`africa_network`**: A road transport network with 2,825 LINESTRING
+  features representing existing roads (2,344 edges) and proposed new
+  links (481 edges). Each edge includes attributes such as distance,
+  travel duration, border crossing costs, terrain ruggedness, and road
+  upgrade costs.
 
 - **`africa_cities_ports`**: 453 African cities with population \>
   100,000 and international ports. Includes population data, capital
@@ -172,9 +160,11 @@ tm_layout(frame = FALSE)
 ### Step 2: Convert Network to Graph
 
 The
-[`linestrings_to_graph()`](https://sebkrantz.github.io/flowr/reference/linestrings_to_graph.md)
+[`linestrings_to_graph()`](https://sebkrantz.github.io/flownet/reference/linestrings_to_graph.md)
 function converts LINESTRING geometries to a graph data frame format
-required for traffic assignment:
+required for traffic assignment. In this case, the relevant columns are
+already provided, thus we only need to strip the geometry column and
+turn it into a normal data frame.
 
 ``` r
 # Convert to graph (use atomic_elem to drop sf geometry, qDF for data.frame)
@@ -210,13 +200,15 @@ head(graph)
 #> 6 102835.91     212.9464 415457.6             Mixed Works   223654.7
 ```
 
-The resulting graph data frame contains: - `edge`: Edge identifier -
-`from`, `to`: Node IDs - `FX`, `FY`, `TX`, `TY`: Node coordinates - All
-original columns from the network (distance, duration, total_time, etc.)
+The resulting graph data frame contains: - `edge`: Edge identifier
+(optional) - `from`, `to`: Node IDs - `FX`, `FY`, `TX`, `TY`: Node
+coordinates (optional) - All original columns from the network
+(distance, duration, total_time, etc.)
 
 ### Step 3: Extract Nodes and Map Cities
 
-We need to map the city/port locations to the nearest network nodes:
+Next, we need to map the city/port locations to the nearest network
+nodes:
 
 ``` r
 # Extract nodes with spatial coordinates
@@ -230,9 +222,9 @@ nearest_nodes <- nodes$node[st_nearest_feature(africa_cities_ports, nodes)]
 
 For this example, we’ll create a simple gravity-based OD matrix from
 city populations. The
-[`melt_od_matrix()`](https://sebkrantz.github.io/flowr/reference/melt_od_matrix.md)
+[`melt_od_matrix()`](https://sebkrantz.github.io/flownet/reference/melt_od_matrix.md)
 function converts the matrix to long format required by
-[`run_assignment()`](https://sebkrantz.github.io/flowr/reference/run_assignment.md):
+[`run_assignment()`](https://sebkrantz.github.io/flownet/reference/run_assignment.md):
 
 ``` r
 # Create gravity-based OD matrix (population product scaled down)
@@ -257,7 +249,7 @@ only positive, finite flow values.
 ### Step 5: Run Traffic Assignment
 
 Now we can run the traffic assignment. The
-[`run_assignment()`](https://sebkrantz.github.io/flowr/reference/run_assignment.md)
+[`run_assignment()`](https://sebkrantz.github.io/flownet/reference/run_assignment.md)
 function:
 
 - Enumerates alternative routes for each OD pair
@@ -274,7 +266,7 @@ result <- run_assignment(graph, od_matrix_long, cost.column = "duration",
 #> Created graph with 1379 nodes and 2344 edges...
 #> 495 OD-pairs have zero or non-finite flow values and will be skipped...
 print(result)
-#> Flowr object
+#> FlowNet object
 #> Call: run_assignment(graph_df = graph, od_matrix_long = od_matrix_long,      cost.column = "duration", method = "AoN", return.extra = "all") 
 #> 
 #> Number of nodes: 1379 
@@ -388,7 +380,7 @@ result_trade <- run_assignment(graph, od_matrix_trade, cost.column = "duration",
                                method = "AoN", return.extra = "all")
 #> Created graph with 1379 nodes and 2344 edges...
 print(result_trade)
-#> Flowr object
+#> FlowNet object
 #> Call: run_assignment(graph_df = graph, od_matrix_long = od_matrix_trade,      cost.column = "duration", method = "AoN", return.extra = "all") 
 #> 
 #> Number of nodes: 1379 
@@ -434,7 +426,19 @@ significantly improve computational performance.
 ### Using Raw Segments
 
 The `africa_segments` dataset provides raw network segments that can be
-processed through the full consolidation workflow:
+processed through the full consolidation workflow. It was obtained by
+computing fastest car routes between all of the 453 African
+(port-)cities that are less than 2000km apart using
+[osrm](https://cran.r-project.org/package=osrm), feeding them through
+[`stplanr::overline()`](https://docs.ropensci.org/stplanr/reference/overline.html)
+and
+[`rmapshaper::ms_simplify()`](https://andyteucher.ca/rmapshaper/reference/ms_simplify.html),
+and then just taking the start and end coordinate of each segment. The
+final network `africa_network` used above was created using these
+segments in a similar way to how I will demonstrate below (consolidation
+followed by clustering simplification + a
+[osrm](https://cran.r-project.org/package=osrm) to get simplified edge
+geometries).
 
 ``` r
 # Convert segments to sf and then to graph
@@ -454,9 +458,15 @@ cat("Original segments:", nrow(graph_seg), "\n")
 ### Consolidate Graph
 
 The
-[`consolidate_graph()`](https://sebkrantz.github.io/flowr/reference/consolidate_graph.md)
-function removes intermediate nodes (nodes that occur exactly twice) and
-merges connecting edges:
+[`consolidate_graph()`](https://sebkrantz.github.io/flownet/reference/consolidate_graph.md)
+function recursively removes intermediate nodes (nodes that occur
+exactly twice) and merges connecting edges. At each step, network
+attributes are aggregated using
+[`collap()`](https://fastverse.org/collapse/reference/collap.html),
+which, by default uses the mean for numeric and the statistical mode for
+categorical attributes (columns), and supports weights (here the number
+of passes through a segment along different routes generated by
+[`stplanr::overline()`](https://docs.ropensci.org/stplanr/reference/overline.html)).
 
 ``` r
 # Consolidate graph, preserving city nodes
@@ -499,20 +509,14 @@ cat("After consolidation:", nrow(graph_cons), "\n")
 #> After consolidation: 6221
 ```
 
-Key arguments: - `keep`: Node IDs to preserve (city/port nodes) - `w`:
-Weight column for aggregation (passes = number of routes using each
-segment)
+The use of `keep` here indicates node IDs to preserve (city/port closest
+nodes).
 
 ### Compare Original vs Consolidated Network
 
 ``` r
-# Convert to sf for plotting
-seg_sf <- linestrings_from_graph(graph_seg)
-cons_sf <- linestrings_from_graph(graph_cons)
-
-# Side-by-side comparison
 tm_basemap("CartoDB.Positron", zoom = 4) +
-tm_shape(seg_sf) +
+tm_shape(linestrings_from_graph(graph_seg)) +
   tm_lines(col = "passes",
            col.scale = tm_scale_continuous(values = "viridis"),
            col.legend = tm_legend("N. Passes",
@@ -525,7 +529,7 @@ tm_layout(frame = FALSE) + tm_title(paste("Original:", nrow(graph_seg), "edges")
 
 ``` r
 tm_basemap("CartoDB.Positron", zoom = 4) +
-tm_shape(cons_sf) +
+tm_shape(linestrings_from_graph(graph_cons)) +
   tm_lines(col = "passes",
            col.scale = tm_scale_continuous(values = "viridis"),
            col.legend = tm_legend("N. Passes",
@@ -538,10 +542,13 @@ tm_layout(frame = FALSE) + tm_title(paste("Consolidated:", nrow(graph_cons), "ed
 
 ## Network Simplification with `simplify_network()`
 
-The
-[`simplify_network()`](https://sebkrantz.github.io/flowr/reference/simplify_network.md)
-function provides two methods for reducing network complexity while
-preserving connectivity between important nodes:
+While
+[`consolidate_graph()`](https://sebkrantz.github.io/flownet/reference/consolidate_graph.md)
+already simplifies the network topography preserving full connectivity,
+the
+[`simplify_network()`](https://sebkrantz.github.io/flownet/reference/simplify_network.md)
+function provides two methods for further reducing network complexity
+while preserving connectivity between important nodes:
 
 1.  **shortest-paths**: Keeps only edges traversed by shortest paths
     between specified nodes
@@ -551,7 +558,7 @@ preserving connectivity between important nodes:
 ### Shortest-Paths Method
 
 This method computes shortest paths between all specified nodes and
-retains only the edges that are traversed:
+retains only the traversed edges:
 
 ``` r
 # Simplify network using shortest paths
@@ -565,9 +572,8 @@ cat("Simplified edges:", nrow(graph_simple), "\n")
 #> Simplified edges: 4858
 
 # Visualize
-simple_sf <- linestrings_from_graph(graph_simple)
 tm_basemap("CartoDB.Positron", zoom = 4) +
-tm_shape(simple_sf) +
+tm_shape(linestrings_from_graph(graph_simple)) +
   tm_lines(col = "passes",
            col.scale = tm_scale_continuous(values = "viridis"),
            col.legend = tm_legend("N. Passes",
@@ -601,9 +607,8 @@ graph_cluster <- simplify_network(graph_cons, nearest_nodes_seg,
 cat("Clustered edges:", nrow(graph_cluster), "\n")
 #> Clustered edges: 2430
 
-cluster_sf <- linestrings_from_graph(graph_cluster)
 tm_basemap("CartoDB.Positron", zoom = 4) +
-tm_shape(cluster_sf) +
+tm_shape(linestrings_from_graph(graph_cluster)) +
   tm_lines(col = "passes",
            col.scale = tm_scale_continuous(values = "viridis"),
            col.legend = tm_legend("N. Passes",
@@ -614,13 +619,68 @@ tm_layout(frame = FALSE) + tm_title(paste("Simplified (CL):", nrow(graph_cluster
 
 ![](introduction_files/figure-html/simplify-cluster-1.png)
 
-Key parameters:
+Key cluster parameters:
 
 - `radius_km$nodes`: Radius (km) around preserved nodes to assign nearby
   nodes
 - `radius_km$cluster`: Clustering radius (km) for remaining nodes
 
+Let’s see if we can assign to this network:
+
+``` r
+dimnames(od_mat) <- list(nearest_nodes_seg, nearest_nodes_seg)
+od_matrix_long <- melt_od_matrix(od_mat)
+
+# Run Traffic Assignment with trade-based OD matrix
+result_cl <- run_assignment(graph_cluster, od_matrix_long, cost.column = ".length",
+                            method = "AoN", return.extra = "all")
+#> Created graph with 1448 nodes and 2430 edges...
+#> 455 OD-pairs have zero or non-finite flow values and will be skipped...
+print(result_cl)
+#> FlowNet object
+#> Call: run_assignment(graph_df = graph_cluster, od_matrix_long = od_matrix_long,      cost.column = ".length", method = "AoN", return.extra = "all") 
+#> 
+#> Number of nodes: 1448 
+#> Number of edges: 2430 
+#> Number of simulations/OD-pairs: 204754 
+#> 
+#> Average path length in edges (SD): 38.05575  (20.70196)
+#> Average number of visits per edge (SD): 3206.612  (7020.48)
+#> Average path cost (SD): 1687373  (835562.6)
+#> 
+#> Final flows summary statistics:
+#>      N  Ndist     Mean      SD  Min       Max  Skew   Kurt
+#>   2430   1487  2314.72  5466.4    0  38831.84  3.45  16.16
+#>   1%  5%  10%   25%    50%      75%      90%       95%      99%
+#>    0   0    0  0.18  136.3  1444.91  7877.63  14665.89  27837.5
+
+# Add flows to network for visualization
+graph_cluster$final_flows_log10 <- log10(result_cl$final_flows + 1)
+
+tm_basemap("CartoDB.Positron", zoom = 4) +
+tm_shape(linestrings_from_graph(graph_cluster)) +
+  tm_lines(col = "final_flows_log10",
+           col.scale = tm_scale_continuous(values = "brewer.yl_or_rd"),
+           col.legend = tm_legend("Log10 Flows", position = c("left", "bottom"),
+                                  frame = FALSE, text.size = 0.8, title.size = 1), lwd = 1.5) +
+tm_shape(africa_cities_ports) + tm_dots(size = 0.15, fill = "grey30") +
+tm_layout(frame = FALSE)
+```
+
+![](introduction_files/figure-html/simplify-cluster-assign-1.png)
+
 ## Key Concepts and Functions
+
+The above overview showcased essential package functions. The Path-Sized
+Logit (PSL) assignment model was not used as it should take a few
+minutes to process around 200k OD-pairs with the PSL, minding that a
+selection of routes must be generated for each OD pairs. PSL flow
+assignments are smoother/more distributed, and more realistic than the
+all-or-nothing method which assigns the entire flow to the shortest path
+without regard for alternative routes.
+
+The remainder of this vignette provides a theoretical overview of the
+PSL model, followed by a summary of the key functions of this package.
 
 ### Path-Sized Logit Model
 
@@ -643,7 +703,7 @@ routes K is given by:
 
 P_k = \frac{e^{V_k}}{\sum\_{j \in K} e^{V_j}}
 
-where V_k is the deterministic utility of route k, defined in `flowr`
+where V_k is the deterministic utility of route k, defined in `flownet`
 as:
 
 V_k = -C_k + \beta\_{PSL} \ln(PS_k)
@@ -657,7 +717,7 @@ is the **Path-Size factor** for route k.
 The Path-Size factor PS_k quantifies the uniqueness of route k. It is
 defined as the ratio of the length (or cost) of the links in path k to
 the number of alternatives sharing those links. The formula implemented
-in `flowr` is:
+in `flownet` is:
 
 PS_k = \frac{1}{C_k} \sum\_{a \in \Gamma_k} \frac{c_a}{\delta_a}
 
@@ -684,25 +744,25 @@ behave more like a standard MNL.
 
 ### Network Processing Functions
 
-**[`linestrings_to_graph()`](https://sebkrantz.github.io/flowr/reference/linestrings_to_graph.md)**:
+**[`linestrings_to_graph()`](https://sebkrantz.github.io/flownet/reference/linestrings_to_graph.md)**:
 Converts LINESTRING geometries to a graph data frame format. This is
 typically the first step when working with spatial network data.
 
-**[`linestrings_from_graph()`](https://sebkrantz.github.io/flowr/reference/linestrings_from_graph.md)**:
+**[`linestrings_from_graph()`](https://sebkrantz.github.io/flownet/reference/linestrings_from_graph.md)**:
 Converts a graph data frame back to LINESTRING geometries. Useful for
 visualization and spatial operations.
 
-**[`create_undirected_graph()`](https://sebkrantz.github.io/flowr/reference/create_undirected_graph.md)**:
+**[`create_undirected_graph()`](https://sebkrantz.github.io/flownet/reference/create_undirected_graph.md)**:
 Converts a directed graph to an undirected graph by normalizing edge
 directions and aggregating duplicate connections. Useful when transport
 links can be traversed in both directions.
 
-**[`consolidate_graph()`](https://sebkrantz.github.io/flowr/reference/consolidate_graph.md)**:
+**[`consolidate_graph()`](https://sebkrantz.github.io/flownet/reference/consolidate_graph.md)**:
 Simplifies network topology by removing intermediate nodes and merging
 connecting edges. This can significantly reduce computational complexity
 while preserving connectivity.
 
-**[`simplify_network()`](https://sebkrantz.github.io/flowr/reference/simplify_network.md)**:
+**[`simplify_network()`](https://sebkrantz.github.io/flownet/reference/simplify_network.md)**:
 Simplifies the network using one of two methods:
 
 - **shortest-paths**: Keeps only edges traversed by shortest paths
@@ -712,27 +772,27 @@ Simplifies the network using one of two methods:
 
 ### Graph Utilities
 
-**[`nodes_from_graph()`](https://sebkrantz.github.io/flowr/reference/nodes_from_graph.md)**:
+**[`nodes_from_graph()`](https://sebkrantz.github.io/flownet/reference/nodes_from_graph.md)**:
 Extracts unique nodes with coordinates from a graph. Essential for
 mapping zone centroids to network nodes.
 
-**[`normalize_graph()`](https://sebkrantz.github.io/flowr/reference/normalize_graph.md)**:
+**[`normalize_graph()`](https://sebkrantz.github.io/flownet/reference/normalize_graph.md)**:
 Normalizes node IDs to consecutive integers starting from 1. This can
 improve performance with some graph algorithms.
 
-**[`distances_from_graph()`](https://sebkrantz.github.io/flowr/reference/distances_from_graph.md)**:
+**[`distances_from_graph()`](https://sebkrantz.github.io/flownet/reference/distances_from_graph.md)**:
 Computes a distance matrix for all node pairs using the graph structure.
 
 ### OD Matrix Utilities
 
-**[`melt_od_matrix()`](https://sebkrantz.github.io/flowr/reference/melt_od_matrix.md)**:
+**[`melt_od_matrix()`](https://sebkrantz.github.io/flownet/reference/melt_od_matrix.md)**:
 Converts an origin-destination matrix to long format with columns
 `from`, `to`, and `flow`. This format is required by
-[`run_assignment()`](https://sebkrantz.github.io/flowr/reference/run_assignment.md).
+[`run_assignment()`](https://sebkrantz.github.io/flownet/reference/run_assignment.md).
 
 ### Traffic Assignment
 
-**[`run_assignment()`](https://sebkrantz.github.io/flowr/reference/run_assignment.md)**:
+**[`run_assignment()`](https://sebkrantz.github.io/flownet/reference/run_assignment.md)**:
 The core function for traffic assignment. Key parameters:
 
 - **`method`**: “PSL” (path-sized logit) or “AoN” (all-or-nothing). AoN
@@ -766,7 +826,7 @@ The core function for traffic assignment. Key parameters:
 ## Conclusion
 
 This vignette has demonstrated the basic and advanced workflows for
-using the `flowr` package:
+using the `flownet` package:
 
 1.  **Basic workflow**: Convert network to graph, map zones to nodes,
     create OD matrix, and run traffic assignment
@@ -782,13 +842,13 @@ simplify networks for efficient computation.
 
 ### Next Steps
 
-- Explore the full function documentation: `?flowr-package`
+- Explore the full function documentation: `?flownet-package`
 - Experiment with different parameter values (`beta`, `detour.max`,
   `angle.max`)
 - Try the PSL method instead of AoN for smaller networks or subsets
 - Use `africa_trade` to explore trade patterns by different HS sections
 - Experiment with
-  [`simplify_network()`](https://sebkrantz.github.io/flowr/reference/simplify_network.md)
+  [`simplify_network()`](https://sebkrantz.github.io/flownet/reference/simplify_network.md)
   cluster method for coarser network representations
 
 For more information, see the package documentation and examples in the

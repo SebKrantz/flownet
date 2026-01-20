@@ -32,7 +32,7 @@ to-node (`TX`, `TY`).
 ## Details
 
 This function is the inverse operation of
-[`linestrings_to_graph`](https://sebkrantz.github.io/flowr/reference/linestrings_to_graph.md).
+[`linestrings_to_graph`](https://sebkrantz.github.io/flownet/reference/linestrings_to_graph.md).
 It:
 
 - Creates LINESTRING geometries from node coordinates (`FX`, `FY`, `TX`,
@@ -46,13 +46,13 @@ It:
 
 ## See also
 
-[linestrings_to_graph](https://sebkrantz.github.io/flowr/reference/linestrings_to_graph.md)
-[flowr-package](https://sebkrantz.github.io/flowr/reference/flowr-package.md)
+[linestrings_to_graph](https://sebkrantz.github.io/flownet/reference/linestrings_to_graph.md)
+[flownet-package](https://sebkrantz.github.io/flownet/reference/flownet-package.md)
 
 ## Examples
 
 ``` r
-library(flowr)
+library(flownet)
 library(sf)
 
 # Convert segments data frame to sf LINESTRING object

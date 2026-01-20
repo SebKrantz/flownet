@@ -4,11 +4,11 @@ A dataset containing 14,358 raw network segments representing
 intersected road routes between African cities. Each segment is defined
 by start and end coordinates with aggregate importance metrics. This
 dataset is provided to demonstrate how package functions like
-[`consolidate_graph()`](https://sebkrantz.github.io/flowr/reference/consolidate_graph.md)
+[`consolidate_graph()`](https://sebkrantz.github.io/flownet/reference/consolidate_graph.md)
 and
-[`simplify_network()`](https://sebkrantz.github.io/flowr/reference/simplify_network.md)
+[`simplify_network()`](https://sebkrantz.github.io/flownet/reference/simplify_network.md)
 can process messy segment data into clean analytical networks like
-[`africa_network`](https://sebkrantz.github.io/flowr/reference/africa_network.md).
+[`africa_network`](https://sebkrantz.github.io/flownet/reference/africa_network.md).
 
 ## Usage
 
@@ -68,21 +68,21 @@ Replication materials:
 This dataset represents an intermediate stage in network construction,
 after routes have been intersected but before network simplification.
 The segments have been simplified using
-[`linestrings_from_graph()`](https://sebkrantz.github.io/flowr/reference/linestrings_from_graph.md)
+[`linestrings_from_graph()`](https://sebkrantz.github.io/flownet/reference/linestrings_from_graph.md)
 to retain only start and end coordinates.
 
-The segments can be used to demonstrate the flowr network processing
+The segments can be used to demonstrate the flownet network processing
 workflow:
 
 1.  Convert segments to an sf LINESTRING object using
-    [`linestrings_from_graph()`](https://sebkrantz.github.io/flowr/reference/linestrings_from_graph.md)
+    [`linestrings_from_graph()`](https://sebkrantz.github.io/flownet/reference/linestrings_from_graph.md)
 
 2.  Apply
-    [`consolidate_graph()`](https://sebkrantz.github.io/flowr/reference/consolidate_graph.md)
+    [`consolidate_graph()`](https://sebkrantz.github.io/flownet/reference/consolidate_graph.md)
     to merge nearby nodes
 
 3.  Apply
-    [`simplify_network()`](https://sebkrantz.github.io/flowr/reference/simplify_network.md)
+    [`simplify_network()`](https://sebkrantz.github.io/flownet/reference/simplify_network.md)
     to remove intermediate nodes
 
 The `passes` field indicates how many optimal city-to-city routes use
@@ -92,11 +92,11 @@ inter-city connectivity.
 
 ## See also
 
-[`africa_network`](https://sebkrantz.github.io/flowr/reference/africa_network.md),
-[`consolidate_graph()`](https://sebkrantz.github.io/flowr/reference/consolidate_graph.md),
-[`simplify_network()`](https://sebkrantz.github.io/flowr/reference/simplify_network.md),
-[`linestrings_from_graph()`](https://sebkrantz.github.io/flowr/reference/linestrings_from_graph.md),
-[flowr-package](https://sebkrantz.github.io/flowr/reference/flowr-package.md)
+[`africa_network`](https://sebkrantz.github.io/flownet/reference/africa_network.md),
+[`consolidate_graph()`](https://sebkrantz.github.io/flownet/reference/consolidate_graph.md),
+[`simplify_network()`](https://sebkrantz.github.io/flownet/reference/simplify_network.md),
+[`linestrings_from_graph()`](https://sebkrantz.github.io/flownet/reference/linestrings_from_graph.md),
+[flownet-package](https://sebkrantz.github.io/flownet/reference/flownet-package.md)
 
 ## Examples
 
