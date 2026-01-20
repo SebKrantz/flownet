@@ -10,7 +10,7 @@
 ### Key Features
 
 - **Path-Sized Logit Model**: Stochastic traffic assignment accounting for route overlap
-- **Network Processing**: Convert LINESTRING geometries to network graphs and consolidate/simplify them
+- **Network Processing**: Convert LINESTRING's to network graphs and consolidate/simplify graphs
 - **Route Enumeration**: Efficient algorithm for finding alternative routes between origin-destination pairs
 - **High Performance**: [fastverse](https://fastverse.org/fastverse/) packages and custom C implementations for critical path operations
 - **Multithreading**: Asynchronous parallelism using [`mirai`](https://github.com/r-lib/mirai) for faster processing of large networks
