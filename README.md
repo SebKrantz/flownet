@@ -3,7 +3,7 @@
 [![R-CMD-check](https://github.com/SebKrantz/flownet/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/SebKrantz/flownet/actions/workflows/R-CMD-check.yaml)
 [![r-universe](https://sebkrantz.r-universe.dev/badges/flownet)](https://sebkrantz.r-universe.dev)
 
-**Transport Modeling:** Network Processing, Route Enumeration, and Traffic Assignment with the Path-Sized Logit
+**Transport Modeling:** Network Processing, Route Enumeration, and Traffic Assignment with Path-Sized Logit
 
 `flownet` provides efficient tools for transportation modeling in R, supporting network processing, route enumeration, and traffic assignment tasks. It implements the path-sized logit (PSL) model for traffic assignment and provides powerful utilities for network processing/preparation.
 
