@@ -3,11 +3,11 @@
 \name{flownet-package}
 \alias{flownet-package}
 \alias{flownet}
-\title{Transport Modeling}
+\title{Efficient Transport Modeling}
 \description{
-\emph{flownet} provides efficient tools for transportation modeling, specifically route
-enumeration and traffic assignment tasks. The package implements the path-sized logit model for
-traffic assignment and provides utilities for network processing.
+\emph{flownet} provides efficient tools for transportation modeling in R, supporting network processing, route enumeration,
+and traffic assignment tasks. It implements the path-sized logit (PSL) model for traffic assignment and provides powerful
+utilities for network processing/preparation.
 
 
 \strong{Network Processing}
