@@ -585,7 +585,7 @@ run_assignment <- function(graph_df, od_matrix_long,
 #' @export
 #' @importFrom collapse fmean fsd vlengths descr print.qsu
 print.flownet <- function(x, ...) {
-  cat("Flowr object\n")
+  cat("FlowNet object\n")
   cat("Call:", deparse(x$call), "\n\n")
   if (!is.null(x$dmat) && is.matrix(x$dmat))
     cat("Number of nodes:", nrow(x$dmat), "\n")

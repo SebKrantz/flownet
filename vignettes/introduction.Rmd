@@ -27,20 +27,7 @@ knitr::opts_chunk$set(
 
 ## Introduction
 
-The `flownet` package provides efficient tools for transportation modeling, specifically network processing/preparation, route enumeration and traffic assignment tasks. The package implements the **path-sized logit (PSL) model** for traffic assignment, which accounts for route overlap when assigning traffic flows to network edges. <!-- This makes it particularly suitable for modeling transport networks where multiple alternative routes may share common segments. -->
-
-### Key Features
-
-- **Path-Sized Logit Model**: Efficient traffic assignment accounting for route overlap
-- **Network Processing**: Convert LINESTRING geometries to graphs, consolidate graphs, simplify networks, and handle directed/undirected graphs
-- **Route Enumeration**: Efficient algorithm for finding alternative routes between origin-destination pairs
-- **High Performance**: C implementations for critical path operations
-
-The package leverages several high-performance R packages:
-- `collapse` (>= 2.1.5) - Fast data transformations
-- `igraph` (>= 2.1.4) - Graph operations and shortest path algorithms
-- `geodist` (>= 0.1.1) - Fast geodesic distance computations
-- `sf` (>= 1.0.0) - Spatial data handling
+The `flownet` package provides efficient tools for transportation modeling, specifically network processing/preparation, route enumeration and traffic assignment tasks. The package implements the **path-sized logit (PSL) model** for traffic assignment, which accounts for route overlap when assigning traffic flows to network edges. It can handle directed or undirected graphs, and it's network processing functions/algorithms support multimodal networks. A key design decision was to represent networks graphs using simple data frames with `from` and `to` node columns. This facilitates applied work, e.g., further manual network edits such as adding multimodal connector links, and the development of generalized cost functions using network features. <!-- This makes it particularly suitable for modeling transport networks where multiple alternative routes may share common segments. -->
 
 ## Getting Started
 
@@ -53,6 +40,7 @@ tmap_mode("plot")
 ```
 
 The package includes four example datasets for Africa:
+
 - **`africa_network`**: A road transport network with 2,825 LINESTRING features representing existing roads (2,344 edges) and proposed new links (481 edges). Each edge includes attributes such as distance, travel duration, border crossing costs, terrain ruggedness, and road upgrade costs.
 
 - **`africa_cities_ports`**: 453 African cities with population > 100,000 and international ports. Includes population data, capital status, and port cargo outflows.
@@ -99,7 +87,7 @@ tm_layout(frame = FALSE)
 
 ### Step 2: Convert Network to Graph
 
-The `linestrings_to_graph()` function converts LINESTRING geometries to a graph data frame format required for traffic assignment:
+The `linestrings_to_graph()` function converts LINESTRING geometries to a graph data frame format required for traffic assignment. In this case, the relevant columns are already provided, thus we only need to strip the geometry column and turn it into a normal data frame.
 
 ```{r convert-to-graph}
 # Convert to graph (use atomic_elem to drop sf geometry, qDF for data.frame)
@@ -108,14 +96,14 @@ head(graph)
 ```
 
 The resulting graph data frame contains:
-- `edge`: Edge identifier
+- `edge`: Edge identifier (optional)
 - `from`, `to`: Node IDs
-- `FX`, `FY`, `TX`, `TY`: Node coordinates
+- `FX`, `FY`, `TX`, `TY`: Node coordinates (optional)
 - All original columns from the network (distance, duration, total_time, etc.)
 
 ### Step 3: Extract Nodes and Map Cities
 
-We need to map the city/port locations to the nearest network nodes:
+Next, we need to map the city/port locations to the nearest network nodes:
 
 ```{r extract-nodes}
 # Extract nodes with spatial coordinates
@@ -245,7 +233,7 @@ For large or complex networks, it's often beneficial to consolidate the graph by
 
 ### Using Raw Segments
 
-The `africa_segments` dataset provides raw network segments that can be processed through the full consolidation workflow:
+The `africa_segments` dataset provides raw network segments that can be processed through the full consolidation workflow. It was obtained by computing fastest car routes between all of the 453 African (port-)cities that are less than 2000km apart using [osrm](https://cran.r-project.org/package=osrm), feeding them through [`stplanr::overline()`](https://docs.ropensci.org/stplanr/reference/overline.html) and [`rmapshaper::ms_simplify()`](https://andyteucher.ca/rmapshaper/reference/ms_simplify.html), and then just taking the start and end coordinate of each segment. The final network `africa_network` used above was created using these segments in a similar way to how I will demonstrate below (consolidation followed by clustering simplification + a [osrm](https://cran.r-project.org/package=osrm) to get simplified edge geometries).
 
 ```{r segments-workflow}
 # Convert segments to sf and then to graph
@@ -263,7 +251,7 @@ cat("Original segments:", nrow(graph_seg), "\n")
 
 ### Consolidate Graph
 
-The `consolidate_graph()` function removes intermediate nodes (nodes that occur exactly twice) and merges connecting edges:
+The `consolidate_graph()` function recursively removes intermediate nodes (nodes that occur exactly twice) and merges connecting edges. At each step, network attributes are aggregated using [`collap()`](https://fastverse.org/collapse/reference/collap.html), which, by default uses the mean for numeric and the statistical mode for categorical attributes (columns), and supports weights (here the number of passes through a segment along different routes generated by [`stplanr::overline()`](https://docs.ropensci.org/stplanr/reference/overline.html)). 
 
 ```{r consolidate-graph}
 # Consolidate graph, preserving city nodes
@@ -274,20 +262,14 @@ graph_cons <- consolidate_graph(graph_seg,
 cat("After consolidation:", nrow(graph_cons), "\n")
 ```
 
-Key arguments:
-- `keep`: Node IDs to preserve (city/port nodes)
-- `w`: Weight column for aggregation (passes = number of routes using each segment)
+The use of `keep` here indicates node IDs to preserve (city/port closest nodes).
+
 
 ### Compare Original vs Consolidated Network
 
 ```{r compare-networks}
-# Convert to sf for plotting
-seg_sf <- linestrings_from_graph(graph_seg)
-cons_sf <- linestrings_from_graph(graph_cons)
-
-# Side-by-side comparison
 tm_basemap("CartoDB.Positron", zoom = 4) +
-tm_shape(seg_sf) +
+tm_shape(linestrings_from_graph(graph_seg)) +
   tm_lines(col = "passes",
            col.scale = tm_scale_continuous(values = "viridis"),
            col.legend = tm_legend("N. Passes",
@@ -298,7 +280,7 @@ tm_layout(frame = FALSE) + tm_title(paste("Original:", nrow(graph_seg), "edges")
 
 ```{r compare-networks-cons}
 tm_basemap("CartoDB.Positron", zoom = 4) +
-tm_shape(cons_sf) +
+tm_shape(linestrings_from_graph(graph_cons)) +
   tm_lines(col = "passes",
            col.scale = tm_scale_continuous(values = "viridis"),
            col.legend = tm_legend("N. Passes",
@@ -309,14 +291,14 @@ tm_layout(frame = FALSE) + tm_title(paste("Consolidated:", nrow(graph_cons), "ed
 
 ## Network Simplification with `simplify_network()`
 
-The `simplify_network()` function provides two methods for reducing network complexity while preserving connectivity between important nodes:
+While `consolidate_graph()` already simplifies the network topography preserving full connectivity, the `simplify_network()` function provides two methods for further reducing network complexity while preserving connectivity between important nodes:
 
 1. **shortest-paths**: Keeps only edges traversed by shortest paths between specified nodes
 2. **cluster**: Spatially clusters nodes using the `leaderCluster` algorithm and contracts the graph
 
 ### Shortest-Paths Method
 
-This method computes shortest paths between all specified nodes and retains only the edges that are traversed:
+This method computes shortest paths between all specified nodes and retains only the traversed edges:
 
 ```{r simplify-shortest-paths}
 # Simplify network using shortest paths
@@ -328,9 +310,8 @@ cat("Consolidated edges:", nrow(graph_cons), "\n")
 cat("Simplified edges:", nrow(graph_simple), "\n")
 
 # Visualize
-simple_sf <- linestrings_from_graph(graph_simple)
 tm_basemap("CartoDB.Positron", zoom = 4) +
-tm_shape(simple_sf) +
+tm_shape(linestrings_from_graph(graph_simple)) +
   tm_lines(col = "passes",
            col.scale = tm_scale_continuous(values = "viridis"),
            col.legend = tm_legend("N. Passes",
@@ -359,9 +340,8 @@ graph_cluster <- simplify_network(graph_cons, nearest_nodes_seg,
 
 cat("Clustered edges:", nrow(graph_cluster), "\n")
 
-cluster_sf <- linestrings_from_graph(graph_cluster)
 tm_basemap("CartoDB.Positron", zoom = 4) +
-tm_shape(cluster_sf) +
+tm_shape(linestrings_from_graph(graph_cluster)) +
   tm_lines(col = "passes",
            col.scale = tm_scale_continuous(values = "viridis"),
            col.legend = tm_legend("N. Passes",
@@ -370,12 +350,41 @@ tm_shape(cluster_sf) +
 tm_layout(frame = FALSE) + tm_title(paste("Simplified (CL):", nrow(graph_cluster), "edges"))
 ```
 
-Key parameters:
+Key cluster parameters:
 
 - `radius_km$nodes`: Radius (km) around preserved nodes to assign nearby nodes
 - `radius_km$cluster`: Clustering radius (km) for remaining nodes
 
+Let's see if we can assign to this network: 
+
+```{r simplify-cluster-assign}
+dimnames(od_mat) <- list(nearest_nodes_seg, nearest_nodes_seg)
+od_matrix_long <- melt_od_matrix(od_mat)
+
+# Run Traffic Assignment with trade-based OD matrix
+result_cl <- run_assignment(graph_cluster, od_matrix_long, cost.column = ".length",
+                            method = "AoN", return.extra = "all")
+print(result_cl)
+
+# Add flows to network for visualization
+graph_cluster$final_flows_log10 <- log10(result_cl$final_flows + 1)
+
+tm_basemap("CartoDB.Positron", zoom = 4) +
+tm_shape(linestrings_from_graph(graph_cluster)) +
+  tm_lines(col = "final_flows_log10",
+           col.scale = tm_scale_continuous(values = "brewer.yl_or_rd"),
+           col.legend = tm_legend("Log10 Flows", position = c("left", "bottom"),
+                                  frame = FALSE, text.size = 0.8, title.size = 1), lwd = 1.5) +
+tm_shape(africa_cities_ports) + tm_dots(size = 0.15, fill = "grey30") +
+tm_layout(frame = FALSE)
+```
+
+
 ## Key Concepts and Functions
+
+The above overview showcased essential package functions. The Path-Sized Logit (PSL) assignment model was not used as it should take a few minutes to process around 200k OD-pairs with the PSL, minding that a selection of routes must be generated for each OD pairs. PSL flow assignments are smoother/more distributed, and more realistic than the all-or-nothing method which assigns the entire flow to the shortest path without regard for alternative routes. 
+
+The remainder of this vignette provides a theoretical overview of the PSL model, followed by a summary of the key functions of this package. 
 
 ### Path-Sized Logit Model
 
