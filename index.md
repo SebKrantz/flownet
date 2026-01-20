@@ -3,8 +3,8 @@
 [![R-CMD-check](https://github.com/SebKrantz/flownet/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/SebKrantz/flownet/actions/workflows/R-CMD-check.yaml)
 [![r-universe](https://sebkrantz.r-universe.dev/badges/flownet)](https://sebkrantz.r-universe.dev)
 
-**Transport Modeling:** Network Processing, Route Enumeration, and
-Traffic Assignment with Path-Sized Logit
+**Transport Modeling: Network Processing, Route Enumeration, and Traffic
+Assignment**
 
 `flownet` provides efficient tools for transportation modeling in R,
 supporting network processing, route enumeration, and traffic assignment
@@ -16,14 +16,15 @@ processing/preparation.
 
 - **Path-Sized Logit Model**: Stochastic traffic assignment accounting
   for route overlap
-- **Network Processing**: Convert LINESTRING geometries to graphs,
-  consolidate graphs, and simplify networks
+- **Network Processing**: Convert LINESTRING geometries to network
+  graphs and consolidate/simplify them
 - **Route Enumeration**: Efficient algorithm for finding alternative
   routes between origin-destination pairs
 - **High Performance**: [fastverse](https://fastverse.org/fastverse/)
   packages and custom C implementations for critical path operations
-- **Multithreading**: Asynchronous parallelism using `mirai` for faster
-  processing of large networks
+- **Multithreading**: Asynchronous parallelism using
+  [`mirai`](https://github.com/r-lib/mirai) for faster processing of
+  large networks
 
 ## Installation
 
