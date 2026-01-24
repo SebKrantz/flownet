@@ -766,8 +766,7 @@ compute_degrees <- function(from_vec, to_vec) {
 #'   formula or character vector of column names. Typically includes attributes like
 #'   \emph{mode}, \emph{type}, or \emph{capacity}.
 #'   For \code{method = "shortest-paths"}: paths are computed separately for each group
-#'   defined by \code{by}, with edges not in the current group penalized (cost set to
-#'   100x max cost) to compel mode-specific routes.
+#'   defined by \code{by}, with edges not in the current group penalized (cost multiplied by 100) to compel mode-specific routes.
 #'   For \code{method = "cluster"}: edges are grouped by \code{from}, \code{to}, AND
 #'   \code{by} columns, preventing consolidation across different modes/types.
 #' @param radius_km Named list with elements \code{nodes} (default: 7) and \code{cluster} (default: 20).
@@ -863,6 +862,7 @@ compute_degrees <- function(from_vec, to_vec) {
 #'
 #' @export
 #' @importFrom collapse fnrow ss ckmatch funique.default fmatch gsplit fmin dapply whichv %+=% GRP add_vars seq_row add_stub colorderv %!in% collap get_vars alloc
+#' @importFrom kit iif
 #' @importFrom igraph graph_from_data_frame delete_vertex_attr igraph_options shortest_paths
 #' @importFrom geodist geodist_vec geodist_min
 #' @importFrom leaderCluster leaderCluster
@@ -950,11 +950,9 @@ simplify_network <- function(graph_df, nodes, method = c("shortest-paths", "clus
     if(length(by)) {
       # Multimodal: iterate over groups, penalizing edges not in the current group
       by_grp <- GRP(graph_df, by, return.order = FALSE)
-      max_cost <- 100 * max(cost, na.rm = TRUE)
 
       for(grp_idx in seq_len(by_grp$N.groups)) {
-        cost_penalized <- cost
-        cost_penalized[by_grp$group.id != grp_idx] <- max_cost
+        cost_penalized <- iif(by_grp$group.id != grp_idx, cost * 100, cost)
         compute_paths(cost_penalized)
       }
     } else {

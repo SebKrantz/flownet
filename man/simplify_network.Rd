@@ -43,8 +43,7 @@ With \code{method = "cluster"}, a numeric vector of node weights matching \code{
 formula or character vector of column names. Typically includes attributes like
 \emph{mode}, \emph{type}, or \emph{capacity}.
 For \code{method = "shortest-paths"}: paths are computed separately for each group
-defined by \code{by}, with edges not in the current group penalized (cost set to
-100x max cost) to compel mode-specific routes.
+defined by \code{by}, with edges not in the current group penalized (cost multiplied by 100) to compel mode-specific routes.
 For \code{method = "cluster"}: edges are grouped by \code{from}, \code{to}, AND
 \code{by} columns, preventing consolidation across different modes/types.}
 
