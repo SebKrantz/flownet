@@ -1,3 +1,40 @@
+# flownet 0.1.1
+
+- Implemented minor CRAN comments
+
+## Documentation Improvements
+
+- Restructured `run_assignment()` `@details` section using `\subsection{}` for better organization:
+  - Separate sections for AoN method, PSL method, route enumeration algorithm, and coordinate-based filtering
+- Added `return.extra` parameter documentation as a clear table showing which options are available for each method
+- Clarified that `paths` returns edge indices, not node indices
+- Added comprehensive examples including:
+  - PSL method usage with `nthreads` parameter
+  - Trade flow disaggregation workflow (country-to-city level)
+- Added academic references for the Path-Sized Logit model (Ben-Akiva & Bierlaire, 1999)
+- Added link to AequilibriaeE (Python) documentation for additional PSL resources
+- Improved error messages to be more informative (show which columns are missing, what class was received)
+- Increased vignette table of contents depth for better navigation
+- Added citation for the PSL model in vignette
+
+## Testing
+
+- Added testthat test suite with 150 tests covering:
+  - `run_assignment()` (AoN and PSL methods)
+  - `normalize_graph()`, `nodes_from_graph()`, `distances_from_graph()`
+  - `linestrings_to_graph()`, `linestrings_from_graph()`, `create_undirected_graph()`
+  - `consolidate_graph()`, `simplify_network()`
+  - `melt_od_matrix()`
+- Added test coverage workflow
+
+## Minor Improvements
+
+- Better penalization strategy for multimodal networks in `simplify_network()` shortest-paths method
+- Enforced numeric type conversion for cost columns
+- Various minor fixes and improvements
+
+---
+
 # flownet 0.1.0 (Initial Release)
 
 ## Major Features
