@@ -142,6 +142,7 @@ run_assignment <- function(graph_df, od_matrix_long,
     stop("cost.column needs to be a column name in graph_df or a numeric vector matching nrow(graph_df)")
 
   if(length(cost) != fnrow(graph_df)) stop("cost.column needs to be provided either externally or found in the dataset")
+
   # Validate method
   method <- match.arg(method)
   is_aon <- method == "AoN"
