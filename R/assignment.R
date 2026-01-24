@@ -29,7 +29,7 @@
 #'   \tabular{llll}{
 #'     \strong{Option} \tab \strong{PSL} \tab \strong{AoN} \tab \strong{Description} \cr
 #'     \code{"graph"} \tab Yes \tab Yes \tab The igraph graph object \cr
-#'     \code{"paths"} \tab Yes \tab Yes \tab PSL: list of lists (multiple routes per OD); AoN: list of integer vectors (one path per OD) \cr
+#'     \code{"paths"} \tab Yes \tab Yes \tab PSL: list of lists of edge indices (multiple routes per OD); AoN: list of edge index vectors (one path per OD) \cr
 #'     \code{"edges"} \tab Yes \tab No \tab List of edge indices used for each OD pair \cr
 #'     \code{"counts"} \tab Yes \tab Yes \tab PSL: list of edge visit counts per OD; AoN: integer vector of global edge traversal counts \cr
 #'     \code{"costs"} \tab Yes \tab Yes \tab PSL: list of path costs per OD; AoN: numeric vector of shortest path costs \cr
@@ -47,7 +47,7 @@
 #'     \item Additional elements as specified in \code{return.extra}:
 #'       \itemize{
 #'         \item \code{graph} - The igraph graph object
-#'         \item \code{paths} - For PSL: list of lists (multiple routes per OD pair); for AoN: list of integer vectors (one shortest path per OD pair)
+#'         \item \code{paths} - For PSL: list of lists of edge indices (multiple routes per OD pair); for AoN: list of edge index vectors (one shortest path per OD pair)
 #'         \item \code{edges} - List of edge indices used for each OD pair (PSL only)
 #'         \item \code{edge_counts} - For PSL: list of edge visit counts per OD pair; for AoN: integer vector of global edge traversal counts
 #'         \item \code{path_costs} - For PSL: list of path costs per OD pair; for AoN: numeric vector of shortest path costs
@@ -57,38 +57,50 @@
 #'
 #' @details
 #' This function performs traffic assignment using one of two methods:
+#' \strong{All-or-Nothing (AoN)} is fast but assigns all flow to a single shortest path;
+#' \strong{Path-Sized Logit (PSL)} considers multiple routes with overlap correction for
+#' more realistic flow distribution.
 #'
-#' \strong{All-or-Nothing (AoN) Method:}
+#' \subsection{All-or-Nothing (AoN) Method}{
 #' A simple assignment method that assigns all flow from each OD pair to the single shortest path.
 #' This is much faster than PSL but does not consider route alternatives or overlaps.
 #' Parameters \code{detour.max}, \code{angle.max}, \code{unique.cost}, \code{npaths.max},
 #' \code{beta}, and \code{dmat.max.size} are ignored for AoN.
-#'
-#' \strong{Path-Sized Logit (PSL) Method:}
-#' A more sophisticated assignment method that considers multiple alternative routes:
-#' \itemize{
-#'   \item Creates a graph from \code{graph_df} using igraph, normalizing node IDs internally
-#'   \item Computes shortest path distance matrix for all node pairs (chunkwise if \code{dmat.max.size < n_nodes^2})
-#'   \item For each origin-destination pair in \code{od_matrix_long}:
-#'     \itemize{
-#'       \item Identifies alternative routes (detours) that are within \code{detour.max} of shortest path cost. This is done by considering all other nodes and adding the shortest paths costs from origin node to an intermediate node (any other node) and from intermediate node to destination node. If \code{angle.max} is specified, filters detours to those within the specified angle from origin to destination. This means we only consider intermediate nodes that are roughly 'in the direction' of the destination node, and also not further away in terms of geodesic distance. If also \code{unique.cost = TRUE}, duplicate paths are removed based on the total cost. Thus, using only the shortest-paths-cost matrix and a matrix of the geodesic distances of the nodes (if \code{is.finite(angle.max)}), the algorithm pre-selects unique paths that are plausible both in terms of detour factor (cost) and direction before actually computing them. This speeds up route enumeration and PSL computations considerably.
-#'       \item Finds shortest paths from origin to intermediate nodes and from intermediate nodes to destination
-#'       \item Filters paths to remove those with duplicate edges, i.e., where the intermediate node is approached and departed from via the same edge(s).
-#'       \item Computes path-sized logit probabilities accounting for route overlap
-#'       \item Assigns flows to edges based on probabilities weighted by route overlap
-#'     }
-#'   \item Returns results including final flows and optionally additional information
 #' }
 #'
-#' The path-sized logit model accounts for route overlap by adjusting probabilities based on
-#' the number of alternative routes using each edge. Flows are assigned proportionally to
-#' the computed probabilities. The model uses the parameter \code{beta} to control the
-#' sensitivity to route overlap.
+#' \subsection{Path-Sized Logit (PSL) Method}{
+#' A more sophisticated assignment method that considers multiple alternative routes and
+#' accounts for route overlap when assigning flows. The PSL model adjusts choice probabilities
+#' based on how much each route overlaps with other alternatives, preventing overestimation
+#' of flow on shared segments. The \code{beta} parameter controls the sensitivity to overlap.
+#' }
 #'
+#' \subsection{Route Enumeration Algorithm}{
+#' For each origin-destination pair, the algorithm identifies alternative routes as follows:
+#' \enumerate{
+#'   \item Compute the shortest path cost from origin to destination.
+#'   \item For each potential intermediate node, calculate the total cost of going
+#'         origin -> intermediate -> destination.
+#'   \item Keep only routes where total cost is within \code{detour.max} times the
+#'         shortest path cost.
+#'   \item If \code{angle.max} is specified, filter to intermediate nodes that lie
+#'         roughly in the direction of the destination (within the specified angle).
+#'   \item If \code{unique.cost = TRUE}, remove duplicate routes based on total cost.
+#'   \item Compute the actual paths and filter out those with duplicate edges
+#'         (where the intermediate node is approached and departed via the same edge).
+#' }
+#' This pre-selection using distance matrices speeds up route enumeration considerably
+#' by avoiding computation of implausible paths.
+#' }
+#'
+#' \subsection{Coordinate-Based Filtering}{
 #' When \code{angle.max} is specified and \code{graph_df} contains coordinate columns
 #' (\code{FX}, \code{FY}, \code{TX}, \code{TY}), the function uses geographic distance
-#' calculations to restrict detours to those within the specified angle, improving
-#' computational efficiency and route realism.
+#' calculations to restrict detours. Only intermediate nodes that are (a) closer to the
+#' origin than the destination is, and (b) within the specified angle from the
+#' origin-destination line are considered. This improves both computational efficiency
+#' and route realism by excluding geographically implausible detours.
+#' }
 #'
 #' @seealso \link{flownet-package}
 #'
