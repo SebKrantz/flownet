@@ -125,13 +125,14 @@
 #'
 #' @examples
 #' library(flownet)
+#' library(collapse)
 #' library(sf)
 #'
 #' # Load existing network edges (exclude proposed new links)
 #' africa_net <- africa_network[!africa_network$add, ]
 #'
 #' # Convert to graph (use atomic_elem to drop sf geometry, qDF for data.frame)
-#' graph <- collapse::atomic_elem(africa_net) |> collapse::qDF()
+#' graph <- atomic_elem(africa_net) |> qDF()
 #' nodes <- nodes_from_graph(graph, sf = TRUE)
 #'
 #' # Map cities/ports to nearest network nodes
@@ -142,15 +143,61 @@
 #' dimnames(od_mat) <- list(nearest_nodes, nearest_nodes)
 #' od_matrix_long <- melt_od_matrix(od_mat)
 #'
-#' \donttest{
 #' # Run Traffic Assignment (All-or-Nothing method)
-#' result <- run_assignment(graph, od_matrix_long, cost.column = "duration",
-#'                          method = "AoN", return.extra = "all")
-#' print(result)
+#' result_aon <- run_assignment(graph, od_matrix_long, cost.column = "duration",
+#'                              method = "AoN", return.extra = "all")
+#' print(result_aon)
+#' \donttest{
+#' # Run Traffic Assignment (Path-Sized Logit method)
+#' # Note: PSL is slower but produces more realistic flow distribution
+#' result_psl <- run_assignment(graph, od_matrix_long, cost.column = "duration",
+#'                              method = "PSL", nthreads = 1L,
+#'                              return.extra = c("edges", "counts", "costs", "weights"))
+#' print(result_psl)
 #'
-#' # Visualize Results
-#' africa_net$final_flows_log10 <- log10(result$final_flows + 1)
-#' plot(africa_net["final_flows_log10"])
+#' # Visualize AoN Results
+#' africa_net$final_flows_log10 <- log10(result_psl$final_flows + 1)
+#' plot(africa_net["final_flows_log10"], main = "PSL Assignment")
+#' }
+#'
+#'
+#' # --- Trade Flow Disaggregation Example ---
+#' # Disaggregate country-level trade to city-level using population shares
+#'
+#' # Compute each city's share of its country's population
+#' city_pop <- africa_cities_ports |> atomic_elem() |> qDF() |>
+#'   fcompute(node = nearest_nodes,
+#'            city = qF(city_country),
+#'            pop_share = fsum(population, iso3, TRA = "/"),
+#'            keep = "iso3")
+#'
+#' # Aggregate trade to country-country level and disaggregate to cities
+#' trade_agg <- africa_trade |> collap(quantity ~ iso3_o + iso3_d, fsum)
+#' od_matrix_trade <- trade_agg |>
+#'   join(city_pop |> add_stub("_o", FALSE), multiple = TRUE) |>
+#'   join(city_pop |> add_stub("_d", FALSE), multiple = TRUE) |>
+#'   fmutate(flow = quantity * pop_share_o * pop_share_d) |>
+#'   frename(from = node_o, to = node_d) |>
+#'   fsubset(flow > 0 & from != to)
+#'
+#' # Run AoN assignment with trade flows
+#' result_trade_aon <- run_assignment(graph, od_matrix_trade, cost.column = "duration",
+#'                                    method = "AoN", return.extra = "all")
+#' print(result_trade_aon)
+#' \donttest{
+#' # Visualize trade flow results
+#' africa_net$trade_flows_log10 <- log10(result_trade_aon$final_flows + 1)
+#' plot(africa_net["trade_flows_log10"], main = "Trade Flow Assignment (AoN)")
+#'
+#' # Run PSL assignment with trade flows (nthreads can be increased for speed)
+#' result_trade_psl <- run_assignment(graph, od_matrix_trade, cost.column = "duration",
+#'                                    method = "PSL", nthreads = 1L,
+#'                                    return.extra = c("edges", "counts", "costs", "weights"))
+#' print(result_trade_psl)
+#'
+#' # Compare PSL vs AoN: PSL typically shows more distributed flows
+#' africa_net$trade_flows_psl_log10 <- log10(result_trade_psl$final_flows + 1)
+#' plot(africa_net["trade_flows_psl_log10"], main = "Trade Flow Assignment (PSL)")
 #' }
 #'
 #' @export
