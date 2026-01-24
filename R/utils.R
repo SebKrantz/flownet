@@ -46,7 +46,7 @@ sve <- function(x, i, elt) .Call(C_set_vector_elt, x, i, elt)
 #' @importFrom collapse qDF GRP get_vars get_vars<- add_vars add_vars<- fselect ffirst flast add_stub fmutate group fmatch %+=% fmax colorder whichNA setv unattrib ss
 linestrings_to_graph <- function(lines, digits = 6, keep.cols = is.atomic, compute.length = TRUE) {
   gt <- st_geometry_type(lines, by_geometry = FALSE)
-  if(length(gt) != 1L || gt != "LINESTRING") stop("lines needs to be a sf data frame of LINESTRING's")
+  if(length(gt) != 1L || gt != "LINESTRING") stop("lines needs to be a sf data frame of LINESTRINGs")
   graph <- st_coordinates(lines) |> qDF()
   g <- GRP(list(edge = graph$L1), return.order = FALSE)
   graph <- add_vars(fselect(graph, X, Y) |> ffirst(g, na.rm = FALSE, use.g.names = FALSE) |> add_stub("F"),
