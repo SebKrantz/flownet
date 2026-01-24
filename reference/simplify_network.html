@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">flownet</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -95,8 +95,7 @@ With <code>method = "cluster"</code>, a numeric vector of node weights matching 
 formula or character vector of column names. Typically includes attributes like
 <em>mode</em>, <em>type</em>, or <em>capacity</em>.
 For <code>method = "shortest-paths"</code>: paths are computed separately for each group
-defined by <code>by</code>, with edges not in the current group penalized (cost set to
-100x max cost) to compel mode-specific routes.
+defined by <code>by</code>, with edges not in the current group penalized (cost multiplied by 100) to compel mode-specific routes.
 For <code>method = "cluster"</code>: edges are grouped by <code>from</code>, <code>to</code>, AND
 <code>by</code> columns, preventing consolidation across different modes/types.</p></dd>
 
@@ -203,18 +202,18 @@ will be assigned to the nearest preserved node's cluster.
 <span class="r-in"><span><span class="co"># Method 1: Shortest-paths simplification (keeps only traversed edges)</span></span></span>
 <span class="r-in"><span><span class="va">graph_simple</span> <span class="op">&lt;-</span> <span class="fu">simplify_network</span><span class="op">(</span><span class="va">graph</span>, <span class="va">nearest_nodes</span>,</span></span>
 <span class="r-in"><span>                                 method <span class="op">=</span> <span class="st">"shortest-paths"</span>,</span></span>
-<span class="r-in"><span>                                 cost.column <span class="op">=</span> <span class="st">"length"</span><span class="op">)</span></span></span>
+<span class="r-in"><span>                                 cost.column <span class="op">=</span> <span class="st">".length"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">graph_simple</span><span class="op">)</span>  <span class="co"># Reduced number of edges</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 4858</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 4422</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># \donttest{</span></span></span>
 <span class="r-in"><span><span class="co"># Method 2: Cluster-based simplification (contracts graph spatially)</span></span></span>
 <span class="r-in"><span><span class="co"># Compute node weights for clustering</span></span></span>
 <span class="r-in"><span><span class="va">node_weights</span> <span class="op">&lt;-</span> <span class="fu">collapse</span><span class="fu">::</span><span class="fu"><a href="https://fastverse.org/collapse/reference/rowbind.html" class="external-link">rowbind</a></span><span class="op">(</span></span></span>
-<span class="r-in"><span>  <span class="fu">collapse</span><span class="fu">::</span><span class="fu"><a href="https://fastverse.org/collapse/reference/select_replace_vars.html" class="external-link">slt</a></span><span class="op">(</span><span class="va">graph</span>, node <span class="op">=</span> <span class="va">from</span>, <span class="va">gravity_rd</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>  <span class="fu">collapse</span><span class="fu">::</span><span class="fu"><a href="https://fastverse.org/collapse/reference/select_replace_vars.html" class="external-link">slt</a></span><span class="op">(</span><span class="va">graph</span>, <span class="va">to</span>, <span class="va">gravity_rd</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  <span class="fu">collapse</span><span class="fu">::</span><span class="fu"><a href="https://fastverse.org/collapse/reference/select_replace_vars.html" class="external-link">fselect</a></span><span class="op">(</span><span class="va">graph</span>, node <span class="op">=</span> <span class="va">from</span>, <span class="va">gravity_rd</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  <span class="fu">collapse</span><span class="fu">::</span><span class="fu"><a href="https://fastverse.org/collapse/reference/select_replace_vars.html" class="external-link">fselect</a></span><span class="op">(</span><span class="va">graph</span>, <span class="va">to</span>, <span class="va">gravity_rd</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>  use.names <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span> <span class="op">|&gt;</span></span></span>
-<span class="r-in"><span>  <span class="fu">collapse</span><span class="fu">::</span><span class="fu"><a href="https://fastverse.org/collapse/reference/collap.html" class="external-link">collap</a></span><span class="op">(</span><span class="op">~</span> <span class="va">node</span>, <span class="fu">collapse</span><span class="fu">::</span><span class="va"><a href="https://fastverse.org/collapse/reference/fsum.html" class="external-link">fsum</a></span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="fu">collapse</span><span class="fu">::</span><span class="fu"><a href="https://fastverse.org/collapse/reference/collap.html" class="external-link">collap</a></span><span class="op">(</span><span class="op">~</span> <span class="va">node</span>, <span class="st">"fsum"</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="va">graph_cluster</span> <span class="op">&lt;-</span> <span class="fu">simplify_network</span><span class="op">(</span><span class="va">graph</span>, <span class="va">nearest_nodes</span>,</span></span>
 <span class="r-in"><span>                                  method <span class="op">=</span> <span class="st">"cluster"</span>,</span></span>

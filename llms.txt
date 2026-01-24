@@ -1,8 +1,5 @@
 # flownet
 
-[![R-CMD-check](https://github.com/SebKrantz/flownet/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/SebKrantz/flownet/actions/workflows/R-CMD-check.yaml)
-[![r-universe](https://sebkrantz.r-universe.dev/badges/flownet)](https://sebkrantz.r-universe.dev)
-
 **Transport Modeling: Network Processing, Route Enumeration, and Traffic
 Assignment**
 
@@ -16,8 +13,8 @@ processing/preparation.
 
 - **Path-Sized Logit Model**: Stochastic traffic assignment accounting
   for route overlap
-- **Network Processing**: Convert LINESTRING’s to network graphs and
-  consolidate/simplify graphs
+- **Network Processing**: Convert LINESTRINGs to network graphs and
+  consolidate/contract/simplify them
 - **Route Enumeration**: Efficient algorithm for finding alternative
   routes between origin-destination pairs
 - **High Performance**: [fastverse](https://fastverse.org/fastverse/)
@@ -44,7 +41,7 @@ remotes::install_github("SebKrantz/flownet")
 - `igraph` (\>= 2.1.4) - Graph operations and shortest path algorithms
 - `sf` (\>= 1.0.0) - Spatial data handling
 - `geodist` (\>= 0.1.1) - Fast geodesic distance computations
-- `leaderCluster` (\>= 0.3.0) - Fast spatial clustering for network
+- `leaderCluster` (\>= 1.5.0) - Fast spatial clustering for network
   simplification
 - `mirai` (\>= 2.5.2) - Asynchronous parallelism for R
 - `progress` (\>= 1.2.3) - Progress bars for long-running operations

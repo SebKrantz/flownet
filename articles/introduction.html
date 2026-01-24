@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">flownet</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -58,7 +58,7 @@
                         <h4 data-toc-skip class="author">Sebastian
 Krantz</h4>
             
-            <h4 data-toc-skip class="date">2026-01-20</h4>
+            <h4 data-toc-skip class="date">2026-01-24</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/SebKrantz/flownet/blob/master/vignettes/introduction.Rmd" class="external-link"><code>vignettes/introduction.Rmd</code></a></small>
       <div class="d-none name"><code>introduction.Rmd</code></div>
@@ -116,7 +116,7 @@ Bank. Replication materials are available at <a href="https://github.com/SebKran
 <p>Let’s examine the data:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># View network structure (existing links only)</span></span>
-<span><span class="va">africa_net</span> <span class="op">&lt;-</span> <span class="fu">fsubset</span><span class="op">(</span><span class="va">africa_network</span>, <span class="op">!</span><span class="va">add</span>, <span class="op">-</span><span class="va">add</span><span class="op">)</span></span>
+<span><span class="va">africa_net</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://fastverse.org/collapse/reference/fsubset.html" class="external-link">fsubset</a></span><span class="op">(</span><span class="va">africa_network</span>, <span class="op">!</span><span class="va">add</span>, <span class="op">-</span><span class="va">add</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">africa_net</span>, max.level <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Classes 'sf' and 'data.frame':   2344 obs. of  28 variables:</span></span>
 <span><span class="co">#&gt;  $ from             : int  1 2 2 2 3 3 4 4 5 5 ...</span></span>
@@ -152,7 +152,7 @@ Bank. Replication materials are available at <a href="https://github.com/SebKran
 <span><span class="co">#&gt;   ..- attr(*, "names")= chr [1:24] "from" "to" NA NA ...</span></span>
 <span></span>
 <span><span class="co"># View cities/ports</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu">fselect</span><span class="op">(</span><span class="va">africa_cities_ports</span>, <span class="va">city</span>, <span class="va">country</span>, <span class="va">population</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://fastverse.org/collapse/reference/select_replace_vars.html" class="external-link">fselect</a></span><span class="op">(</span><span class="va">africa_cities_ports</span>, <span class="va">city</span>, <span class="va">country</span>, <span class="va">population</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Simple feature collection with 6 features and 3 fields</span></span>
 <span><span class="co">#&gt; Geometry type: POINT</span></span>
 <span><span class="co">#&gt; Dimension:     XY</span></span>
@@ -225,7 +225,7 @@ need to strip the geometry column and turn it into a normal data
 frame.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Convert to graph (use atomic_elem to drop sf geometry, qDF for data.frame)</span></span>
-<span><span class="va">graph</span> <span class="op">&lt;-</span> <span class="fu">atomic_elem</span><span class="op">(</span><span class="va">africa_net</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu">qDF</span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">graph</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://fastverse.org/collapse/reference/extract_list.html" class="external-link">atomic_elem</a></span><span class="op">(</span><span class="va">africa_net</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://fastverse.org/collapse/reference/quick-conversion.html" class="external-link">qDF</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">graph</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   from to from_ctry to_ctry        FX       FY        TX       TY sp_distance</span></span>
 <span><span class="co">#&gt; 1    1  2       SEN     SEN -17.44671 14.69281 -17.04453 14.70297    43272.22</span></span>
@@ -385,10 +385,10 @@ population.</p>
 </h3>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Compute each city's share of its country's population</span></span>
-<span><span class="va">city_pop</span> <span class="op">&lt;-</span> <span class="va">africa_cities_ports</span> <span class="op">|&gt;</span> <span class="fu">atomic_elem</span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu">qDF</span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">fcompute</span><span class="op">(</span>node <span class="op">=</span> <span class="va">nearest_nodes</span>,</span>
-<span>           city <span class="op">=</span> <span class="fu">qF</span><span class="op">(</span><span class="va">city_country</span><span class="op">)</span>,</span>
-<span>           pop_share <span class="op">=</span> <span class="fu">fsum</span><span class="op">(</span><span class="va">population</span>, <span class="va">iso3</span>, TRA <span class="op">=</span> <span class="st">"/"</span><span class="op">)</span>,</span>
+<span><span class="va">city_pop</span> <span class="op">&lt;-</span> <span class="va">africa_cities_ports</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://fastverse.org/collapse/reference/extract_list.html" class="external-link">atomic_elem</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://fastverse.org/collapse/reference/quick-conversion.html" class="external-link">qDF</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://fastverse.org/collapse/reference/ftransform.html" class="external-link">fcompute</a></span><span class="op">(</span>node <span class="op">=</span> <span class="va">nearest_nodes</span>,</span>
+<span>           city <span class="op">=</span> <span class="fu"><a href="https://fastverse.org/collapse/reference/qF.html" class="external-link">qF</a></span><span class="op">(</span><span class="va">city_country</span><span class="op">)</span>,</span>
+<span>           pop_share <span class="op">=</span> <span class="fu"><a href="https://fastverse.org/collapse/reference/fsum.html" class="external-link">fsum</a></span><span class="op">(</span><span class="va">population</span>, <span class="va">iso3</span>, TRA <span class="op">=</span> <span class="st">"/"</span><span class="op">)</span>,</span>
 <span>           keep <span class="op">=</span> <span class="st">"iso3"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">city_pop</span><span class="op">)</span></span>
@@ -405,16 +405,16 @@ population.</p>
 </h3>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Aggregate trade to country-country level (sum across HS sections)</span></span>
-<span><span class="va">trade_agg</span> <span class="op">&lt;-</span> <span class="va">africa_trade</span> <span class="op">|&gt;</span> <span class="fu">collap</span><span class="op">(</span><span class="va">quantity</span> <span class="op">~</span> <span class="va">iso3_o</span> <span class="op">+</span> <span class="va">iso3_d</span>, <span class="va">fsum</span><span class="op">)</span></span>
+<span><span class="va">trade_agg</span> <span class="op">&lt;-</span> <span class="va">africa_trade</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://fastverse.org/collapse/reference/collap.html" class="external-link">collap</a></span><span class="op">(</span><span class="va">quantity</span> <span class="op">~</span> <span class="va">iso3_o</span> <span class="op">+</span> <span class="va">iso3_d</span>, <span class="va">fsum</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Join with city population shares for origin and destination</span></span>
 <span><span class="co"># add_stub adds suffix to all columns, so iso3 -&gt; iso3_o matches trade_agg$iso3_o</span></span>
 <span><span class="va">od_matrix_trade</span> <span class="op">&lt;-</span> <span class="va">trade_agg</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">join</span><span class="op">(</span><span class="va">city_pop</span> <span class="op">|&gt;</span> <span class="fu">add_stub</span><span class="op">(</span><span class="st">"_o"</span>, <span class="cn">FALSE</span><span class="op">)</span>, multiple <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">join</span><span class="op">(</span><span class="va">city_pop</span> <span class="op">|&gt;</span> <span class="fu">add_stub</span><span class="op">(</span><span class="st">"_d"</span>, <span class="cn">FALSE</span><span class="op">)</span>, multiple <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">fmutate</span><span class="op">(</span>flow <span class="op">=</span> <span class="va">quantity</span> <span class="op">*</span> <span class="va">pop_share_o</span> <span class="op">*</span> <span class="va">pop_share_d</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">frename</span><span class="op">(</span>from <span class="op">=</span> <span class="va">node_o</span>, to <span class="op">=</span> <span class="va">node_d</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">fsubset</span><span class="op">(</span><span class="va">flow</span> <span class="op">&gt;</span> <span class="fl">0</span> <span class="op">&amp;</span> <span class="va">from</span> <span class="op">!=</span> <span class="va">to</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://fastverse.org/collapse/reference/join.html" class="external-link">join</a></span><span class="op">(</span><span class="va">city_pop</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://fastverse.org/collapse/reference/small-helpers.html" class="external-link">add_stub</a></span><span class="op">(</span><span class="st">"_o"</span>, <span class="cn">FALSE</span><span class="op">)</span>, multiple <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://fastverse.org/collapse/reference/join.html" class="external-link">join</a></span><span class="op">(</span><span class="va">city_pop</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://fastverse.org/collapse/reference/small-helpers.html" class="external-link">add_stub</a></span><span class="op">(</span><span class="st">"_d"</span>, <span class="cn">FALSE</span><span class="op">)</span>, multiple <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://fastverse.org/collapse/reference/ftransform.html" class="external-link">fmutate</a></span><span class="op">(</span>flow <span class="op">=</span> <span class="va">quantity</span> <span class="op">*</span> <span class="va">pop_share_o</span> <span class="op">*</span> <span class="va">pop_share_d</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://fastverse.org/collapse/reference/frename.html" class="external-link">frename</a></span><span class="op">(</span>from <span class="op">=</span> <span class="va">node_o</span>, to <span class="op">=</span> <span class="va">node_d</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://fastverse.org/collapse/reference/fsubset.html" class="external-link">fsubset</a></span><span class="op">(</span><span class="va">flow</span> <span class="op">&gt;</span> <span class="fl">0</span> <span class="op">&amp;</span> <span class="va">from</span> <span class="op">!=</span> <span class="va">to</span><span class="op">)</span></span>
 <span><span class="co">#&gt; left join: trade_agg[iso3_o] 1971/1971 (100%) &lt;41.94:9.62&gt; y[iso3_o] 452/453 (99.8%)</span></span>
 <span><span class="co">#&gt; left join: x[iso3_d] 19685/19685 (100%) &lt;418.83:9.62&gt; y[iso3_d] 452/453 (99.8%)</span></span>
 <span></span>
@@ -646,10 +646,10 @@ spatially group nearby nodes and contract the graph. This is useful for
 creating coarser network representations:</p>
 <div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Compute node weights for clustering (sum of gravity at each node)</span></span>
-<span><span class="va">node_weights</span> <span class="op">&lt;-</span> <span class="fu">rowbind</span><span class="op">(</span></span>
-<span>  <span class="fu">fselect</span><span class="op">(</span><span class="va">graph_cons</span>, node <span class="op">=</span> <span class="va">from</span>, <span class="va">gravity_rd</span><span class="op">)</span>,</span>
-<span>  <span class="fu">fselect</span><span class="op">(</span><span class="va">graph_cons</span>, <span class="va">to</span>, <span class="va">gravity_rd</span><span class="op">)</span>,use.names <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">collap</span><span class="op">(</span><span class="op">~</span> <span class="va">node</span>, <span class="va">fsum</span><span class="op">)</span></span>
+<span><span class="va">node_weights</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://fastverse.org/collapse/reference/rowbind.html" class="external-link">rowbind</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="https://fastverse.org/collapse/reference/select_replace_vars.html" class="external-link">fselect</a></span><span class="op">(</span><span class="va">graph_cons</span>, node <span class="op">=</span> <span class="va">from</span>, <span class="va">gravity_rd</span><span class="op">)</span>,</span>
+<span>  <span class="fu"><a href="https://fastverse.org/collapse/reference/select_replace_vars.html" class="external-link">fselect</a></span><span class="op">(</span><span class="va">graph_cons</span>, <span class="va">to</span>, <span class="va">gravity_rd</span><span class="op">)</span>,use.names <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://fastverse.org/collapse/reference/collap.html" class="external-link">collap</a></span><span class="op">(</span><span class="op">~</span> <span class="va">node</span>, <span class="va">fsum</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Cluster-based simplification</span></span>
 <span><span class="va">graph_cluster</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simplify_network.html">simplify_network</a></span><span class="op">(</span><span class="va">graph_cons</span>, <span class="va">nearest_nodes_seg</span>,</span>
@@ -737,13 +737,15 @@ package.</p>
 <div class="section level3">
 <h3 id="path-sized-logit-model">Path-Sized Logit Model<a class="anchor" aria-label="anchor" href="#path-sized-logit-model"></a>
 </h3>
-<p>The <strong>Path-Sized Logit (PSL)</strong> model is a discrete
-choice model used for traffic assignment that overcomes the independence
-of irrelevant alternatives (IIA) property of the standard Multinomial
-Logit (MNL) model. In transport networks, alternative routes often
-overlap significantly, sharing common edges. The MNL model treats these
-overlapping routes as independent, leading to an overestimation of flow
-on shared segments.</p>
+<p>The <strong>Path-Sized Logit (PSL)</strong> model (Ben-Akiva and
+Bierlaire, 1999)<a class="footnote-ref" tabindex="0" data-bs-toggle="popover" data-bs-content="&lt;p&gt;See further theoretical and practical references at the
+end.&lt;/p&gt;"><sup>1</sup></a> is a discrete choice model used for traffic
+assignment that overcomes the independence of irrelevant alternatives
+(IIA) property of the standard Multinomial Logit (MNL) model. In
+transport networks, alternative routes often overlap significantly,
+sharing common edges. The MNL model treats these overlapping routes as
+independent, leading to an overestimation of flow on shared
+segments.</p>
 <p>The PSL model introduces a <strong>correction term</strong>
 (path-size factor) to the utility function of each route, penalizing
 paths that share links with other alternatives.</p>
@@ -932,6 +934,26 @@ coarser network representations</li>
 the help files for individual functions.</p>
 </div>
 </div>
+<div class="section level2">
+<h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
+</h2>
+<p>Ben-Akiva, M., &amp; Bierlaire, M. (1999). Discrete choice methods
+and their applications to short term travel decisions. In R. W. Hall
+(Ed.), <em>Handbook of Transportation Science</em> (pp. 5–33). Springer
+US. <a href="https://doi.org/10.1007/978-1-4615-5203-1_2" class="external-link uri">https://doi.org/10.1007/978-1-4615-5203-1_2</a></p>
+<p>Cascetta, E. (2001). <em>Transportation systems engineering: Theory
+and methods</em>. Springer.</p>
+<p>Ben-Akiva, M., &amp; Lerman, S. R. (1985). <em>Discrete choice
+analysis: Theory and application to travel demand</em>. The MIT
+Press.</p>
+<p>Ramming, M. S. (2002). <em>Network knowledge and route choice</em>
+(Doctoral dissertation). Massachusetts Institute of Technology.</p>
+<p>Prato, C. G. (2009). Route choice modeling: Past, present and future
+research directions. <em>Journal of Choice Modelling, 2</em>(1), 65–100.
+<a href="https://doi.org/10.1016/S1755-5345(13)70005-8" class="external-link uri">https://doi.org/10.1016/S1755-5345(13)70005-8</a></p>
+<p>AequilibiaE (Python) Documentation: <a href="https://www.aequilibrae.com/develop/python/route_choice/path_size_logit.html" class="external-link uri">https://www.aequilibrae.com/develop/python/route_choice/path_size_logit.html</a></p>
+</div>
+
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
 </div>

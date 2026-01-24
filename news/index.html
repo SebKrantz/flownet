@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">flownet</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -34,6 +34,51 @@
       <small>Source: <a href="https://github.com/SebKrantz/flownet/blob/master/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.1.1" id="flownet-011">flownet 0.1.1<a class="anchor" aria-label="anchor" href="#flownet-011"></a></h2>
+<ul><li>Implemented minor CRAN comments</li>
+</ul><div class="section level3">
+<h3 id="documentation-improvements-0-1-1">Documentation Improvements<a class="anchor" aria-label="anchor" href="#documentation-improvements-0-1-1"></a></h3>
+<ul><li>Restructured <code><a href="../reference/run_assignment.html">run_assignment()</a></code> <code>@details</code> section using <code>\subsection{}</code> for better organization:
+<ul><li>Separate sections for AoN method, PSL method, route enumeration algorithm, and coordinate-based filtering</li>
+</ul></li>
+<li>Added <code>return.extra</code> parameter documentation as a clear table showing which options are available for each method</li>
+<li>Clarified that <code>paths</code> returns edge indices, not node indices</li>
+<li>Added comprehensive examples including:
+<ul><li>PSL method usage with <code>nthreads</code> parameter</li>
+<li>Trade flow disaggregation workflow (country-to-city level)</li>
+</ul></li>
+<li>Added academic references for the Path-Sized Logit model (Ben-Akiva &amp; Bierlaire, 1999)</li>
+<li>Added link to AequilibriaeE (Python) documentation for additional PSL resources</li>
+<li>Improved error messages to be more informative (show which columns are missing, what class was received)</li>
+<li>Increased vignette table of contents depth for better navigation</li>
+<li>Added citation for the PSL model in vignette</li>
+</ul></div>
+<div class="section level3">
+<h3 id="testing-0-1-1">Testing<a class="anchor" aria-label="anchor" href="#testing-0-1-1"></a></h3>
+<ul><li>Added testthat test suite with 150 tests covering:
+<ul><li>
+<code><a href="../reference/run_assignment.html">run_assignment()</a></code> (AoN and PSL methods)</li>
+<li>
+<code><a href="../reference/normalize_graph.html">normalize_graph()</a></code>, <code><a href="../reference/nodes_from_graph.html">nodes_from_graph()</a></code>, <code><a href="../reference/distances_from_graph.html">distances_from_graph()</a></code>
+</li>
+<li>
+<code><a href="../reference/linestrings_to_graph.html">linestrings_to_graph()</a></code>, <code><a href="../reference/linestrings_from_graph.html">linestrings_from_graph()</a></code>, <code><a href="../reference/create_undirected_graph.html">create_undirected_graph()</a></code>
+</li>
+<li>
+<code><a href="../reference/consolidate_graph.html">consolidate_graph()</a></code>, <code><a href="../reference/simplify_network.html">simplify_network()</a></code>
+</li>
+<li><code><a href="../reference/melt_od_matrix.html">melt_od_matrix()</a></code></li>
+</ul></li>
+<li>Added test coverage workflow</li>
+</ul></div>
+<div class="section level3">
+<h3 id="minor-improvements-0-1-1">Minor Improvements<a class="anchor" aria-label="anchor" href="#minor-improvements-0-1-1"></a></h3>
+<ul><li>Better penalization strategy for multimodal networks in <code><a href="../reference/simplify_network.html">simplify_network()</a></code> shortest-paths method</li>
+<li>Enforced numeric type conversion for cost columns</li>
+<li>Various minor fixes and improvements</li>
+</ul><hr></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.0" id="flownet-010-initial-release">flownet 0.1.0 (Initial Release)<a class="anchor" aria-label="anchor" href="#flownet-010-initial-release"></a></h2>
 <div class="section level3">
@@ -144,7 +189,7 @@
 <div class="section level3">
 <h3 id="dependencies-0-1-0">Dependencies<a class="anchor" aria-label="anchor" href="#dependencies-0-1-0"></a></h3>
 <ul><li>
-<strong>R</strong> (&gt;= 3.5)</li>
+<strong>R</strong> (&gt;= 4.1)</li>
 <li>
 <strong>collapse</strong> (&gt;= 2.1.5) - Fast data transformations and memory efficient programming</li>
 <li>
@@ -156,7 +201,7 @@
 <li>
 <strong>geodist</strong> (&gt;= 0.1.1) - Fast geodesic distance computations</li>
 <li>
-<strong>leaderCluster</strong> (&gt;= 0.1.5) - Efficient spatial clustering algorithms</li>
+<strong>leaderCluster</strong> (&gt;= 1.5.0) - Efficient spatial clustering algorithms</li>
 <li>
 <strong>mirai</strong> (&gt;= 2.5.2) - Asynchronous parallelism for R</li>
 <li>

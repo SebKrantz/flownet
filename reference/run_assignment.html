@@ -9,7 +9,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">flownet</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -125,12 +125,9 @@ The cost values are used to compute shortest paths and determine route probabili
 
 
 <dt id="arg-return-extra">return.extra<a class="anchor" aria-label="anchor" href="#arg-return-extra"></a></dt>
-<dd><p>Character vector specifying additional results to return. Options include:
-<code>"graph"</code>, <code>"paths"</code>, <code>"edges"</code> (PSL only),
-<code>"counts"</code>, <code>"costs"</code>, and <code>"weights"</code> (PSL only).
-For AoN: <code>"paths"</code> returns a list of shortest paths (one integer vector per OD pair),
-<code>"costs"</code> returns a numeric vector of shortest path costs, and <code>"counts"</code> returns a global integer vector of edge traversal counts.
-Use <code>"all"</code> to return all available extra results for the selected method.</p></dd>
+<dd><p>Character vector specifying additional results to return.
+  Use <code>"all"</code> to return all available extras for the selected method.</p>
+<p></p><table class="table table"><tr><td><strong>Option</strong></td><td><strong>PSL</strong></td><td><strong>AoN</strong></td><td><strong>Description</strong></td></tr><tr><td><code>"graph"</code></td><td>Yes</td><td>Yes</td><td>The igraph graph object</td></tr><tr><td><code>"paths"</code></td><td>Yes</td><td>Yes</td><td>PSL: list of lists of edge indices (multiple routes per OD); AoN: list of edge index vectors (one path per OD)</td></tr><tr><td><code>"edges"</code></td><td>Yes</td><td>No</td><td>List of edge indices used for each OD pair</td></tr><tr><td><code>"counts"</code></td><td>Yes</td><td>Yes</td><td>PSL: list of edge visit counts per OD; AoN: integer vector of global edge traversal counts</td></tr><tr><td><code>"costs"</code></td><td>Yes</td><td>Yes</td><td>PSL: list of path costs per OD; AoN: numeric vector of shortest path costs</td></tr><tr><td><code>"weights"</code></td><td>Yes</td><td>No</td><td>List of path weights (probabilities) for each OD pair</td></tr></table></dd>
 
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
@@ -151,7 +148,7 @@ Use <code>"all"</code> to return all available extra results for the selected me
 <li><p><code>final_flows</code> - Numeric vector of assigned flows for each edge (same length as <code>nrow(graph_df)</code>)</p></li>
 <li><p><code>od_pairs_used</code> - Indices of OD pairs with valid flows</p></li>
 <li><p>Additional elements as specified in <code>return.extra</code>:</p><ul><li><p><code>graph</code> - The igraph graph object</p></li>
-<li><p><code>paths</code> - For PSL: list of lists (multiple routes per OD pair); for AoN: list of integer vectors (one shortest path per OD pair)</p></li>
+<li><p><code>paths</code> - For PSL: list of lists of edge indices (multiple routes per OD pair); for AoN: list of edge index vectors (one shortest path per OD pair)</p></li>
 <li><p><code>edges</code> - List of edge indices used for each OD pair (PSL only)</p></li>
 <li><p><code>edge_counts</code> - For PSL: list of edge visit counts per OD pair; for AoN: integer vector of global edge traversal counts</p></li>
 <li><p><code>path_costs</code> - For PSL: list of path costs per OD pair; for AoN: numeric vector of shortest path costs</p></li>
@@ -160,30 +157,86 @@ Use <code>"all"</code> to return all available extra results for the selected me
 </ul></div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>This function performs traffic assignment using one of two methods:</p>
-<p><strong>All-or-Nothing (AoN) Method:</strong>
-A simple assignment method that assigns all flow from each OD pair to the single shortest path.
+    <p>This function performs traffic assignment using one of two methods:
+<strong>All-or-Nothing (AoN)</strong> is fast but assigns all flow to a single shortest path;
+<strong>Path-Sized Logit (PSL)</strong> considers multiple routes with overlap correction for
+more realistic flow distribution.</p>
+<div class="section">
+<h3 id="all-or-nothing-aon-method">All-or-Nothing (AoN) Method<a class="anchor" aria-label="anchor" href="#all-or-nothing-aon-method"></a></h3>
+<p>A simple assignment method that assigns all flow from each OD pair to the single shortest path.
 This is much faster than PSL but does not consider route alternatives or overlaps.
 Parameters <code>detour.max</code>, <code>angle.max</code>, <code>unique.cost</code>, <code>npaths.max</code>,
 <code>beta</code>, and <code>dmat.max.size</code> are ignored for AoN.</p>
-<p><strong>Path-Sized Logit (PSL) Method:</strong>
-A more sophisticated assignment method that considers multiple alternative routes:</p><ul><li><p>Creates a graph from <code>graph_df</code> using igraph, normalizing node IDs internally</p></li>
-<li><p>Computes shortest path distance matrix for all node pairs (chunkwise if <code>dmat.max.size &lt; n_nodes^2</code>)</p></li>
-<li><p>For each origin-destination pair in <code>od_matrix_long</code>:</p><ul><li><p>Identifies alternative routes (detours) that are within <code>detour.max</code> of shortest path cost. This is done by considering all other nodes and adding the shortest paths costs from origin node to an intermediate node (any other node) and from intermediate node to destination node. If <code>angle.max</code> is specified, filters detours to those within the specified angle from origin to destination. This means we only consider intermediate nodes that are roughly 'in the direction' of the destination node, and also not further away in terms of geodesic distance. If also <code>unique.cost = TRUE</code>, duplicate paths are removed based on the total cost. Thus, using only the shortest-paths-cost matrix and a matrix of the geodesic distances of the nodes (if <code>is.finite(angle.max)</code>), the algorithm pre-selects unique paths that are plausible both in terms of detour factor (cost) and direction before actually computing them. This speeds up route enumeration and PSL computations considerably.</p></li>
-<li><p>Finds shortest paths from origin to intermediate nodes and from intermediate nodes to destination</p></li>
-<li><p>Filters paths to remove those with duplicate edges, i.e., where the intermediate node is approached and departed from via the same edge(s).</p></li>
-<li><p>Computes path-sized logit probabilities accounting for route overlap</p></li>
-<li><p>Assigns flows to edges based on probabilities weighted by route overlap</p></li>
-</ul></li>
-<li><p>Returns results including final flows and optionally additional information</p></li>
-</ul><p>The path-sized logit model accounts for route overlap by adjusting probabilities based on
-the number of alternative routes using each edge. Flows are assigned proportionally to
-the computed probabilities. The model uses the parameter <code>beta</code> to control the
-sensitivity to route overlap.</p>
+</div>
+
+<div class="section">
+<h3 id="path-sized-logit-psl-method">Path-Sized Logit (PSL) Method<a class="anchor" aria-label="anchor" href="#path-sized-logit-psl-method"></a></h3>
+<p>A more sophisticated assignment method that considers multiple alternative routes and
+accounts for route overlap when assigning flows. The PSL model adjusts choice probabilities
+based on how much each route overlaps with other alternatives, preventing overestimation
+of flow on shared segments. The <code>beta</code> parameter controls the sensitivity to overlap.</p>
+</div>
+
+<div class="section">
+<h3 id="psl-model-formulation">PSL Model Formulation<a class="anchor" aria-label="anchor" href="#psl-model-formulation"></a></h3>
+<p>The probability \(P_k\) of choosing route \(k\) from the set of alternatives \(K\) is:
+$$P_k = \frac{e^{V_k}}{\sum_{j \in K} e^{V_j}}$$
+where the utility \(V_k\) is defined as:
+$$V_k = -C_k + \beta_{PSL} \ln(PS_k)$$
+Here \(C_k\) is the generalized cost of route \(k\), \(\beta_{PSL}\) is the
+path-size parameter (the <code>beta</code> argument), and \(PS_k\) is the path-size factor.</p>
+<p>The path-size factor quantifies route uniqueness:
+$$PS_k = \frac{1}{C_k} \sum_{a \in \Gamma_k} \frac{c_a}{\delta_a}$$
+where \(\Gamma_k\) is the set of edges in path \(k\), \(c_a\) is the cost of
+edge \(a\), and \(\delta_a\) is the number of alternative routes using edge \(a\).</p>
+<p>If a path is unique (\(\delta_a = 1\) for all edges), then \(PS_k = 1\) and the
+model reduces to standard MNL. For overlapping routes, \(PS_k &lt; 1\) and
+\(\ln(PS_k) &lt; 0\), so a positive <code>beta</code> penalizes overlap. Higher <code>beta</code>
+values strengthen penalization; <code>beta = 0</code> gives standard MNL behavior.</p>
+<p>For more information about the PSL model consult some of the references below.</p>
+</div>
+
+<div class="section">
+<h3 id="route-enumeration-algorithm">Route Enumeration Algorithm<a class="anchor" aria-label="anchor" href="#route-enumeration-algorithm"></a></h3>
+<p>For each origin-destination pair, the algorithm identifies alternative routes as follows:</p><ol><li><p>Compute the shortest path cost from origin to destination.</p></li>
+<li><p>For each potential intermediate node, calculate the total cost of going
+        origin -&gt; intermediate -&gt; destination.</p></li>
+<li><p>Keep only routes where total cost is within <code>detour.max</code> times the
+        shortest path cost.</p></li>
+<li><p>If <code>angle.max</code> is specified, filter to intermediate nodes that lie
+        roughly in the direction of the destination (within the specified angle).</p></li>
+<li><p>If <code>unique.cost = TRUE</code>, remove duplicate routes based on total cost.</p></li>
+<li><p>Compute the actual paths and filter out those with duplicate edges
+        (where the intermediate node is approached and departed via the same edge).</p></li>
+</ol><p>This pre-selection using distance matrices speeds up route enumeration considerably
+by avoiding computation of implausible paths.</p>
+</div>
+
+<div class="section">
+<h3 id="coordinate-based-filtering">Coordinate-Based Filtering<a class="anchor" aria-label="anchor" href="#coordinate-based-filtering"></a></h3>
 <p>When <code>angle.max</code> is specified and <code>graph_df</code> contains coordinate columns
 (<code>FX</code>, <code>FY</code>, <code>TX</code>, <code>TY</code>), the function uses geographic distance
-calculations to restrict detours to those within the specified angle, improving
-computational efficiency and route realism.</p>
+calculations to restrict detours. Only intermediate nodes that are (a) closer to the
+origin than the destination is, and (b) within the specified angle from the
+origin-destination line are considered. This improves both computational efficiency
+and route realism by excluding geographically implausible detours.</p>
+</div>
+
+    </div>
+    <div class="section level2">
+    <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
+    <p>Ben-Akiva, M., &amp; Bierlaire, M. (1999). Discrete choice methods and their
+applications to short term travel decisions. In R. W. Hall (Ed.), *Handbook
+of Transportation Science* (pp. 5–33). Springer US. https://doi.org/10.1007/978-1-4615-5203-1_2</p>
+<p>Cascetta, E. (2001). *Transportation systems engineering: Theory and methods*.
+Springer.</p>
+<p>Ben-Akiva, M., &amp; Lerman, S. R. (1985). *Discrete choice analysis: Theory and
+application to travel demand*. The MIT Press.</p>
+<p>Ramming, M. S. (2002). *Network knowledge and route choice* (Doctoral
+dissertation). Massachusetts Institute of Technology.</p>
+<p>Prato, C. G. (2009). Route choice modeling: Past, present and future research
+directions. *Journal of Choice Modelling, 2*(1), 65–100. https://doi.org/10.1016/S1755-5345(13)70005-8</p>
+<p>AequilibiaE Python Documentation: https://www.aequilibrae.com/develop/python/route_choice/path_size_logit.html</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
@@ -193,13 +246,20 @@ computational efficiency and route realism.</p>
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://sebkrantz.github.io/flownet/">flownet</a></span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://fastverse.org/collapse/" class="external-link">collapse</a></span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> collapse 2.1.6, see ?`collapse-package` or ?`collapse-documentation`</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Attaching package: ‘collapse’</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> The following object is masked from ‘package:stats’:</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span>     D</span>
 <span class="r-in"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://r-spatial.github.io/sf/" class="external-link">sf</a></span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Load existing network edges (exclude proposed new links)</span></span></span>
 <span class="r-in"><span><span class="va">africa_net</span> <span class="op">&lt;-</span> <span class="va">africa_network</span><span class="op">[</span><span class="op">!</span><span class="va">africa_network</span><span class="op">$</span><span class="va">add</span>, <span class="op">]</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Convert to graph (use atomic_elem to drop sf geometry, qDF for data.frame)</span></span></span>
-<span class="r-in"><span><span class="va">graph</span> <span class="op">&lt;-</span> <span class="fu">collapse</span><span class="fu">::</span><span class="fu"><a href="https://fastverse.org/collapse/reference/extract_list.html" class="external-link">atomic_elem</a></span><span class="op">(</span><span class="va">africa_net</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu">collapse</span><span class="fu">::</span><span class="fu"><a href="https://fastverse.org/collapse/reference/quick-conversion.html" class="external-link">qDF</a></span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">graph</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://fastverse.org/collapse/reference/extract_list.html" class="external-link">atomic_elem</a></span><span class="op">(</span><span class="va">africa_net</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://fastverse.org/collapse/reference/quick-conversion.html" class="external-link">qDF</a></span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">nodes</span> <span class="op">&lt;-</span> <span class="fu"><a href="nodes_from_graph.html">nodes_from_graph</a></span><span class="op">(</span><span class="va">graph</span>, sf <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Map cities/ports to nearest network nodes</span></span></span>
@@ -210,16 +270,143 @@ computational efficiency and route realism.</p>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/dimnames.html" class="external-link">dimnames</a></span><span class="op">(</span><span class="va">od_mat</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">nearest_nodes</span>, <span class="va">nearest_nodes</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">od_matrix_long</span> <span class="op">&lt;-</span> <span class="fu"><a href="melt_od_matrix.html">melt_od_matrix</a></span><span class="op">(</span><span class="va">od_mat</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
 <span class="r-in"><span><span class="co"># Run Traffic Assignment (All-or-Nothing method)</span></span></span>
-<span class="r-in"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu">run_assignment</span><span class="op">(</span><span class="va">graph</span>, <span class="va">od_matrix_long</span>, cost.column <span class="op">=</span> <span class="st">"duration"</span>,</span></span>
-<span class="r-in"><span>                         method <span class="op">=</span> <span class="st">"AoN"</span>, return.extra <span class="op">=</span> <span class="st">"all"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">result</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">result_aon</span> <span class="op">&lt;-</span> <span class="fu">run_assignment</span><span class="op">(</span><span class="va">graph</span>, <span class="va">od_matrix_long</span>, cost.column <span class="op">=</span> <span class="st">"duration"</span>,</span></span>
+<span class="r-in"><span>                             method <span class="op">=</span> <span class="st">"AoN"</span>, return.extra <span class="op">=</span> <span class="st">"all"</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Created graph with 1379 nodes and 2344 edges...</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 495 OD-pairs have zero or non-finite flow values and will be skipped...</span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">result_aon</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> FlowNet object</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Call: run_assignment(graph_df = graph, od_matrix_long = od_matrix_long,      cost.column = "duration", method = "AoN", return.extra = "all") </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Number of nodes: 1379 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Number of edges: 2344 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Number of simulations/OD-pairs: 204714 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Average path length in edges (SD): 34.99213  (19.56615)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Average number of visits per edge (SD): 3056.049  (5875.129)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Average path cost (SD): 4345.631  (2253.376)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Final flows summary statistics:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      N  Ndist     Mean       SD  Min       Max  Skew   Kurt</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   2344   2017  2187.89  4553.86    0  37250.26  3.49  18.49</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   1%  5%   10%    25%     50%      75%   90%       95%       99%</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    0   0  1.08  36.57  295.39  1662.86  7581  11386.38  20188.24</span>
+<span class="r-in"><span><span class="co"># \donttest{</span></span></span>
+<span class="r-in"><span><span class="co"># Run Traffic Assignment (Path-Sized Logit method)</span></span></span>
+<span class="r-in"><span><span class="co"># Note: PSL is slower but produces more realistic flow distribution</span></span></span>
+<span class="r-in"><span><span class="va">result_psl</span> <span class="op">&lt;-</span> <span class="fu">run_assignment</span><span class="op">(</span><span class="va">graph</span>, <span class="va">od_matrix_long</span>, cost.column <span class="op">=</span> <span class="st">"duration"</span>,</span></span>
+<span class="r-in"><span>                             method <span class="op">=</span> <span class="st">"PSL"</span>, nthreads <span class="op">=</span> <span class="fl">1L</span>,</span></span>
+<span class="r-in"><span>                             return.extra <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"edges"</span>, <span class="st">"counts"</span>, <span class="st">"costs"</span>, <span class="st">"weights"</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Created graph with 1379 nodes and 2344 edges...</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Computed distance matrix of dimensions 1379 x 1379 ...</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 495 OD-pairs have zero or non-finite flow values and will be skipped...</span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">result_psl</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> FlowNet object</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Call: run_assignment(graph_df = graph, od_matrix_long = od_matrix_long,      cost.column = "duration", method = "PSL", return.extra = c("edges",          "counts", "costs", "weights"), nthreads = 1L) </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Number of edges: 2344 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Number of simulations/OD-pairs: 204714 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Average number of edges utilized per simulation (SD): 561.081  (435.3152)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Average number of visits per edge (SD): 11.62403  (23.3552)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Average path cost (SD): 5019.838  (554.6268)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Average path weight (SD): 0.0293314  (0.0879165)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Final flows summary statistics:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      N  Ndist     Mean       SD  Min       Max  Skew   Kurt</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   2344   2259  2188.73  4541.72    0  37246.92  3.48  18.43</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   1%    5%   10%    25%     50%      75%      90%       95%       99%</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    0  0.05  1.62  39.28  301.48  1677.97  7573.77  11419.34  19460.79</span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Visualize Results</span></span></span>
-<span class="r-in"><span><span class="va">africa_net</span><span class="op">$</span><span class="va">final_flows_log10</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log10</a></span><span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">final_flows</span> <span class="op">+</span> <span class="fl">1</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">africa_net</span><span class="op">[</span><span class="st">"final_flows_log10"</span><span class="op">]</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
+<span class="r-in"><span><span class="co"># Visualize AoN Results</span></span></span>
+<span class="r-in"><span><span class="va">africa_net</span><span class="op">$</span><span class="va">final_flows_log10</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log10</a></span><span class="op">(</span><span class="va">result_psl</span><span class="op">$</span><span class="va">final_flows</span> <span class="op">+</span> <span class="fl">1</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">africa_net</span><span class="op">[</span><span class="st">"final_flows_log10"</span><span class="op">]</span>, main <span class="op">=</span> <span class="st">"PSL Assignment"</span><span class="op">)</span></span></span>
+<span class="r-plt img"><img src="run_assignment-1.png" alt="" width="700" height="433"></span>
+<span class="r-in"><span><span class="co"># }</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># --- Trade Flow Disaggregation Example ---</span></span></span>
+<span class="r-in"><span><span class="co"># Disaggregate country-level trade to city-level using population shares</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Compute each city's share of its country's population</span></span></span>
+<span class="r-in"><span><span class="va">city_pop</span> <span class="op">&lt;-</span> <span class="va">africa_cities_ports</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://fastverse.org/collapse/reference/extract_list.html" class="external-link">atomic_elem</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://fastverse.org/collapse/reference/quick-conversion.html" class="external-link">qDF</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="https://fastverse.org/collapse/reference/ftransform.html" class="external-link">fcompute</a></span><span class="op">(</span>node <span class="op">=</span> <span class="va">nearest_nodes</span>,</span></span>
+<span class="r-in"><span>           city <span class="op">=</span> <span class="fu"><a href="https://fastverse.org/collapse/reference/qF.html" class="external-link">qF</a></span><span class="op">(</span><span class="va">city_country</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>           pop_share <span class="op">=</span> <span class="fu"><a href="https://fastverse.org/collapse/reference/fsum.html" class="external-link">fsum</a></span><span class="op">(</span><span class="va">population</span>, <span class="va">iso3</span>, TRA <span class="op">=</span> <span class="st">"/"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>           keep <span class="op">=</span> <span class="st">"iso3"</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Aggregate trade to country-country level and disaggregate to cities</span></span></span>
+<span class="r-in"><span><span class="va">trade_agg</span> <span class="op">&lt;-</span> <span class="va">africa_trade</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://fastverse.org/collapse/reference/collap.html" class="external-link">collap</a></span><span class="op">(</span><span class="va">quantity</span> <span class="op">~</span> <span class="va">iso3_o</span> <span class="op">+</span> <span class="va">iso3_d</span>, <span class="va">fsum</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">od_matrix_trade</span> <span class="op">&lt;-</span> <span class="va">trade_agg</span> <span class="op">|&gt;</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="https://fastverse.org/collapse/reference/join.html" class="external-link">join</a></span><span class="op">(</span><span class="va">city_pop</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://fastverse.org/collapse/reference/small-helpers.html" class="external-link">add_stub</a></span><span class="op">(</span><span class="st">"_o"</span>, <span class="cn">FALSE</span><span class="op">)</span>, multiple <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op">|&gt;</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="https://fastverse.org/collapse/reference/join.html" class="external-link">join</a></span><span class="op">(</span><span class="va">city_pop</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://fastverse.org/collapse/reference/small-helpers.html" class="external-link">add_stub</a></span><span class="op">(</span><span class="st">"_d"</span>, <span class="cn">FALSE</span><span class="op">)</span>, multiple <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op">|&gt;</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="https://fastverse.org/collapse/reference/ftransform.html" class="external-link">fmutate</a></span><span class="op">(</span>flow <span class="op">=</span> <span class="va">quantity</span> <span class="op">*</span> <span class="va">pop_share_o</span> <span class="op">*</span> <span class="va">pop_share_d</span><span class="op">)</span> <span class="op">|&gt;</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="https://fastverse.org/collapse/reference/frename.html" class="external-link">frename</a></span><span class="op">(</span>from <span class="op">=</span> <span class="va">node_o</span>, to <span class="op">=</span> <span class="va">node_d</span><span class="op">)</span> <span class="op">|&gt;</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="https://fastverse.org/collapse/reference/fsubset.html" class="external-link">fsubset</a></span><span class="op">(</span><span class="va">flow</span> <span class="op">&gt;</span> <span class="fl">0</span> <span class="op">&amp;</span> <span class="va">from</span> <span class="op">!=</span> <span class="va">to</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> left join: trade_agg[iso3_o] 1971/1971 (100%) &lt;41.94:9.62&gt; y[iso3_o] 452/453 (99.8%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> left join: x[iso3_d] 19685/19685 (100%) &lt;418.83:9.62&gt; y[iso3_d] 452/453 (99.8%)</span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Run AoN assignment with trade flows</span></span></span>
+<span class="r-in"><span><span class="va">result_trade_aon</span> <span class="op">&lt;-</span> <span class="fu">run_assignment</span><span class="op">(</span><span class="va">graph</span>, <span class="va">od_matrix_trade</span>, cost.column <span class="op">=</span> <span class="st">"duration"</span>,</span></span>
+<span class="r-in"><span>                                   method <span class="op">=</span> <span class="st">"AoN"</span>, return.extra <span class="op">=</span> <span class="st">"all"</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Created graph with 1379 nodes and 2344 edges...</span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">result_trade_aon</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> FlowNet object</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Call: run_assignment(graph_df = graph, od_matrix_long = od_matrix_trade,      cost.column = "duration", method = "AoN", return.extra = "all") </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Number of nodes: 1379 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Number of edges: 2344 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Number of simulations/OD-pairs: 189020 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Average path length in edges (SD): 36.15387  (19.23456)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Average number of visits per edge (SD): 2915.445  (5685.838)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Average path cost (SD): 4477.602  (2187.799)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Final flows summary statistics:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      N  Ndist         Mean           SD  Min          Max  Skew   Kurt</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   2344   1864  1'273306.07  2'915489.75    0  21'964576.8   3.7  18.51</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   1%  5%  10%       25%        50%        75%          90%          95%</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    0   0    0  17330.95  142839.71  911817.37  3'624008.55  6'948734.38</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>           99%</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   14'969459.2</span>
+<span class="r-in"><span><span class="co"># \donttest{</span></span></span>
+<span class="r-in"><span><span class="co"># Visualize trade flow results</span></span></span>
+<span class="r-in"><span><span class="va">africa_net</span><span class="op">$</span><span class="va">trade_flows_log10</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log10</a></span><span class="op">(</span><span class="va">result_trade_aon</span><span class="op">$</span><span class="va">final_flows</span> <span class="op">+</span> <span class="fl">1</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">africa_net</span><span class="op">[</span><span class="st">"trade_flows_log10"</span><span class="op">]</span>, main <span class="op">=</span> <span class="st">"Trade Flow Assignment (AoN)"</span><span class="op">)</span></span></span>
+<span class="r-plt img"><img src="run_assignment-2.png" alt="" width="700" height="433"></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Run PSL assignment with trade flows (nthreads can be increased for speed)</span></span></span>
+<span class="r-in"><span><span class="va">result_trade_psl</span> <span class="op">&lt;-</span> <span class="fu">run_assignment</span><span class="op">(</span><span class="va">graph</span>, <span class="va">od_matrix_trade</span>, cost.column <span class="op">=</span> <span class="st">"duration"</span>,</span></span>
+<span class="r-in"><span>                                   method <span class="op">=</span> <span class="st">"PSL"</span>, nthreads <span class="op">=</span> <span class="fl">1L</span>,</span></span>
+<span class="r-in"><span>                                   return.extra <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"edges"</span>, <span class="st">"counts"</span>, <span class="st">"costs"</span>, <span class="st">"weights"</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Created graph with 1379 nodes and 2344 edges...</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Computed distance matrix of dimensions 1379 x 1379 ...</span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">result_trade_psl</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> FlowNet object</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Call: run_assignment(graph_df = graph, od_matrix_long = od_matrix_trade,      cost.column = "duration", method = "PSL", return.extra = c("edges",          "counts", "costs", "weights"), nthreads = 1L) </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Number of edges: 2344 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Number of simulations/OD-pairs: 189020 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Average number of edges utilized per simulation (SD): 582.2353  (433.1455)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Average number of visits per edge (SD): 11.98732  (24.20449)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Average path cost (SD): 5171.393  (567.9297)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Average path weight (SD): 0.01955912  (0.07892114)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Final flows summary statistics:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      N  Ndist         Mean           SD  Min          Max  Skew   Kurt</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   2344   2226  1'273430.15  2'909962.24    0  21'903042.7   3.7  18.53</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   1%  5%    10%       25%        50%        75%          90%          95%</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    0   0  71.23  17584.12  145086.78  908973.72  3'619965.69  6'948795.48</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>           99%</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   14'978197.2</span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Compare PSL vs AoN: PSL typically shows more distributed flows</span></span></span>
+<span class="r-in"><span><span class="va">africa_net</span><span class="op">$</span><span class="va">trade_flows_psl_log10</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log10</a></span><span class="op">(</span><span class="va">result_trade_psl</span><span class="op">$</span><span class="va">final_flows</span> <span class="op">+</span> <span class="fl">1</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">africa_net</span><span class="op">[</span><span class="st">"trade_flows_psl_log10"</span><span class="op">]</span>, main <span class="op">=</span> <span class="st">"Trade Flow Assignment (PSL)"</span><span class="op">)</span></span></span>
+<span class="r-plt img"><img src="run_assignment-3.png" alt="" width="700" height="433"></span>
+<span class="r-in"><span><span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

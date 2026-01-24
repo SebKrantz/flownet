@@ -73,8 +73,9 @@ head(segments_sf)
 #> 5     63  4.09779   2.981159 LINESTRING (-17.03345 20.93...
 #> 6     10 20.13822  14.737626 LINESTRING (-16.96602 14.72...
 
-if (FALSE) { # \dontrun{
+# \donttest{
 # Plot segments colored by route importance
 plot(segments_sf["passes"])
-} # }
+
+# }
 ```

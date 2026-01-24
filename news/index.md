@@ -1,5 +1,57 @@
 # Changelog
 
+## flownet 0.1.1
+
+- Implemented minor CRAN comments
+
+### Documentation Improvements
+
+- Restructured
+  [`run_assignment()`](https://sebkrantz.github.io/flownet/reference/run_assignment.md)
+  `@details` section using `\subsection{}` for better organization:
+  - Separate sections for AoN method, PSL method, route enumeration
+    algorithm, and coordinate-based filtering
+- Added `return.extra` parameter documentation as a clear table showing
+  which options are available for each method
+- Clarified that `paths` returns edge indices, not node indices
+- Added comprehensive examples including:
+  - PSL method usage with `nthreads` parameter
+  - Trade flow disaggregation workflow (country-to-city level)
+- Added academic references for the Path-Sized Logit model (Ben-Akiva &
+  Bierlaire, 1999)
+- Added link to AequilibriaeE (Python) documentation for additional PSL
+  resources
+- Improved error messages to be more informative (show which columns are
+  missing, what class was received)
+- Increased vignette table of contents depth for better navigation
+- Added citation for the PSL model in vignette
+
+### Testing
+
+- Added testthat test suite with 150 tests covering:
+  - [`run_assignment()`](https://sebkrantz.github.io/flownet/reference/run_assignment.md)
+    (AoN and PSL methods)
+  - [`normalize_graph()`](https://sebkrantz.github.io/flownet/reference/normalize_graph.md),
+    [`nodes_from_graph()`](https://sebkrantz.github.io/flownet/reference/nodes_from_graph.md),
+    [`distances_from_graph()`](https://sebkrantz.github.io/flownet/reference/distances_from_graph.md)
+  - [`linestrings_to_graph()`](https://sebkrantz.github.io/flownet/reference/linestrings_to_graph.md),
+    [`linestrings_from_graph()`](https://sebkrantz.github.io/flownet/reference/linestrings_from_graph.md),
+    [`create_undirected_graph()`](https://sebkrantz.github.io/flownet/reference/create_undirected_graph.md)
+  - [`consolidate_graph()`](https://sebkrantz.github.io/flownet/reference/consolidate_graph.md),
+    [`simplify_network()`](https://sebkrantz.github.io/flownet/reference/simplify_network.md)
+  - [`melt_od_matrix()`](https://sebkrantz.github.io/flownet/reference/melt_od_matrix.md)
+- Added test coverage workflow
+
+### Minor Improvements
+
+- Better penalization strategy for multimodal networks in
+  [`simplify_network()`](https://sebkrantz.github.io/flownet/reference/simplify_network.md)
+  shortest-paths method
+- Enforced numeric type conversion for cost columns
+- Various minor fixes and improvements
+
+------------------------------------------------------------------------
+
 ## flownet 0.1.0 (Initial Release)
 
 ### Major Features
@@ -123,14 +175,14 @@ Working Paper 10893. World Bank. Replication materials are available at
 
 ### Dependencies
 
-- **R** (\>= 3.5)
+- **R** (\>= 4.1)
 - **collapse** (\>= 2.1.5) - Fast data transformations and memory
   efficient programming
 - **kit** (\>= 0.0.5) - Fast tabulation and vectorized switches
 - **igraph** (\>= 2.1.4) - Graph operations and shortest path algorithms
 - **sf** (\>= 1.0.0) - Spatial data handling
 - **geodist** (\>= 0.1.1) - Fast geodesic distance computations
-- **leaderCluster** (\>= 0.1.5) - Efficient spatial clustering
+- **leaderCluster** (\>= 1.5.0) - Efficient spatial clustering
   algorithms
 - **mirai** (\>= 2.5.2) - Asynchronous parallelism for R
 - **progress** (\>= 1.2.3) - Progress bars for long-running operations

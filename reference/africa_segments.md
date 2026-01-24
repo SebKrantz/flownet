@@ -135,10 +135,11 @@ africa_segments[order(-africa_segments$passes), ][1:10, ]
 #> 5714  -1.75503 12.23701 -1.63531 12.32471   1437 564.3777   415.2477
 #> 13627 35.69371 -0.15936 35.70070 -0.16562   1395 496.1546   353.6817
 
-if (FALSE) { # \dontrun{
+# \donttest{
 # Convert to sf and plot
 library(sf)
 segments_sf <- linestrings_from_graph(africa_segments)
 plot(segments_sf["passes"])
-} # }
+
+# }
 ```

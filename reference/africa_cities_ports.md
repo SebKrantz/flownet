@@ -170,7 +170,8 @@ ports <- africa_cities_ports[!is.na(africa_cities_ports$port_locode), ]
 nrow(ports)  # 51 ports
 #> [1] 453
 
-if (FALSE) { # \dontrun{
+# \donttest{
 plot(africa_cities_ports["population"])
-} # }
+
+# }
 ```

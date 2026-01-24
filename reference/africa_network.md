@@ -258,11 +258,12 @@ table(africa_network$upgrade_cat, useNA = "ifany")
 #>                 Upgrade                    <NA> 
 #>                     810                     481 
 
-if (FALSE) { # \dontrun{
+# \donttest{
 # Plot by gravity
 plot(africa_network["gravity_rd"])
 
 # Highlight proposed new links
 plot(africa_network[africa_network$add, "geometry"], col = "red", add = TRUE)
-} # }
+
+# }
 ```
