@@ -392,7 +392,7 @@ The remainder of this vignette provides a theoretical overview of the PSL model,
 
 ### Path-Sized Logit Model
 
-The **Path-Sized Logit (PSL)** model (Ben-Akiva and Bierlaire, 1999) is a discrete choice model used for traffic assignment that overcomes the independence of irrelevant alternatives (IIA) property of the standard Multinomial Logit (MNL) model. In transport networks, alternative routes often overlap significantly, sharing common edges. The MNL model treats these overlapping routes as independent, leading to an overestimation of flow on shared segments.
+The **Path-Sized Logit (PSL)** model (Ben-Akiva and Bierlaire, 1999)^[See further theoretical and practical references at the end.] is a discrete choice model used for traffic assignment that overcomes the independence of irrelevant alternatives (IIA) property of the standard Multinomial Logit (MNL) model. In transport networks, alternative routes often overlap significantly, sharing common edges. The MNL model treats these overlapping routes as independent, leading to an overestimation of flow on shared segments.
 
 The PSL model introduces a **correction term** (path-size factor) to the utility function of each route, penalizing paths that share links with other alternatives.
 
