@@ -855,17 +855,17 @@ compute_degrees <- function(from_vec, to_vec) {
 #' # Method 1: Shortest-paths simplification (keeps only traversed edges)
 #' graph_simple <- simplify_network(graph, nearest_nodes,
 #'                                  method = "shortest-paths",
-#'                                  cost.column = "length")
+#'                                  cost.column = ".length")
 #' nrow(graph_simple)  # Reduced number of edges
 #'
 #' \donttest{
 #' # Method 2: Cluster-based simplification (contracts graph spatially)
 #' # Compute node weights for clustering
 #' node_weights <- collapse::rowbind(
-#'   collapse::slt(graph, node = from, gravity_rd),
-#'   collapse::slt(graph, to, gravity_rd),
+#'   collapse::fselect(graph, node = from, gravity_rd),
+#'   collapse::fselect(graph, to, gravity_rd),
 #'   use.names = FALSE) |>
-#'   collapse::collap(~ node, collapse::fsum)
+#'   collapse::collap(~ node, "fsum")
 #'
 #' graph_cluster <- simplify_network(graph, nearest_nodes,
 #'                                   method = "cluster",
