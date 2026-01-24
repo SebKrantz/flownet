@@ -1,15 +1,15 @@
 Package: flownet
 Type: Package
 Title: Transport Modeling: Network Processing, Route Enumeration, and Traffic Assignment
-Version: 0.1.0
+Version: 0.1.1
 Authors@R: c(person("Sebastian", "Krantz", email = "sebastian.krantz@graduateinstitute.ch", role = c("aut", "cre")),
              person("Kamol", "Roy", role = "ctb"))
 Description: High-performance tools for transport modeling---network processing, route 
     enumeration, and traffic assignment in R. The package implements the Path-Sized Logit 
-    model for traffic assignment, an efficient route enumeration algorithm, and provides 
-    powerful utility functions for (multimodal) network generation, consolidation, and/or 
-    simplification. The user is expected to provide a transport network (either a graph data 
-    frame or collection of linestrings representing a graph) and an origin-destination (OD) 
+    model for traffic assignment - Ben-Akiva and Bierlaire (1999) <doi:10.1007/978-1-4615-5203-1_2> - 
+    an efficient route enumeration algorithm, and provides powerful utility functions for (multimodal) 
+    network generation, consolidation/contraction, and/or simplification. The user is expected to provide 
+    a transport network (either a graph or collection of linestrings) and an origin-destination (OD) 
     matrix of trade/traffic flows. Maintained by transport consultants at CPCS (cpcs.ca).
 URL: https://sebkrantz.github.io/flownet/, https://github.com/SebKrantz/flownet
 BugReports: https://github.com/SebKrantz/flownet/issues
