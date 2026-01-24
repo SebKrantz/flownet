@@ -4,7 +4,7 @@ Title: Transport Modeling: Network Processing, Route Enumeration, and Traffic As
 Version: 0.1.1
 Authors@R: c(person("Sebastian", "Krantz", email = "sebastian.krantz@graduateinstitute.ch", role = c("aut", "cre")),
              person("Kamol", "Roy", role = "ctb"))
-Description: High-performance tools for transport modeling---network processing, route 
+Description: High-performance tools for transport modeling - network processing, route 
     enumeration, and traffic assignment in R. The package implements the Path-Sized Logit 
     model for traffic assignment - Ben-Akiva and Bierlaire (1999) <doi:10.1007/978-1-4615-5203-1_2> - 
     an efficient route enumeration algorithm, and provides powerful utility functions for (multimodal) 
