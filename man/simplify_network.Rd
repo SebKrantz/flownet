@@ -108,39 +108,43 @@ Simplify a network graph using shortest paths or node clustering methods.
 }
 }
 \examples{
-# Load example data
-library(flowr)
+library(flownet)
+library(sf)
 
-# Create graph from network
-graph <- linestrings_to_graph(network_gcc)
+# Convert segments to undirected graph
+graph <- africa_segments |>
+  linestrings_from_graph() |>
+  linestrings_to_graph() |>
+  create_undirected_graph(FUN = "fsum")
 
-# Get zone nodes
+# Get city/port nodes to preserve
 nodes_df <- nodes_from_graph(graph, sf = TRUE)
-nearest_nodes <- nodes_df$node[sf::st_nearest_feature(zones_gcc, nodes_df)]
+nearest_nodes <- nodes_df$node[st_nearest_feature(africa_cities_ports, nodes_df)]
+
+# Initial consolidation
+graph <- consolidate_graph(graph, keep = nearest_nodes, w = ~ passes)
 
 # Method 1: Shortest-paths simplification (keeps only traversed edges)
 graph_simple <- simplify_network(graph, nearest_nodes,
                                  method = "shortest-paths",
-                                 cost.column = "generalized_cost")
+                                 cost.column = ".length")
 nrow(graph_simple)  # Reduced number of edges
 
-# With multimodal support: compute paths separately per mode
-graph_simple_mm <- simplify_network(graph, nearest_nodes,
-                                    method = "shortest-paths",
-                                    cost.column = "generalized_cost",
-                                    by = ~ mode)
-
-# Method 2: Cluster-based simplification (contracts graph spatially)
 \donttest{
+# Method 2: Cluster-based simplification (contracts graph spatially)
+# Compute node weights for clustering
+node_weights <- collapse::rowbind(
+  collapse::fselect(graph, node = from, gravity_rd),
+  collapse::fselect(graph, to, gravity_rd),
+  use.names = FALSE) |>
+  collapse::collap(~ node, "fsum")
+
 graph_cluster <- simplify_network(graph, nearest_nodes,
                                   method = "cluster",
-                                  radius_km = list(nodes = 10, cluster = 30))
-
-# Cluster with multimodal support: don't merge edges of different modes
-graph_cluster_mm <- simplify_network(graph, nearest_nodes,
-                                     method = "cluster",
-                                     radius_km = list(nodes = 10, cluster = 30),
-                                     by = ~ mode)
+                                  cost.column = node_weights$gravity_rd,
+                                  radius_km = list(nodes = 30, cluster = 27),
+                                  w = ~ passes)
+nrow(graph_cluster)
 }
 
 }

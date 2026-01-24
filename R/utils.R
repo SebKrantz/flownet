@@ -25,13 +25,17 @@ sve <- function(x, i, elt) .Call(C_set_vector_elt, x, i, elt)
 #'  \item \code{TY} - Ending node Y-coordinate (latitude)
 #' }
 #'
-#' @seealso \link{simplify_network} \link{flowr-package}
+#' @seealso \link{simplify_network} \link{flownet-package}
 #'
 #' @examples
-#' library(flowr)
+#' library(flownet)
+#' library(sf)
+#'
+#' # Load existing network edges (exclude proposed new links)
+#' africa_net <- africa_network[!africa_network$add, ]
 #'
 #' # Convert network LINESTRING geometries to graph
-#' graph <- linestrings_to_graph(network_gcc)
+#' graph <- linestrings_to_graph(africa_net)
 #' head(graph)
 #'
 #' # Graph contains edge, from/to nodes, and coordinates
@@ -42,7 +46,7 @@ sve <- function(x, i, elt) .Call(C_set_vector_elt, x, i, elt)
 #' @importFrom collapse qDF GRP get_vars get_vars<- add_vars add_vars<- fselect ffirst flast add_stub fmutate group fmatch %+=% fmax colorder whichNA setv unattrib ss
 linestrings_to_graph <- function(lines, digits = 6, keep.cols = is.atomic, compute.length = TRUE) {
   gt <- st_geometry_type(lines, by_geometry = FALSE)
-  if(length(gt) != 1L || gt != "LINESTRING") stop("lines needs to be a sf data frame of LINESTRING's")
+  if(length(gt) != 1L || gt != "LINESTRING") stop("lines needs to be a sf data frame of LINESTRINGs")
   graph <- st_coordinates(lines) |> qDF()
   g <- GRP(list(edge = graph$L1), return.order = FALSE)
   graph <- add_vars(fselect(graph, X, Y) |> ffirst(g, na.rm = FALSE, use.g.names = FALSE) |> add_stub("F"),
@@ -90,27 +94,29 @@ linestrings_to_graph <- function(lines, digits = 6, keep.cols = is.atomic, compu
 #'   \item Returns an sf object suitable for spatial operations and visualization
 #' }
 #'
-#' @seealso \link{linestrings_to_graph} \link{flowr-package}
+#' @seealso \link{linestrings_to_graph} \link{flownet-package}
 #'
 #' @examples
-#' library(flowr)
+#' library(flownet)
 #' library(sf)
 #'
-#' # Convert network to graph and back to linestrings
-#' graph <- linestrings_to_graph(network_gcc)
-#' lines <- linestrings_from_graph(graph)
+#' # Convert segments data frame to sf LINESTRING object
+#' segments_sf <- linestrings_from_graph(africa_segments)
+#' class(segments_sf)
+#' head(segments_sf)
 #'
-#' # Result is an sf object with LINESTRING geometry
-#' class(lines)
-#' head(lines)
+#' \donttest{
+#' # Plot segments colored by route importance
+#' plot(segments_sf["passes"])
+#' }
 #'
 #' @export
 #' @importFrom sf st_linestring st_sfc st_sf
 #' @importFrom collapse seq_row fselect add_vars
 linestrings_from_graph <- function(graph_df, crs = 4326) {
-  if(!is.data.frame(graph_df)) stop("graph_df needs to be a data frame")
+  if(!is.data.frame(graph_df)) stop("graph_df must be a data frame, got: ", class(graph_df)[1L])
   if(inherits(graph_df, "sf")) stop("graph_df should not be a spatial object/data frame")
-  if(!all(c("FX", "FY", "TX", "TY") %in% names(graph_df))) stop("graph_df needs to have columns FX, FY, TX and TY")
+  if(!all(c("FX", "FY", "TX", "TY") %in% names(graph_df))) stop("graph_df must have columns FX, FY, TX, TY. Missing: ", paste(setdiff(c("FX", "FY", "TX", "TY"), names(graph_df)), collapse = ", "))
   # Create Geometries
   lines_list <- with(graph_df, lapply(seq_row(graph_df), function(i) {
     matrix(c(FX[i], FY[i], TX[i], TY[i]), ncol = 2, byrow = TRUE) |>
@@ -154,14 +160,13 @@ linestrings_from_graph <- function(graph_df, crs = 4326) {
 #' }
 #'
 #' @examples
-#' library(flowr)
+#' library(flownet)
 #'
-#' # Create graph and convert to undirected
-#' graph <- linestrings_to_graph(network_gcc)
-#' graph_undir <- create_undirected_graph(graph)
-#'
-#' # Use 'by' to preserve mode-specific edges
-#' graph_undir_mm <- create_undirected_graph(graph, by = ~ mode)
+#' # Convert segments to graph and make undirected
+#' graph <- africa_segments |>
+#'   linestrings_from_graph() |>
+#'   linestrings_to_graph()
+#' graph_undir <- create_undirected_graph(graph, FUN = "fsum")
 #'
 #' # Fewer edges after removing directional duplicates
 #' c(directed = nrow(graph), undirected = nrow(graph_undir))
@@ -212,11 +217,14 @@ create_undirected_graph <- function(graph_df, by = NULL, ...) {
 #' are removed, keeping only unique node IDs with their coordinates.
 #'
 #' @examples
-#' library(flowr)
+#' library(flownet)
 #' library(sf)
 #'
+#' # Load existing network edges and convert to graph
+#' africa_net <- africa_network[!africa_network$add, ]
+#' graph <- linestrings_to_graph(africa_net)
+#'
 #' # Extract nodes from graph
-#' graph <- linestrings_to_graph(network_gcc)
 #' nodes <- nodes_from_graph(graph)
 #' head(nodes)
 #'
@@ -224,8 +232,9 @@ create_undirected_graph <- function(graph_df, by = NULL, ...) {
 #' nodes_sf <- nodes_from_graph(graph, sf = TRUE)
 #' class(nodes_sf)
 #'
-#' # Find nearest network nodes to zone centroids
-#' nearest <- nodes_sf$node[st_nearest_feature(zones_gcc, nodes_sf)]
+#' # Find nearest network nodes to cities/ports
+#' nearest_nodes <- nodes_sf$node[st_nearest_feature(africa_cities_ports, nodes_sf)]
+#' head(nearest_nodes)
 #'
 #' @export
 #' @importFrom collapse rowbind fselect funique
@@ -264,7 +273,7 @@ nodes_from_graph <- function(graph_df, sf = FALSE, crs = 4326) {
 #' }
 #'
 #' @examples
-#' library(flowr)
+#' library(flownet)
 #'
 #' # Create a simple graph
 #' graph <- data.frame(
@@ -328,10 +337,10 @@ distances_from_graph <- function(graph_df, directed = FALSE, cost.column = "cost
 #' Note: This function only normalizes the node IDs; it does not modify the graph structure
 #' or any other attributes. The mapping preserves the relative ordering of nodes.
 #'
-#' @seealso \link{nodes_from_graph} \link{flowr-package}
+#' @seealso \link{nodes_from_graph} \link{flownet-package}
 #'
 #' @examples
-#' library(flowr)
+#' library(flownet)
 #'
 #' # Create graph with non-consecutive node IDs
 #' graph <- data.frame(
@@ -417,24 +426,24 @@ normalize_graph <- function(graph_df) {
 #' If coordinate columns (\code{FX}, \code{FY}, \code{TX}, \code{TY}) are present in the input,
 #' they are preserved and updated based on the consolidated node coordinates from the original graph.
 #'
-#' @seealso \link{create_undirected_graph} \link{simplify_network} \link{flowr-package}
+#' @seealso \link{create_undirected_graph} \link{simplify_network} \link{flownet-package}
 #'
 #' @examples
-#' library(flowr)
+#' library(flownet)
 #' library(sf)
 #'
-#' # Create undirected graph
-#' graph <- linestrings_to_graph(network_gcc) |>
-#'   create_undirected_graph(by = ~ mode)
+#' # Convert segments to undirected graph
+#' graph <- africa_segments |>
+#'   linestrings_from_graph() |>
+#'   linestrings_to_graph() |>
+#'   create_undirected_graph(FUN = "fsum")
 #'
-#' # Get nodes to preserve (zone locations)
+#' # Get nodes to preserve (city/port locations)
 #' nodes <- nodes_from_graph(graph, sf = TRUE)
-#' nearest_nodes <- nodes$node[st_nearest_feature(zones_gcc, nodes)]
+#' nearest_nodes <- nodes$node[st_nearest_feature(africa_cities_ports, nodes)]
 #'
-#' # Consolidate graph, preserving zone nodes
-#' graph_cons <- consolidate_graph(graph, by = ~ mode,
-#'                                 w = ~ length_km,
-#'                                 keep = nearest_nodes)
+#' # Consolidate graph, preserving city nodes
+#' graph_cons <- consolidate_graph(graph, keep = nearest_nodes, w = ~ passes)
 #'
 #' # Consolidated graph has fewer edges
 #' c(original = nrow(graph), consolidated = nrow(graph_cons))
@@ -827,39 +836,43 @@ compute_degrees <- function(from_vec, to_vec) {
 #' }
 #'
 #' @examples
-#' # Load example data
-#' library(flowr)
+#' library(flownet)
+#' library(sf)
 #'
-#' # Create graph from network
-#' graph <- linestrings_to_graph(network_gcc)
+#' # Convert segments to undirected graph
+#' graph <- africa_segments |>
+#'   linestrings_from_graph() |>
+#'   linestrings_to_graph() |>
+#'   create_undirected_graph(FUN = "fsum")
 #'
-#' # Get zone nodes
+#' # Get city/port nodes to preserve
 #' nodes_df <- nodes_from_graph(graph, sf = TRUE)
-#' nearest_nodes <- nodes_df$node[sf::st_nearest_feature(zones_gcc, nodes_df)]
+#' nearest_nodes <- nodes_df$node[st_nearest_feature(africa_cities_ports, nodes_df)]
+#'
+#' # Initial consolidation
+#' graph <- consolidate_graph(graph, keep = nearest_nodes, w = ~ passes)
 #'
 #' # Method 1: Shortest-paths simplification (keeps only traversed edges)
 #' graph_simple <- simplify_network(graph, nearest_nodes,
 #'                                  method = "shortest-paths",
-#'                                  cost.column = "generalized_cost")
+#'                                  cost.column = ".length")
 #' nrow(graph_simple)  # Reduced number of edges
 #'
-#' # With multimodal support: compute paths separately per mode
-#' graph_simple_mm <- simplify_network(graph, nearest_nodes,
-#'                                     method = "shortest-paths",
-#'                                     cost.column = "generalized_cost",
-#'                                     by = ~ mode)
-#'
-#' # Method 2: Cluster-based simplification (contracts graph spatially)
 #' \donttest{
+#' # Method 2: Cluster-based simplification (contracts graph spatially)
+#' # Compute node weights for clustering
+#' node_weights <- collapse::rowbind(
+#'   collapse::fselect(graph, node = from, gravity_rd),
+#'   collapse::fselect(graph, to, gravity_rd),
+#'   use.names = FALSE) |>
+#'   collapse::collap(~ node, "fsum")
+#'
 #' graph_cluster <- simplify_network(graph, nearest_nodes,
 #'                                   method = "cluster",
-#'                                   radius_km = list(nodes = 10, cluster = 30))
-#'
-#' # Cluster with multimodal support: don't merge edges of different modes
-#' graph_cluster_mm <- simplify_network(graph, nearest_nodes,
-#'                                      method = "cluster",
-#'                                      radius_km = list(nodes = 10, cluster = 30),
-#'                                      by = ~ mode)
+#'                                   cost.column = node_weights$gravity_rd,
+#'                                   radius_km = list(nodes = 30, cluster = 27),
+#'                                   w = ~ passes)
+#' nrow(graph_cluster)
 #' }
 #'
 #' @export
@@ -875,8 +888,10 @@ simplify_network <- function(graph_df, nodes, method = c("shortest-paths", "clus
   method <- match.arg(method)
 
   # Validate graph input
-  if (!is.data.frame(graph_df) || !all(c("from", "to") %in% names(graph_df)))
-    stop("graph_df must be a data.frame with 'from' and 'to' columns")
+  if (!is.data.frame(graph_df))
+    stop("graph_df must be a data.frame, got: ", class(graph_df)[1L])
+  if (!all(c("from", "to") %in% names(graph_df)))
+    stop("graph_df must have 'from' and 'to' columns. Missing: ", paste(setdiff(c("from", "to"), names(graph_df)), collapse = ", "))
 
   # Validate by argument
   if(length(by)) {
@@ -1143,32 +1158,36 @@ contract_edges <- function(graph, nodes, clusters, centroids, directed = FALSE, 
 #'   \item Filters out non-finite and zero flow values
 #' }
 #'
-#' The function is useful for converting OD matrices (such as those in \code{\link{od_matrices_gcc}})
-#' to the long format required by \code{\link[=run_assignment]{run_assignment()}}.
+#' The function is useful for converting OD matrices to the long format required by
+#' \code{\link[=run_assignment]{run_assignment()}}.
 #'
-#' @seealso \code{\link{od_matrices_gcc}}, \code{\link{zones_gcc}}, \code{\link[=nodes_from_graph]{nodes_from_graph()}},
-#'   \code{\link[=run_assignment]{run_assignment()}}, \link{flowr-package}
+#' @seealso \code{\link{africa_cities_ports}}, \code{\link{africa_network}},
+#'   \code{\link[=nodes_from_graph]{nodes_from_graph()}},
+#'   \code{\link[=run_assignment]{run_assignment()}}, \link{flownet-package}
 #'
 #' @examples
-#' library(flowr)
+#' library(flownet)
 #' library(sf)
 #'
-#' # Example 1: Using nodes argument to map zones to graph nodes
-#' # Load Graph
-#' graph <- linestrings_to_graph(network_gcc)
+#' # Load existing network and convert to graph
+#' africa_net <- africa_network[!africa_network$add, ]
+#' graph <- linestrings_to_graph(africa_net)
 #' nodes <- nodes_from_graph(graph, sf = TRUE)
 #'
-#' # Map Zones to Nodes
-#' nearest_nodes <- nodes$node[st_nearest_feature(zones_gcc, nodes)]
+#' # Map cities/ports to nearest network nodes
+#' nearest_nodes <- nodes$node[st_nearest_feature(africa_cities_ports, nodes)]
 #'
-#' # Convert OD matrix with node mapping
-#' od_matrix_long <- melt_od_matrix(od_matrices_gcc$container, nodes = nearest_nodes)
-#' head(od_matrix_long)
+#' # Example 1: Simple gravity-based OD matrix
+#' od_mat <- outer(africa_cities_ports$population, africa_cities_ports$population) / 1e12
+#' dimnames(od_mat) <- list(nearest_nodes, nearest_nodes)
+#' od_long <- melt_od_matrix(od_mat)
+#' head(od_long)
 #'
-#' # Example 2: Using matrix row/column names (when they match graph node IDs)
-#' # If matrix names already correspond to graph nodes, nodes argument can be omitted
-#' od_matrix_long2 <- melt_od_matrix(od_matrices_gcc$container)
-#' head(od_matrix_long2)
+#' # Example 2: Using nodes argument (when matrix has zone IDs, not node IDs)
+#' # Here zones are 1:n_cities, nodes argument maps them to graph nodes
+#' dimnames(od_mat) <- NULL
+#' od_long2 <- melt_od_matrix(od_mat, nodes = nearest_nodes)
+#' head(od_long2)
 #'
 #' @export
 #' @importFrom collapse vec fsubset seq_row seq_col all_identical roworder

@@ -1,4 +1,41 @@
-# flowr 0.1.0 (Initial Release)
+# flownet 0.1.1
+
+- Implemented minor CRAN comments
+
+## Documentation Improvements
+
+- Restructured `run_assignment()` `@details` section using `\subsection{}` for better organization:
+  - Separate sections for AoN method, PSL method, route enumeration algorithm, and coordinate-based filtering
+- Added `return.extra` parameter documentation as a clear table showing which options are available for each method
+- Clarified that `paths` returns edge indices, not node indices
+- Added comprehensive examples including:
+  - PSL method usage with `nthreads` parameter
+  - Trade flow disaggregation workflow (country-to-city level)
+- Added academic references for the Path-Sized Logit model (Ben-Akiva & Bierlaire, 1999)
+- Added link to AequilibriaeE (Python) documentation for additional PSL resources
+- Improved error messages to be more informative (show which columns are missing, what class was received)
+- Increased vignette table of contents depth for better navigation
+- Added citation for the PSL model in vignette
+
+## Testing
+
+- Added testthat test suite with 150 tests covering:
+  - `run_assignment()` (AoN and PSL methods)
+  - `normalize_graph()`, `nodes_from_graph()`, `distances_from_graph()`
+  - `linestrings_to_graph()`, `linestrings_from_graph()`, `create_undirected_graph()`
+  - `consolidate_graph()`, `simplify_network()`
+  - `melt_od_matrix()`
+- Added test coverage workflow
+
+## Minor Improvements
+
+- Better penalization strategy for multimodal networks in `simplify_network()` shortest-paths method
+- Enforced numeric type conversion for cost columns
+- Various minor fixes and improvements
+
+---
+
+# flownet 0.1.0 (Initial Release)
 
 ## Major Features
 
@@ -58,17 +95,15 @@
   - Handles missing values and zero flows
 
 ### Example Data
-- **`network_gcc`**: Multimodal transport network for the Gulf Cooperation Council (GCC) region
-  - Includes road, rail, and maritime connections
-  - Pre-processed and ready for analysis
+- **`africa_network`**: A road transport network with 2,825 LINESTRING features representing existing roads (2,344 edges) and proposed new links (481 edges). Each edge includes attributes such as distance, travel duration, border crossing costs, terrain ruggedness, and road upgrade costs.
 
-- **`od_matrices_gcc`**: Origin-destination matrices for five cargo types
-  - Container, Drybulk, Liquidbulk, General, and HighValue cargo flows
-  - Multiple time periods (2019, 2030, 2040)
+- **`africa_cities_ports`**: 453 African cities with population > 100,000 and international ports. Includes population data, capital status, and port cargo outflows.
 
-- **`zones_gcc`**: Zone locations and descriptions for OD-matrix locations
-  - Geographic coordinates and zone metadata
-  - Compatible with GCC network and OD matrices
+- **`africa_segments`**: 14,358 raw network segments representing intersected road routes. Useful for demonstrating network consolidation and simplification functions.
+
+- **`africa_trade`**: Bilateral trade flows between 47 African countries aggregated by HS section (21 product categories). Values represent annual averages over 2012-2022.
+
+The `africa_network`, `africa_cities_ports`, and `africa_segments` datasets are from Krantz, S. (2024). [Optimal Investments in Africa's Road Network](https://doi.org/10.1596/1813-9450-10893). Policy Research Working Paper 10893. World Bank. Replication materials are available at [github.com/SebKrantz/OptimalAfricanRoads](https://github.com/SebKrantz/OptimalAfricanRoads).
 
 ## Technical Details
 - High-performance C implementations for path-sized logit computations
@@ -83,23 +118,23 @@
 - Complete function documentation with roxygen2
 - README with quick start guide and examples
 - Introduction vignette demonstrating package workflow
-- Package-level documentation in `?flowr-package`
+- Package-level documentation in `?flownet-package`
 
 ## Dependencies
-- **R** (>= 3.5)
+- **R** (>= 4.1)
 - **collapse** (>= 2.1.5) - Fast data transformations and memory efficient programming
 - **kit** (>= 0.0.5) - Fast tabulation and vectorized switches
 - **igraph** (>= 2.1.4) - Graph operations and shortest path algorithms
 - **sf** (>= 1.0.0) - Spatial data handling
 - **geodist** (>= 0.1.1) - Fast geodesic distance computations
-- **leaderCluster** (>= 0.1.5) - Efficient spatial clustering algorithms
+- **leaderCluster** (>= 1.5.0) - Efficient spatial clustering algorithms
 - **mirai** (>= 2.5.2) - Asynchronous parallelism for R
 - **progress** (>= 1.2.3) - Progress bars for long-running operations
 
 ## Suggested Packages
-- **fastverse** (>= 0.3.4) - Enhanced data manipulation workflow
+- **fastverse** (>= 0.3.4) - Efficient data manipulation workflow
 - **mapview** (>= 2.11.2) - Interactive visualization of results
-- **testthat** (>= 3.0.0) - Unit testing framework
+- **tmap** (>= 4.0) - Static visualization of results
 
 ## License
 GPL-3

@@ -36,10 +36,14 @@ A data.frame representing the graph with columns:
 Convert Linestring to Graph
 }
 \examples{
-library(flowr)
+library(flownet)
+library(sf)
+
+# Load existing network edges (exclude proposed new links)
+africa_net <- africa_network[!africa_network$add, ]
 
 # Convert network LINESTRING geometries to graph
-graph <- linestrings_to_graph(network_gcc)
+graph <- linestrings_to_graph(africa_net)
 head(graph)
 
 # Graph contains edge, from/to nodes, and coordinates
@@ -47,5 +51,5 @@ names(graph)
 
 }
 \seealso{
-\link{simplify_network} \link{flowr-package}
+\link{simplify_network} \link{flownet-package}
 }

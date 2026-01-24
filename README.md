@@ -1,46 +1,52 @@
-# flowr
+# flownet
 
-**Transport Modeling: Route Enumeration and Traffic Assignment with the Path-Sized Logit**
+<!-- badges: start -->
+[![R-CMD-check](https://github.com/SebKrantz/flownet/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/SebKrantz/flownet/actions/workflows/R-CMD-check.yaml)
+[![r-universe](https://sebkrantz.r-universe.dev/badges/flownet)](https://sebkrantz.r-universe.dev)
+[![Codecov test coverage](https://codecov.io/gh/SebKrantz/flownet/graph/badge.svg)](https://app.codecov.io/gh/SebKrantz/flownet)
+<!-- badges: end -->
 
-***NOTE: Package is still under development***
+**Transport Modeling: Network Processing, Route Enumeration, and Traffic Assignment**
 
-`flowr` provides efficient tools for transportation modeling, specifically route enumeration and traffic assignment tasks. The package implements the path-sized logit (PSL) model for traffic assignment and provides powerful utilities for network processing.
+`flownet` provides efficient tools for transportation modeling in R, supporting network processing, route enumeration, and traffic assignment tasks. It implements the path-sized logit (PSL) model for traffic assignment and provides powerful utilities for network processing/preparation.
 
-## Features
+### Key Features
 
-- **Path-Sized Logit Model**: Efficient traffic assignment accounting for route overlap
-- **Network Processing**: Convert LINESTRING geometries to graphs, consolidate graphs, simplify networks, and handle directed/undirected graphs
+- **Path-Sized Logit Model**: Stochastic traffic assignment accounting for route overlap
+- **Network Processing**: Convert LINESTRINGs to network graphs and consolidate/contract/simplify them
 - **Route Enumeration**: Efficient algorithm for finding alternative routes between origin-destination pairs
-- **High Performance**: C implementations for critical path operations
-- **Multithreading**: Asynchronous parallelism using `mirai` for faster processing of large networks
+- **High Performance**: [fastverse](https://fastverse.org/fastverse/) packages and custom C implementations for critical path operations
+- **Multithreading**: Asynchronous parallelism using [`mirai`](https://github.com/r-lib/mirai) for faster processing of large networks
 
 ## Installation
 
 ```r
-# Install development version from GitHub
-remotes::install_github("CPCS-IAU/flowr")
+# Install from R-universe (recommended)
+install.packages("flownet", repos = c("https://sebkrantz.r-universe.dev", getOption("repos")))
 
-# Alternatively download the repo, extract it, and run
-install.packages("path/to/flowr", repos = NULL, type = "source")
+# Or install development version from GitHub
+remotes::install_github("SebKrantz/flownet")
 ```
 
-## Dependencies
+### Dependencies
 
 - `collapse` (>= 2.1.5) - Fast data transformations and memory efficient programming
 - `kit` (>= 0.0.5) - Fast tabulation and vectorized switches
 - `igraph` (>= 2.1.4) - Graph operations and shortest path algorithms
 - `sf` (>= 1.0.0) - Spatial data handling
 - `geodist` (>= 0.1.1) - Fast geodesic distance computations
-- `leaderCluster` (>= 0.3.0) - Fast spatial clustering for network simplification
+- `leaderCluster` (>= 1.5.0) - Fast spatial clustering for network simplification
 - `mirai` (>= 2.5.2) - Asynchronous parallelism for R
 - `progress` (>= 1.2.3) - Progress bars for long-running operations
 
 ## Quick Start
 
+Below I provide some boilerplate code. See also the [introductory vignette](https://sebkrantz.github.io/flownet/articles/introduction.html) for richer examples.
+
 ### Basic Usage
 
 ``` r
-library(flowr)
+library(flownet)
 
 # Create a small graph data frame
 graph <- data.frame(from = c(1, 2, 2, 3),
@@ -60,12 +66,10 @@ result$final_flows
 #> [1] 100.00000  16.13649 196.13649  43.86351
 ```
 
-<sup>Created on 2025-11-24 with [reprex v2.1.1](https://reprex.tidyverse.org)</sup>
-
 ### Working with Spatial Networks
 
 ```r
-library(flowr)
+library(flownet)
 library(sf)
 
 # Read network from shapefile and create undirected graph (optional)
@@ -86,45 +90,11 @@ graph <- consolidate_graph(graph, keep = nearest_nodes, w = ~ cost)
 graph <- simplify_network(graph, nearest_nodes, cost.column = "cost", by = ~ mode)
 ```
 
-## Main Functions
-
-### Traffic Assignment and Route Enumeration
-
-- **`run_assignment()`**:
-  - Iterates through OD-pairs generating sensible alternative routes
-  - Assigns traffic flows to network edges using path-sized logit model
-  - Supports directed and undirected graphs
-  - Returns flows and optional path/route information
-  - **Key Parameters**:
-    - **`beta`** (default: -1): Path-sized logit parameter (beta_PSL)
-    - **`detour.max`** (default: 1.5): Maximum detour factor for alternative routes. Higher values consider more routes but increase computation time
-    - **`angle.max`** (default: 90): Maximum detour angle in degrees (two-sided)
-    - **`return.extra`**: Additional results to return from the route enumeration stage (`"graph"`, `"dmat"`, `"paths"`, `"edges"`, `"counts"`, `"costs"`, `"weights"`, or `"all"`)
-
-
-### Network Processing
-
-- **`linestrings_to_graph()`** - Convert LINESTRING geometries to graph data frame
-- **`create_undirected_graph()`** - Convert directed graph to undirected with edge aggregation
-- **`consolidate_graph()`** - Consolidate graph by removing intermediate nodes and merging edges
-- **`simplify_network()`** - Simplify network using shortest-paths or spatial clustering methods. Supports multimodal networks via `by` argument
-
-### Graph Utilities
-
-- **`nodes_from_graph()`** - Extract unique nodes with coordinates from graph
-- **`normalize_graph()`** - Normalize node IDs to consecutive integers starting from 1
-- **`linestrings_from_graph()`** - Convert graph to LINESTRING geometries
-- **`distances_from_graph()`** - Compute distance matrix for all node pairs
-
-### OD Matrix Utilities
-
-- **`melt_od_matrix()`** - Convert origin-destination matrices to long format
-
-## Example Workflow
+### Example Workflow
 
 ```r
 library(fastverse)
-fastverse_extend(flowr, sf, mapview)
+fastverse_extend(flownet, sf, mapview)
 
 # 1. Load network and OD zone nodes
 network <- st_read("data/network.shp")
@@ -145,7 +115,7 @@ nearest_nodes <- nodes$node[st_nearest_feature(od_zones, nodes)]
 od_matrix_long <- melt_od_matrix(od_matrix, nodes = nearest_nodes)
 
 # 5. Run assignment
-result <- run_assignment(graph, od_matrix_long, cost = "cost_column")
+result <- run_assignment(graph, od_matrix_long, cost.column = "cost_column")
 
 # 6. Visualize results (optional)
 network$final_flows <- NA_real_
@@ -153,24 +123,58 @@ network$final_flows[attr(graph, "group.starts")] <- result$final_flows
 mapview(network, zcol = "final_flows")
 ```
 
-## Example Data
+### Included Data
 
-The package includes example datasets for the Gulf Cooperation Council (GCC) region:
+The package includes four example datasets for Africa:
 
-- **`network_gcc`**: Multimodal transport network including road, rail, and maritime connections
-- **`od_matrices_gcc`**: Origin-destination matrices for five cargo types (Container, Drybulk, Liquidbulk, General, HighValue) across multiple time periods (2019, 2030, 2040)
-- **`zones_gcc`**: Zone locations and descriptions for OD-matrix locations
+- **`africa_network`**: A road transport network with 2,825 LINESTRING features representing existing roads (2,344 edges) and proposed new links (481 edges). Each edge includes attributes such as distance, travel duration, border crossing costs, terrain ruggedness, and road upgrade costs.
 
-## Suggested Packages
+- **`africa_cities_ports`**: 453 African cities with population > 100,000 and international ports. Includes population data, capital status, and port cargo outflows.
 
-- **`fastverse`** (>= 0.3.4) - Enhanced data manipulation workflow
-- **`mapview`** (>= 2.11.2) - Interactive visualization of results
-- **`testthat`** (>= 3.0.0) - Unit testing framework
+- **`africa_segments`**: 14,358 raw network segments representing intersected road routes. Useful for demonstrating network consolidation and simplification functions.
+
+- **`africa_trade`**: Bilateral trade flows between 47 African countries aggregated by HS section (21 product categories). Values represent annual averages over 2012-2022.
+
+The `africa_network`, `africa_cities_ports`, and `africa_segments` datasets are from Krantz, S. (2024). [Optimal Investments in Africa's Road Network](https://doi.org/10.1596/1813-9450-10893). Policy Research Working Paper 10893. World Bank. Replication materials are available at [github.com/SebKrantz/OptimalAfricanRoads](https://github.com/SebKrantz/OptimalAfricanRoads).
+
+
+## Main Functions
+
+### Traffic Assignment and Route Enumeration
+
+- **`run_assignment()`**:
+  - Iterates through OD-pairs generating sensible alternative routes
+  - Assigns traffic flows to network edges using path-sized logit model
+  - Supports directed and undirected graphs
+  - Returns flows and optional path/route information
+  - **Key Parameters**:
+    - **`beta`** (default: 1): Path-sized logit parameter (beta_PSL)
+    - **`detour.max`** (default: 1.5): Maximum detour factor for alternative routes. Higher values consider more routes but increase computation time
+    - **`angle.max`** (default: 90): Maximum detour angle in degrees (two-sided)
+    - **`return.extra`**: Additional results to return from the route enumeration stage (`"paths"`, `"edges"`, `"counts"`, `"costs"`, `"weights"`)
+
+### Network Processing
+
+- **`linestrings_to_graph()`** - Convert LINESTRING geometries to graph data frame
+- **`create_undirected_graph()`** - Convert directed graph to undirected with edge aggregation
+- **`consolidate_graph()`** - Consolidate graph by removing intermediate nodes and merging edges
+- **`simplify_network()`** - Simplify network using shortest-paths or spatial clustering methods
+
+### Graph Utilities
+
+- **`nodes_from_graph()`** - Extract unique nodes with coordinates from graph
+- **`normalize_graph()`** - Normalize node IDs to consecutive integers starting from 1
+- **`linestrings_from_graph()`** - Convert graph to LINESTRING geometries
+- **`distances_from_graph()`** - Compute distance matrix for all node pairs
+
+### OD Matrix Utilities
+
+- **`melt_od_matrix()`** - Convert origin-destination matrices to long format
 
 ## Authors
 
-- Sebastian Krantz (sebastian.krantz@graduateinstitute.ch)
-- Kamol Roy (kamol.roy08@gmail.com)
+- Sebastian Krantz
+- Kamol Roy
 
 ## License
 
@@ -178,9 +182,9 @@ GPL-3
 
 ## Citation
 
-If you use `flowr` in your research, please cite:
+If you use `flownet` in your research, please cite:
 
 ```r
-citation("flowr")
+citation("flownet")
 ```
 

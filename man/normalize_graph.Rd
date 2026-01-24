@@ -39,7 +39,7 @@ Note: This function only normalizes the node IDs; it does not modify the graph s
 or any other attributes. The mapping preserves the relative ordering of nodes.
 }
 \examples{
-library(flowr)
+library(flownet)
 
 # Create graph with non-consecutive node IDs
 graph <- data.frame(
@@ -54,5 +54,5 @@ graph_norm
 
 }
 \seealso{
-\link{nodes_from_graph} \link{flowr-package}
+\link{nodes_from_graph} \link{flownet-package}
 }

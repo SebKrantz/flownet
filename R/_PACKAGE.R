@@ -1,10 +1,10 @@
-#' Transport Modeling
+#' Efficient Transport Modeling
 #'
 #' @description
 #'
-#' \emph{flowr} provides efficient tools for transportation modeling, specifically route
-#' enumeration and traffic assignment tasks. The package implements the path-sized logit model for
-#' traffic assignment and provides utilities for network processing.
+#' \emph{flownet} provides efficient tools for transportation modeling in R, supporting network processing, route enumeration,
+#' and traffic assignment tasks. It implements the path-sized logit (PSL) model for traffic assignment and provides powerful
+#' utilities for network processing/preparation.
 #'
 #'
 #' \strong{Network Processing}
@@ -35,9 +35,12 @@
 #'
 #' \strong{Data}
 #'
-#'  \code{\link{network_gcc}} --- Multimodal transport network for the Gulf Cooperation Council (GCC) region\cr
-#'  \code{\link{od_matrices_gcc}} --- Origin-destination matrices for five cargo types in the GCC region\cr
-#'  \code{\link{zones_gcc}} --- Zone locations and descriptions for OD-matrix locations in the GCC region\cr
+#'  \code{\link{africa_trade}} --- Average BACI HS96 2012-22 trade flows by section between 47 continental African countries\cr
+#'  \code{\link{africa_cities_ports}} --- The 453 largest (port-)cities in continental Africa within a 70km radius - from Krantz (2024), \doi{10.1596/1813-9450-10893}\cr
+#'  \code{\link{africa_network}} --- African continental road network + extensions to optimally connect the 453 cities - from Krantz (2024), \doi{10.1596/1813-9450-10893}\cr
+#'  \code{\link{africa_segments}} --- Primary segments derived from OpenStreetMap routes between the 453 cities - from Krantz (2024), \doi{10.1596/1813-9450-10893}\cr
+#'
+#'  Replication materials: \url{https://github.com/SebKrantz/OptimalAfricanRoads}
 #'
 #' @details
 #' The package uses efficient C implementations for critical path operations and leverages:
@@ -65,9 +68,11 @@
 #' Prato, C. G. (2009). Route choice modeling: Past, present and future research
 #' directions. \emph{Journal of Choice Modelling, 2}(1), 65-100. \doi{10.1016/S1755-5345(13)70005-8}
 #'
+#' AequilibiaE Python Documentation: https://www.aequilibrae.com/develop/python/route_choice/path_size_logit.html
+#'
 #' @author Sebastian Krantz \email{sebastian.krantz@graduateinstitute.ch} and Kamol Roy \email{kamol.roy08@gmail.com}
-#' @name flowr-package
-#' @aliases flowr
-#' @useDynLib flowr, .registration = TRUE
+#' @name flownet-package
+#' @aliases flownet
+#' @useDynLib flownet, .registration = TRUE
 NULL
 

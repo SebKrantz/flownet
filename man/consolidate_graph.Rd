@@ -89,26 +89,26 @@ If coordinate columns (\code{FX}, \code{FY}, \code{TX}, \code{TY}) are present i
 they are preserved and updated based on the consolidated node coordinates from the original graph.
 }
 \examples{
-library(flowr)
+library(flownet)
 library(sf)
 
-# Create undirected graph
-graph <- linestrings_to_graph(network_gcc) |>
-  create_undirected_graph(by = ~ mode)
+# Convert segments to undirected graph
+graph <- africa_segments |>
+  linestrings_from_graph() |>
+  linestrings_to_graph() |>
+  create_undirected_graph(FUN = "fsum")
 
-# Get nodes to preserve (zone locations)
+# Get nodes to preserve (city/port locations)
 nodes <- nodes_from_graph(graph, sf = TRUE)
-nearest_nodes <- nodes$node[st_nearest_feature(zones_gcc, nodes)]
+nearest_nodes <- nodes$node[st_nearest_feature(africa_cities_ports, nodes)]
 
-# Consolidate graph, preserving zone nodes
-graph_cons <- consolidate_graph(graph, by = ~ mode,
-                                w = ~ length_km,
-                                keep = nearest_nodes)
+# Consolidate graph, preserving city nodes
+graph_cons <- consolidate_graph(graph, keep = nearest_nodes, w = ~ passes)
 
 # Consolidated graph has fewer edges
 c(original = nrow(graph), consolidated = nrow(graph_cons))
 
 }
 \seealso{
-\link{create_undirected_graph} \link{simplify_network} \link{flowr-package}
+\link{create_undirected_graph} \link{simplify_network} \link{flownet-package}
 }
