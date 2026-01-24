@@ -70,6 +70,8 @@ dissertation). Massachusetts Institute of Technology.
 
 Prato, C. G. (2009). Route choice modeling: Past, present and future research
 directions. *Journal of Choice Modelling, 2*(1), 65–100. https://doi.org/10.1016/S1755-5345(13)70005-8
+
+AequilibiaE (Python) Documentation: https://www.aequilibrae.com/develop/python/route_choice/path_size_logit.html
 }
 \author{
 Sebastian Krantz \email{sebastian.krantz@graduateinstitute.ch} and Kamol Roy \email{kamol.roy08@gmail.com}
