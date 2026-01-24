@@ -105,7 +105,7 @@ linestrings_to_graph <- function(lines, digits = 6, keep.cols = is.atomic, compu
 #' class(segments_sf)
 #' head(segments_sf)
 #'
-#' \dontrun{
+#' \donttest{
 #' # Plot segments colored by route importance
 #' plot(segments_sf["passes"])
 #' }

@@ -63,7 +63,7 @@
 #' ports <- africa_cities_ports[!is.na(africa_cities_ports$port_locode), ]
 #' nrow(ports)  # 51 ports
 #'
-#' \dontrun{
+#' \donttest{
 #' plot(africa_cities_ports["population"])
 #' }
 #'
@@ -161,7 +161,7 @@
 #' # Upgrade categories
 #' table(africa_network$upgrade_cat, useNA = "ifany")
 #'
-#' \dontrun{
+#' \donttest{
 #' # Plot by gravity
 #' plot(africa_network["gravity_rd"])
 #'
@@ -238,7 +238,7 @@
 #' # Segments with highest traffic
 #' africa_segments[order(-africa_segments$passes), ][1:10, ]
 #'
-#' \dontrun{
+#' \donttest{
 #' # Convert to sf and plot
 #' library(sf)
 #' segments_sf <- linestrings_from_graph(africa_segments)

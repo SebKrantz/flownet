@@ -164,7 +164,7 @@ od_mat <- outer(africa_cities_ports$population, africa_cities_ports$population) 
 dimnames(od_mat) <- list(nearest_nodes, nearest_nodes)
 od_matrix_long <- melt_od_matrix(od_mat)
 
-\dontrun{
+\donttest{
 # Run Traffic Assignment (All-or-Nothing method)
 result <- run_assignment(graph, od_matrix_long, cost.column = "duration",
                          method = "AoN", return.extra = "all")
