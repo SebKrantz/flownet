@@ -23,12 +23,18 @@
 #' @param unique.cost Logical (default: TRUE). Deduplicates paths based on the total cost prior to generating them. Only used for PSL method. Since multiple 'intermediate nodes' may be on the same path, there is likely a significant number of duplicate paths which this option removes.
 #' @param npaths.max Integer (default: Inf). Maximum number of paths to compute per OD-pair. Only used for PSL method. If the number of paths exceeds this number, a random sample will be taken from all but the shortest path.
 #' @param dmat.max.size Integer (default: 1e4^2). Maximum size of distance matrices (both shortest paths and geodesic) to precompute. If smaller than \code{n_nodes^2}, then the full matrix is precomputed. Otherwise, it is computed in chunks as needed, where each chunk has \code{dmat.max.size} elements. Only used for PSL method.
-#' @param return.extra Character vector specifying additional results to return. Options include:
-#'   \code{"graph"}, \code{"paths"}, \code{"edges"} (PSL only),
-#'   \code{"counts"}, \code{"costs"}, and \code{"weights"} (PSL only).
-#'   For AoN: \code{"paths"} returns a list of shortest paths (one integer vector per OD pair),
-#'   \code{"costs"} returns a numeric vector of shortest path costs, and \code{"counts"} returns a global integer vector of edge traversal counts.
-#'   Use \code{"all"} to return all available extra results for the selected method.
+#' @param return.extra Character vector specifying additional results to return.
+#'   Use \code{"all"} to return all available extras for the selected method.
+#'
+#'   \tabular{llll}{
+#'     \strong{Option} \tab \strong{PSL} \tab \strong{AoN} \tab \strong{Description} \cr
+#'     \code{"graph"} \tab Yes \tab Yes \tab The igraph graph object \cr
+#'     \code{"paths"} \tab Yes \tab Yes \tab PSL: list of lists (multiple routes per OD); AoN: list of integer vectors (one path per OD) \cr
+#'     \code{"edges"} \tab Yes \tab No \tab List of edge indices used for each OD pair \cr
+#'     \code{"counts"} \tab Yes \tab Yes \tab PSL: list of edge visit counts per OD; AoN: integer vector of global edge traversal counts \cr
+#'     \code{"costs"} \tab Yes \tab Yes \tab PSL: list of path costs per OD; AoN: numeric vector of shortest path costs \cr
+#'     \code{"weights"} \tab Yes \tab No \tab List of path weights (probabilities) for each OD pair \cr
+#'   }
 #' @param verbose Logical (default: TRUE). Show progress bar and intermediate steps completion status?
 #' @param nthreads Integer (default: 1L). Number of threads (daemons) to use for parallel processing with \code{\link[mirai]{mirai}}. Should not exceed the number of logical processors.
 #'
@@ -225,7 +231,7 @@ run_assignment <- function(graph_df, od_matrix_long,
   res$final_flows <- numeric(0)
 
   # Process/Check OD Matrix
-  if(!all(c("from", "to", "flow") %in% names(od_matrix_long))) stop("od_matrix_long needs to have columns 'from', 'to' and 'flow'")
+  if(!all(c("from", "to", "flow") %in% names(od_matrix_long))) stop("od_matrix_long must have columns 'from', 'to', 'flow'. Missing: ", paste(setdiff(c("from", "to", "flow"), names(od_matrix_long)), collapse = ", "))
   od_pairs <- which(is.finite(od_matrix_long$flow) & od_matrix_long$flow > 0)
   res$od_pairs_used <- numeric(0) # Just for placement
   if(length(od_pairs) != fnrow(od_matrix_long)) od_matrix_long <- ss(od_matrix_long, od_pairs, check = FALSE)

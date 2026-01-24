@@ -114,9 +114,9 @@ linestrings_to_graph <- function(lines, digits = 6, keep.cols = is.atomic, compu
 #' @importFrom sf st_linestring st_sfc st_sf
 #' @importFrom collapse seq_row fselect add_vars
 linestrings_from_graph <- function(graph_df, crs = 4326) {
-  if(!is.data.frame(graph_df)) stop("graph_df needs to be a data frame")
+  if(!is.data.frame(graph_df)) stop("graph_df must be a data frame, got: ", class(graph_df)[1L])
   if(inherits(graph_df, "sf")) stop("graph_df should not be a spatial object/data frame")
-  if(!all(c("FX", "FY", "TX", "TY") %in% names(graph_df))) stop("graph_df needs to have columns FX, FY, TX and TY")
+  if(!all(c("FX", "FY", "TX", "TY") %in% names(graph_df))) stop("graph_df must have columns FX, FY, TX, TY. Missing: ", paste(setdiff(c("FX", "FY", "TX", "TY"), names(graph_df)), collapse = ", "))
   # Create Geometries
   lines_list <- with(graph_df, lapply(seq_row(graph_df), function(i) {
     matrix(c(FX[i], FY[i], TX[i], TY[i]), ncol = 2, byrow = TRUE) |>
@@ -888,8 +888,10 @@ simplify_network <- function(graph_df, nodes, method = c("shortest-paths", "clus
   method <- match.arg(method)
 
   # Validate graph input
-  if (!is.data.frame(graph_df) || !all(c("from", "to") %in% names(graph_df)))
-    stop("graph_df must be a data.frame with 'from' and 'to' columns")
+  if (!is.data.frame(graph_df))
+    stop("graph_df must be a data.frame, got: ", class(graph_df)[1L])
+  if (!all(c("from", "to") %in% names(graph_df)))
+    stop("graph_df must have 'from' and 'to' columns. Missing: ", paste(setdiff(c("from", "to"), names(graph_df)), collapse = ", "))
 
   # Validate by argument
   if(length(by)) {
