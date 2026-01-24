@@ -84,13 +84,13 @@ The `africa_network`, `africa_cities_ports`, and `africa_segments` datasets are 
 - Package-level documentation in `?flownet-package`
 
 ## Dependencies
-- **R** (>= 3.5)
+- **R** (>= 4.1)
 - **collapse** (>= 2.1.5) - Fast data transformations and memory efficient programming
 - **kit** (>= 0.0.5) - Fast tabulation and vectorized switches
 - **igraph** (>= 2.1.4) - Graph operations and shortest path algorithms
 - **sf** (>= 1.0.0) - Spatial data handling
 - **geodist** (>= 0.1.1) - Fast geodesic distance computations
-- **leaderCluster** (>= 0.1.5) - Efficient spatial clustering algorithms
+- **leaderCluster** (>= 1.5.0) - Efficient spatial clustering algorithms
 - **mirai** (>= 2.5.2) - Asynchronous parallelism for R
 - **progress** (>= 1.2.3) - Progress bars for long-running operations
 
