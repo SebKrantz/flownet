@@ -294,6 +294,8 @@ distances_from_graph <- function(graph_df, directed = FALSE, cost.column = "cost
     if(is.numeric(cost.column) && length(cost.column) == fnrow(graph_df)) cost.column else
     stop("cost.column needs to be a column name in graph_df or a numeric vector matching nrow(graph_df)")
 
+  if(length(cost) != fnrow(graph_df)) stop("cost.column needs to be provided either externally or found in the dataset")
+
   # Create Igraph Graph
   vertices <- data.frame(name = funique.default(c(graph_df$from, graph_df$to), sort = TRUE))
   g <- graph_df |> fselect(from, to) |>
@@ -901,6 +903,8 @@ simplify_network <- function(graph_df, nodes, method = c("shortest-paths", "clus
     cost <- if(is.character(cost.column) && length(cost.column) == 1L) as.numeric(graph_df[[cost.column]]) else
       if(is.numeric(cost.column) && length(cost.column) == fnrow(graph_df)) as.numeric(cost.column) else
         stop("cost.column needs to be a column name in graph_df or a numeric vector matching nrow(graph_df)")
+
+    if(length(cost) != fnrow(graph_df)) stop("cost.column needs to be provided either externally or found in the dataset")
 
     from_node <- as.integer(graph_df$from)
     to_node <- as.integer(graph_df$to)
