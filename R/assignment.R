@@ -75,6 +75,27 @@
 #' of flow on shared segments. The \code{beta} parameter controls the sensitivity to overlap.
 #' }
 #'
+#' \subsection{PSL Model Formulation}{
+#' The probability \eqn{P_k} of choosing route \eqn{k} from the set of alternatives \eqn{K} is:
+#' \deqn{P_k = \frac{e^{V_k}}{\sum_{j \in K} e^{V_j}}}
+#' where the utility \eqn{V_k} is defined as:
+#' \deqn{V_k = -C_k + \beta_{PSL} \ln(PS_k)}
+#' Here \eqn{C_k} is the generalized cost of route \eqn{k}, \eqn{\beta_{PSL}} is the
+#' path-size parameter (the \code{beta} argument), and \eqn{PS_k} is the path-size factor.
+#'
+#' The path-size factor quantifies route uniqueness:
+#' \deqn{PS_k = \frac{1}{C_k} \sum_{a \in \Gamma_k} \frac{c_a}{\delta_a}}
+#' where \eqn{\Gamma_k} is the set of edges in path \eqn{k}, \eqn{c_a} is the cost of
+#' edge \eqn{a}, and \eqn{\delta_a} is the number of alternative routes using edge \eqn{a}.
+#'
+#' If a path is unique (\eqn{\delta_a = 1} for all edges), then \eqn{PS_k = 1} and the
+#' model reduces to standard MNL. For overlapping routes, \eqn{PS_k < 1} and
+#' \eqn{\ln(PS_k) < 0}, so a positive \code{beta} penalizes overlap. Higher \code{beta}
+#' values strengthen penalization; \code{beta = 0} gives standard MNL behavior.
+#'
+#' For more information about the PSL model consult some of the references below.
+#' }
+#'
 #' \subsection{Route Enumeration Algorithm}{
 #' For each origin-destination pair, the algorithm identifies alternative routes as follows:
 #' \enumerate{
@@ -121,7 +142,7 @@
 #' Prato, C. G. (2009). Route choice modeling: Past, present and future research
 #' directions. *Journal of Choice Modelling, 2*(1), 65–100. https://doi.org/10.1016/S1755-5345(13)70005-8
 #'
-#' AequilibiaE (Python) Documentation: https://www.aequilibrae.com/develop/python/route_choice/path_size_logit.html
+#' AequilibiaE Python Documentation: https://www.aequilibrae.com/develop/python/route_choice/path_size_logit.html
 #'
 #' @examples
 #' library(flownet)
