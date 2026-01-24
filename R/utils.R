@@ -885,8 +885,8 @@ simplify_network <- function(graph_df, nodes, method = c("shortest-paths", "clus
   if (method == "shortest-paths") {
 
     # Shortest-paths method
-    cost <- if(is.character(cost.column) && length(cost.column) == 1L) graph_df[[cost.column]] else
-      if(is.numeric(cost.column) && length(cost.column) == fnrow(graph_df)) cost.column else
+    cost <- if(is.character(cost.column) && length(cost.column) == 1L) as.numeric(graph_df[[cost.column]]) else
+      if(is.numeric(cost.column) && length(cost.column) == fnrow(graph_df)) as.numeric(cost.column) else
         stop("cost.column needs to be a column name in graph_df or a numeric vector matching nrow(graph_df)")
 
     from_node <- as.integer(graph_df$from)

@@ -137,8 +137,8 @@ run_assignment <- function(graph_df, od_matrix_long,
                            verbose = TRUE,
                            nthreads = 1L) {
 
-  cost <- if(is.character(cost.column) && length(cost.column) == 1L) graph_df[[cost.column]] else
-    if(is.numeric(cost.column) && length(cost.column) == fnrow(graph_df)) cost.column else
+  cost <- if(is.character(cost.column) && length(cost.column) == 1L) as.numeric(graph_df[[cost.column]]) else
+    if(is.numeric(cost.column) && length(cost.column) == fnrow(graph_df)) as.numeric(cost.column) else
     stop("cost.column needs to be a column name in graph_df or a numeric vector matching nrow(graph_df)")
 
   if(length(cost) != fnrow(graph_df)) stop("cost.column needs to be provided either externally or found in the dataset")
