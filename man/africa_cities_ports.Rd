@@ -64,7 +64,7 @@ largest[1:10, c("city", "country", "population")]
 ports <- africa_cities_ports[!is.na(africa_cities_ports$port_locode), ]
 nrow(ports)  # 51 ports
 
-\dontrun{
+\donttest{
 plot(africa_cities_ports["population"])
 }
 

@@ -64,7 +64,7 @@ summary(africa_segments[, c("passes", "gravity", "gravity_rd")])
 # Segments with highest traffic
 africa_segments[order(-africa_segments$passes), ][1:10, ]
 
-\dontrun{
+\donttest{
 # Convert to sf and plot
 library(sf)
 segments_sf <- linestrings_from_graph(africa_segments)

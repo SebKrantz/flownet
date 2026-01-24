@@ -46,7 +46,7 @@ sve <- function(x, i, elt) .Call(C_set_vector_elt, x, i, elt)
 #' @importFrom collapse qDF GRP get_vars get_vars<- add_vars add_vars<- fselect ffirst flast add_stub fmutate group fmatch %+=% fmax colorder whichNA setv unattrib ss
 linestrings_to_graph <- function(lines, digits = 6, keep.cols = is.atomic, compute.length = TRUE) {
   gt <- st_geometry_type(lines, by_geometry = FALSE)
-  if(length(gt) != 1L || gt != "LINESTRING") stop("lines needs to be a sf data frame of LINESTRING's")
+  if(length(gt) != 1L || gt != "LINESTRING") stop("lines needs to be a sf data frame of LINESTRINGs")
   graph <- st_coordinates(lines) |> qDF()
   g <- GRP(list(edge = graph$L1), return.order = FALSE)
   graph <- add_vars(fselect(graph, X, Y) |> ffirst(g, na.rm = FALSE, use.g.names = FALSE) |> add_stub("F"),
@@ -105,7 +105,7 @@ linestrings_to_graph <- function(lines, digits = 6, keep.cols = is.atomic, compu
 #' class(segments_sf)
 #' head(segments_sf)
 #'
-#' \dontrun{
+#' \donttest{
 #' # Plot segments colored by route importance
 #' plot(segments_sf["passes"])
 #' }
@@ -114,9 +114,9 @@ linestrings_to_graph <- function(lines, digits = 6, keep.cols = is.atomic, compu
 #' @importFrom sf st_linestring st_sfc st_sf
 #' @importFrom collapse seq_row fselect add_vars
 linestrings_from_graph <- function(graph_df, crs = 4326) {
-  if(!is.data.frame(graph_df)) stop("graph_df needs to be a data frame")
+  if(!is.data.frame(graph_df)) stop("graph_df must be a data frame, got: ", class(graph_df)[1L])
   if(inherits(graph_df, "sf")) stop("graph_df should not be a spatial object/data frame")
-  if(!all(c("FX", "FY", "TX", "TY") %in% names(graph_df))) stop("graph_df needs to have columns FX, FY, TX and TY")
+  if(!all(c("FX", "FY", "TX", "TY") %in% names(graph_df))) stop("graph_df must have columns FX, FY, TX, TY. Missing: ", paste(setdiff(c("FX", "FY", "TX", "TY"), names(graph_df)), collapse = ", "))
   # Create Geometries
   lines_list <- with(graph_df, lapply(seq_row(graph_df), function(i) {
     matrix(c(FX[i], FY[i], TX[i], TY[i]), ncol = 2, byrow = TRUE) |>
@@ -293,6 +293,8 @@ distances_from_graph <- function(graph_df, directed = FALSE, cost.column = "cost
   cost <- if(is.character(cost.column) && length(cost.column) == 1L) graph_df[[cost.column]] else
     if(is.numeric(cost.column) && length(cost.column) == fnrow(graph_df)) cost.column else
     stop("cost.column needs to be a column name in graph_df or a numeric vector matching nrow(graph_df)")
+
+  if(length(cost) != fnrow(graph_df)) stop("cost.column needs to be provided either externally or found in the dataset")
 
   # Create Igraph Graph
   vertices <- data.frame(name = funique.default(c(graph_df$from, graph_df$to), sort = TRUE))
@@ -853,17 +855,17 @@ compute_degrees <- function(from_vec, to_vec) {
 #' # Method 1: Shortest-paths simplification (keeps only traversed edges)
 #' graph_simple <- simplify_network(graph, nearest_nodes,
 #'                                  method = "shortest-paths",
-#'                                  cost.column = "length")
+#'                                  cost.column = ".length")
 #' nrow(graph_simple)  # Reduced number of edges
 #'
 #' \donttest{
 #' # Method 2: Cluster-based simplification (contracts graph spatially)
 #' # Compute node weights for clustering
 #' node_weights <- collapse::rowbind(
-#'   collapse::slt(graph, node = from, gravity_rd),
-#'   collapse::slt(graph, to, gravity_rd),
+#'   collapse::fselect(graph, node = from, gravity_rd),
+#'   collapse::fselect(graph, to, gravity_rd),
 #'   use.names = FALSE) |>
-#'   collapse::collap(~ node, collapse::fsum)
+#'   collapse::collap(~ node, "fsum")
 #'
 #' graph_cluster <- simplify_network(graph, nearest_nodes,
 #'                                   method = "cluster",
@@ -886,8 +888,10 @@ simplify_network <- function(graph_df, nodes, method = c("shortest-paths", "clus
   method <- match.arg(method)
 
   # Validate graph input
-  if (!is.data.frame(graph_df) || !all(c("from", "to") %in% names(graph_df)))
-    stop("graph_df must be a data.frame with 'from' and 'to' columns")
+  if (!is.data.frame(graph_df))
+    stop("graph_df must be a data.frame, got: ", class(graph_df)[1L])
+  if (!all(c("from", "to") %in% names(graph_df)))
+    stop("graph_df must have 'from' and 'to' columns. Missing: ", paste(setdiff(c("from", "to"), names(graph_df)), collapse = ", "))
 
   # Validate by argument
   if(length(by)) {
@@ -901,6 +905,8 @@ simplify_network <- function(graph_df, nodes, method = c("shortest-paths", "clus
     cost <- if(is.character(cost.column) && length(cost.column) == 1L) as.numeric(graph_df[[cost.column]]) else
       if(is.numeric(cost.column) && length(cost.column) == fnrow(graph_df)) as.numeric(cost.column) else
         stop("cost.column needs to be a column name in graph_df or a numeric vector matching nrow(graph_df)")
+
+    if(length(cost) != fnrow(graph_df)) stop("cost.column needs to be provided either externally or found in the dataset")
 
     from_node <- as.integer(graph_df$from)
     to_node <- as.integer(graph_df$to)

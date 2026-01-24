@@ -58,12 +58,18 @@ The cost values are used to compute shortest paths and determine route probabili
 
 \item{dmat.max.size}{Integer (default: 1e4^2). Maximum size of distance matrices (both shortest paths and geodesic) to precompute. If smaller than \code{n_nodes^2}, then the full matrix is precomputed. Otherwise, it is computed in chunks as needed, where each chunk has \code{dmat.max.size} elements. Only used for PSL method.}
 
-\item{return.extra}{Character vector specifying additional results to return. Options include:
-\code{"graph"}, \code{"paths"}, \code{"edges"} (PSL only),
-\code{"counts"}, \code{"costs"}, and \code{"weights"} (PSL only).
-For AoN: \code{"paths"} returns a list of shortest paths (one integer vector per OD pair),
-\code{"costs"} returns a numeric vector of shortest path costs, and \code{"counts"} returns a global integer vector of edge traversal counts.
-Use \code{"all"} to return all available extra results for the selected method.}
+\item{return.extra}{Character vector specifying additional results to return.
+  Use \code{"all"} to return all available extras for the selected method.
+
+  \tabular{llll}{
+    \strong{Option} \tab \strong{PSL} \tab \strong{AoN} \tab \strong{Description} \cr
+    \code{"graph"} \tab Yes \tab Yes \tab The igraph graph object \cr
+    \code{"paths"} \tab Yes \tab Yes \tab PSL: list of lists of edge indices (multiple routes per OD); AoN: list of edge index vectors (one path per OD) \cr
+    \code{"edges"} \tab Yes \tab No \tab List of edge indices used for each OD pair \cr
+    \code{"counts"} \tab Yes \tab Yes \tab PSL: list of edge visit counts per OD; AoN: integer vector of global edge traversal counts \cr
+    \code{"costs"} \tab Yes \tab Yes \tab PSL: list of path costs per OD; AoN: numeric vector of shortest path costs \cr
+    \code{"weights"} \tab Yes \tab No \tab List of path weights (probabilities) for each OD pair \cr
+  }}
 
 \item{verbose}{Logical (default: TRUE). Show progress bar and intermediate steps completion status?}
 
@@ -80,7 +86,7 @@ A list of class \code{"flownet"} containing:
     \item Additional elements as specified in \code{return.extra}:
       \itemize{
         \item \code{graph} - The igraph graph object
-        \item \code{paths} - For PSL: list of lists (multiple routes per OD pair); for AoN: list of integer vectors (one shortest path per OD pair)
+        \item \code{paths} - For PSL: list of lists of edge indices (multiple routes per OD pair); for AoN: list of edge index vectors (one shortest path per OD pair)
         \item \code{edges} - List of edge indices used for each OD pair (PSL only)
         \item \code{edge_counts} - For PSL: list of edge visit counts per OD pair; for AoN: integer vector of global edge traversal counts
         \item \code{path_costs} - For PSL: list of path costs per OD pair; for AoN: numeric vector of shortest path costs
@@ -94,48 +100,61 @@ Assign traffic flows to network edges using either Path-Sized Logit (PSL)
 }
 \details{
 This function performs traffic assignment using one of two methods:
+\strong{All-or-Nothing (AoN)} is fast but assigns all flow to a single shortest path;
+\strong{Path-Sized Logit (PSL)} considers multiple routes with overlap correction for
+more realistic flow distribution.
 
-\strong{All-or-Nothing (AoN) Method:}
+\subsection{All-or-Nothing (AoN) Method}{
 A simple assignment method that assigns all flow from each OD pair to the single shortest path.
 This is much faster than PSL but does not consider route alternatives or overlaps.
 Parameters \code{detour.max}, \code{angle.max}, \code{unique.cost}, \code{npaths.max},
 \code{beta}, and \code{dmat.max.size} are ignored for AoN.
-
-\strong{Path-Sized Logit (PSL) Method:}
-A more sophisticated assignment method that considers multiple alternative routes:
-\itemize{
-  \item Creates a graph from \code{graph_df} using igraph, normalizing node IDs internally
-  \item Computes shortest path distance matrix for all node pairs (chunkwise if \code{dmat.max.size < n_nodes^2})
-  \item For each origin-destination pair in \code{od_matrix_long}:
-    \itemize{
-      \item Identifies alternative routes (detours) that are within \code{detour.max} of shortest path cost. This is done by considering all other nodes and adding the shortest paths costs from origin node to an intermediate node (any other node) and from intermediate node to destination node. If \code{angle.max} is specified, filters detours to those within the specified angle from origin to destination. This means we only consider intermediate nodes that are roughly 'in the direction' of the destination node, and also not further away in terms of geodesic distance. If also \code{unique.cost = TRUE}, duplicate paths are removed based on the total cost. Thus, using only the shortest-paths-cost matrix and a matrix of the geodesic distances of the nodes (if \code{is.finite(angle.max)}), the algorithm pre-selects unique paths that are plausible both in terms of detour factor (cost) and direction before actually computing them. This speeds up route enumeration and PSL computations considerably.
-      \item Finds shortest paths from origin to intermediate nodes and from intermediate nodes to destination
-      \item Filters paths to remove those with duplicate edges, i.e., where the intermediate node is approached and departed from via the same edge(s).
-      \item Computes path-sized logit probabilities accounting for route overlap
-      \item Assigns flows to edges based on probabilities weighted by route overlap
-    }
-  \item Returns results including final flows and optionally additional information
 }
 
-The path-sized logit model accounts for route overlap by adjusting probabilities based on
-the number of alternative routes using each edge. Flows are assigned proportionally to
-the computed probabilities. The model uses the parameter \code{beta} to control the
-sensitivity to route overlap.
+\subsection{Path-Sized Logit (PSL) Method}{
+A more sophisticated assignment method that considers multiple alternative routes and
+accounts for route overlap when assigning flows. The PSL model adjusts choice probabilities
+based on how much each route overlaps with other alternatives, preventing overestimation
+of flow on shared segments. The \code{beta} parameter controls the sensitivity to overlap.
+}
 
+\subsection{Route Enumeration Algorithm}{
+For each origin-destination pair, the algorithm identifies alternative routes as follows:
+\enumerate{
+  \item Compute the shortest path cost from origin to destination.
+  \item For each potential intermediate node, calculate the total cost of going
+        origin -> intermediate -> destination.
+  \item Keep only routes where total cost is within \code{detour.max} times the
+        shortest path cost.
+  \item If \code{angle.max} is specified, filter to intermediate nodes that lie
+        roughly in the direction of the destination (within the specified angle).
+  \item If \code{unique.cost = TRUE}, remove duplicate routes based on total cost.
+  \item Compute the actual paths and filter out those with duplicate edges
+        (where the intermediate node is approached and departed via the same edge).
+}
+This pre-selection using distance matrices speeds up route enumeration considerably
+by avoiding computation of implausible paths.
+}
+
+\subsection{Coordinate-Based Filtering}{
 When \code{angle.max} is specified and \code{graph_df} contains coordinate columns
 (\code{FX}, \code{FY}, \code{TX}, \code{TY}), the function uses geographic distance
-calculations to restrict detours to those within the specified angle, improving
-computational efficiency and route realism.
+calculations to restrict detours. Only intermediate nodes that are (a) closer to the
+origin than the destination is, and (b) within the specified angle from the
+origin-destination line are considered. This improves both computational efficiency
+and route realism by excluding geographically implausible detours.
+}
 }
 \examples{
 library(flownet)
+library(collapse)
 library(sf)
 
 # Load existing network edges (exclude proposed new links)
 africa_net <- africa_network[!africa_network$add, ]
 
 # Convert to graph (use atomic_elem to drop sf geometry, qDF for data.frame)
-graph <- collapse::atomic_elem(africa_net) |> collapse::qDF()
+graph <- atomic_elem(africa_net) |> qDF()
 nodes <- nodes_from_graph(graph, sf = TRUE)
 
 # Map cities/ports to nearest network nodes
@@ -146,17 +165,82 @@ od_mat <- outer(africa_cities_ports$population, africa_cities_ports$population) 
 dimnames(od_mat) <- list(nearest_nodes, nearest_nodes)
 od_matrix_long <- melt_od_matrix(od_mat)
 
-\dontrun{
 # Run Traffic Assignment (All-or-Nothing method)
-result <- run_assignment(graph, od_matrix_long, cost.column = "duration",
-                         method = "AoN", return.extra = "all")
-print(result)
+result_aon <- run_assignment(graph, od_matrix_long, cost.column = "duration",
+                             method = "AoN", return.extra = "all")
+print(result_aon)
+\donttest{
+# Run Traffic Assignment (Path-Sized Logit method)
+# Note: PSL is slower but produces more realistic flow distribution
+result_psl <- run_assignment(graph, od_matrix_long, cost.column = "duration",
+                             method = "PSL", nthreads = 1L,
+                             return.extra = c("edges", "counts", "costs", "weights"))
+print(result_psl)
 
-# Visualize Results
-africa_net$final_flows_log10 <- log10(result$final_flows + 1)
-plot(africa_net["final_flows_log10"])
+# Visualize AoN Results
+africa_net$final_flows_log10 <- log10(result_psl$final_flows + 1)
+plot(africa_net["final_flows_log10"], main = "PSL Assignment")
 }
 
+
+# --- Trade Flow Disaggregation Example ---
+# Disaggregate country-level trade to city-level using population shares
+
+# Compute each city's share of its country's population
+city_pop <- africa_cities_ports |> atomic_elem() |> qDF() |>
+  fcompute(node = nearest_nodes,
+           city = qF(city_country),
+           pop_share = fsum(population, iso3, TRA = "/"),
+           keep = "iso3")
+
+# Aggregate trade to country-country level and disaggregate to cities
+trade_agg <- africa_trade |> collap(quantity ~ iso3_o + iso3_d, fsum)
+od_matrix_trade <- trade_agg |>
+  join(city_pop |> add_stub("_o", FALSE), multiple = TRUE) |>
+  join(city_pop |> add_stub("_d", FALSE), multiple = TRUE) |>
+  fmutate(flow = quantity * pop_share_o * pop_share_d) |>
+  frename(from = node_o, to = node_d) |>
+  fsubset(flow > 0 & from != to)
+
+# Run AoN assignment with trade flows
+result_trade_aon <- run_assignment(graph, od_matrix_trade, cost.column = "duration",
+                                   method = "AoN", return.extra = "all")
+print(result_trade_aon)
+\donttest{
+# Visualize trade flow results
+africa_net$trade_flows_log10 <- log10(result_trade_aon$final_flows + 1)
+plot(africa_net["trade_flows_log10"], main = "Trade Flow Assignment (AoN)")
+
+# Run PSL assignment with trade flows (nthreads can be increased for speed)
+result_trade_psl <- run_assignment(graph, od_matrix_trade, cost.column = "duration",
+                                   method = "PSL", nthreads = 1L,
+                                   return.extra = c("edges", "counts", "costs", "weights"))
+print(result_trade_psl)
+
+# Compare PSL vs AoN: PSL typically shows more distributed flows
+africa_net$trade_flows_psl_log10 <- log10(result_trade_psl$final_flows + 1)
+plot(africa_net["trade_flows_psl_log10"], main = "Trade Flow Assignment (PSL)")
+}
+
+}
+\references{
+Ben-Akiva, M., & Bierlaire, M. (1999). Discrete choice methods and their
+applications to short term travel decisions. In R. W. Hall (Ed.), *Handbook
+of Transportation Science* (pp. 5–33). Springer US. https://doi.org/10.1007/978-1-4615-5203-1_2
+
+Cascetta, E. (2001). *Transportation systems engineering: Theory and methods*.
+Springer.
+
+Ben-Akiva, M., & Lerman, S. R. (1985). *Discrete choice analysis: Theory and
+application to travel demand*. The MIT Press.
+
+Ramming, M. S. (2002). *Network knowledge and route choice* (Doctoral
+dissertation). Massachusetts Institute of Technology.
+
+Prato, C. G. (2009). Route choice modeling: Past, present and future research
+directions. *Journal of Choice Modelling, 2*(1), 65–100. https://doi.org/10.1016/S1755-5345(13)70005-8
+
+AequilibiaE (Python) Documentation: https://www.aequilibrae.com/develop/python/route_choice/path_size_logit.html
 }
 \seealso{
 \link{flownet-package}

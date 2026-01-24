@@ -41,7 +41,7 @@ segments_sf <- linestrings_from_graph(africa_segments)
 class(segments_sf)
 head(segments_sf)
 
-\dontrun{
+\donttest{
 # Plot segments colored by route importance
 plot(segments_sf["passes"])
 }

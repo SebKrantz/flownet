@@ -90,7 +90,7 @@ nrow(cross_border)
 # Upgrade categories
 table(africa_network$upgrade_cat, useNA = "ifany")
 
-\dontrun{
+\donttest{
 # Plot by gravity
 plot(africa_network["gravity_rd"])
 
