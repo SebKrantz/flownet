@@ -1,7 +1,10 @@
 # flownet
 
+<!-- badges: start -->
 [![R-CMD-check](https://github.com/SebKrantz/flownet/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/SebKrantz/flownet/actions/workflows/R-CMD-check.yaml)
 [![r-universe](https://sebkrantz.r-universe.dev/badges/flownet)](https://sebkrantz.r-universe.dev)
+[![Codecov test coverage](https://codecov.io/gh/SebKrantz/mmflowr/graph/badge.svg)](https://app.codecov.io/gh/SebKrantz/mmflowr)
+<!-- badges: end -->
 
 **Transport Modeling: Network Processing, Route Enumeration, and Traffic Assignment**
 
