@@ -1,4 +1,4 @@
-# flownet
+# flownet <img src='man/figures/logo.png' width="150px" align="right" />
 
 <!-- badges: start -->
 [![R-CMD-check](https://github.com/SebKrantz/flownet/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/SebKrantz/flownet/actions/workflows/R-CMD-check.yaml)

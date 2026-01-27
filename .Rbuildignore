@@ -12,3 +12,4 @@ LICENSE
 ^docs$
 ^pkgdown$
 ^codecov\.yml$
+^man/figures
