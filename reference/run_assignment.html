@@ -197,18 +197,20 @@ values strengthen penalization; <code>beta = 0</code> gives standard MNL behavio
 
 <div class="section">
 <h3 id="route-enumeration-algorithm">Route Enumeration Algorithm<a class="anchor" aria-label="anchor" href="#route-enumeration-algorithm"></a></h3>
-<p>For each origin-destination pair, the algorithm identifies alternative routes as follows:</p><ol><li><p>Compute the shortest path cost from origin to destination.</p></li>
+<p>For each origin-destination pair, the algorithm identifies alternative routes as follows:</p><ol><li><p>Compute the shortest path cost from origin to destination. If <code>sqrt(dmat.max.size) &lt; N.nodes</code>, the entire shortest-path-distance matrix is precomputed.</p></li>
 <li><p>For each potential intermediate node, calculate the total cost of going
-        origin -&gt; intermediate -&gt; destination.</p></li>
+        origin -&gt; intermediate -&gt; destination (also using the distance matrix).</p></li>
 <li><p>Keep only routes where total cost is within <code>detour.max</code> times the
         shortest path cost.</p></li>
 <li><p>If <code>angle.max</code> is specified, filter to intermediate nodes that lie
-        roughly in the direction of the destination (within the specified angle).</p></li>
-<li><p>If <code>unique.cost = TRUE</code>, remove duplicate routes based on total cost.</p></li>
+        roughly in the direction of the destination (within the specified angle - see further details below).  If <code>sqrt(dmat.max.size) &lt; N.nodes</code> a geodesic-distance-matrix is precomputed for speedy calculations using the triangle equation.</p></li>
+<li><p>If <code>unique.cost = TRUE</code>, remove duplicate routes based on total cost -
+        as multiple intermediate nodes may yield exactly the same route.</p></li>
+<li><p>(Optionally) use <code>npaths.max</code> to sample the remaining routes if still too many.</p></li>
 <li><p>Compute the actual paths and filter out those with duplicate edges
         (where the intermediate node is approached and departed via the same edge).</p></li>
 </ol><p>This pre-selection using distance matrices speeds up route enumeration considerably
-by avoiding computation of implausible paths.</p>
+by avoiding the computation of implausible paths.</p>
 </div>
 
 <div class="section">
