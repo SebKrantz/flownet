@@ -14,7 +14,7 @@ processing/preparation.
 - **Path-Sized Logit Model**: Stochastic traffic assignment accounting
   for route overlap
 - **Network Processing**: Convert LINESTRINGs to network graphs and
-  consolidate/contract/simplify them
+  consolidate/simplify them
 - **Route Enumeration**: Efficient algorithm for finding alternative
   routes between origin-destination pairs
 - **High Performance**: [fastverse](https://fastverse.org/fastverse/)
