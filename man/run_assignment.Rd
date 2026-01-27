@@ -142,19 +142,21 @@ For more information about the PSL model consult some of the references below.
 \subsection{Route Enumeration Algorithm}{
 For each origin-destination pair, the algorithm identifies alternative routes as follows:
 \enumerate{
-  \item Compute the shortest path cost from origin to destination.
+  \item Compute the shortest path cost from origin to destination. If \code{sqrt(dmat.max.size) < N.nodes}, the entire shortest-path-distance matrix is precomputed.
   \item For each potential intermediate node, calculate the total cost of going
-        origin -> intermediate -> destination.
+        origin -> intermediate -> destination (also using the distance matrix).
   \item Keep only routes where total cost is within \code{detour.max} times the
         shortest path cost.
   \item If \code{angle.max} is specified, filter to intermediate nodes that lie
-        roughly in the direction of the destination (within the specified angle).
-  \item If \code{unique.cost = TRUE}, remove duplicate routes based on total cost.
+        roughly in the direction of the destination (within the specified angle - see further details below).  If \code{sqrt(dmat.max.size) < N.nodes} a geodesic-distance-matrix is precomputed for speedy calculations using the triangle equation.
+  \item If \code{unique.cost = TRUE}, remove duplicate routes based on total cost -
+        as multiple intermediate nodes may yield exactly the same route.
+  \item (Optionally) use \code{npaths.max} to sample the remaining routes if still too many.
   \item Compute the actual paths and filter out those with duplicate edges
         (where the intermediate node is approached and departed via the same edge).
 }
 This pre-selection using distance matrices speeds up route enumeration considerably
-by avoiding computation of implausible paths.
+by avoiding the computation of implausible paths.
 }
 
 \subsection{Coordinate-Based Filtering}{
