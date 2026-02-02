@@ -8,7 +8,7 @@ consolidate_graph(
   graph_df,
   directed = FALSE,
   drop.edges = c("loop", "duplicate", "single"),
-  consolidate = TRUE,
+  contract = TRUE,
   by = NULL,
   keep.nodes = NULL,
   ...,
@@ -30,20 +30,20 @@ preserved and updated based on the consolidated node coordinates.}
 \code{"single"} removes edges leading to singleton nodes (nodes that occur only once).
 Set to \code{NULL} to keep all edges.}
 
-\item{consolidate}{Logical (default: TRUE). If TRUE, consolidates the graph by removing
+\item{contract}{Logical (default: TRUE). If TRUE, contracts the graph by removing
 intermediate nodes (nodes that occur exactly twice) and merging connecting edges.
 If FALSE, only drops edges as specified in \code{drop.edges}.}
 
-\item{by}{Link characteristics to preserve/not consolidate across, passed as a one-sided formula or character vector of column names. Typically this includes attributes like \emph{mode}, \emph{type}, or \emph{capacity} to ensure that only edges with the same characteristics are consolidated.}
+\item{by}{Link characteristics to preserve/not contract across, passed as a one-sided formula or character vector of column names. Typically this includes attributes like \emph{mode}, \emph{type}, or \emph{capacity} to ensure that only edges with the same characteristics are contracted.}
 
 \item{keep.nodes}{Numeric vector (optional). Node IDs to preserve during consolidation,
 even if they occur exactly twice. Also used to preserve nodes when dropping singleton edges.}
 
-\item{\dots}{Arguments passed to \code{\link[collapse]{collap}()} for aggregation across consolidated edges. The defaults are \code{FUN = fmean} for numeric columns and \code{catFUN = fmode} for categorical columns. Select columns using \code{cols} or use argument \code{custom = list(fmean = cols1, fsum = cols2, fmode = cols3)} to map different columns to specific aggregation functions. It is highly recommended to weight the aggregation (using \code{w = ~ weight_col}) by the length/cost of the edges.}
+\item{\dots}{Arguments passed to \code{\link[collapse]{collap}()} for aggregation across contracted edges. The defaults are \code{FUN = fmean} for numeric columns and \code{catFUN = fmode} for categorical columns. Select columns using \code{cols} or use argument \code{custom = list(fmean = cols1, fsum = cols2, fmode = cols3)} to map different columns to specific aggregation functions. It is highly recommended to weight the aggregation (using \code{w = ~ weight_col}) by the length/cost of the edges.}
 
-\item{recursive}{One of \code{"none"/FALSE}, \code{"partial"} (recurse on dropping single edges and consolidation but only aggregate once), or \code{"full"/TRUE} (recursively consolidates and aggregates the graph
+\item{recursive}{One of \code{"none"/FALSE}, \code{"partial"} (recurse on dropping single edges and consolidation but only aggregate once), or \code{"full"/TRUE} (recursively contracts and aggregates the graph
 until no further consolidation is possible). This ensures that long chains of intermediate
-nodes are fully consolidated in a single call.}
+nodes are fully contracted in a single call.}
 
 \item{verbose}{Logical (default: TRUE). Whether to print messages about dropped edges
 and consolidation progress.}
@@ -58,28 +58,28 @@ A data frame representing the consolidated graph with:
     \item \code{from}, \code{to} - Node IDs (updated after consolidation)
     \item Coordinate columns (\code{FX}, \code{FY}, \code{TX}, \code{TY}) if present in original
     \item Attribute \code{"keep.edges"} - Indices of original edges that were kept
-    \item Attribute \code{"gid"} - Edge group IDs mapping consolidated edges to original edges
+    \item Attribute \code{"gid"} - Edge group IDs mapping contracted edges to original edges
   }
 }
 \description{
-Consolidate a graph by removing intermediate nodes (nodes that occur exactly twice) and optionally dropping loop, duplicate, and singleton edges (leading to dead ends). This simplifies the network topology while preserving connectivity.
+Consolidate a graph by contracting/removing intermediate nodes (nodes that occur exactly twice) and dropping loop, duplicate, and singleton edges (leading to dead ends). This simplifies the network topology while preserving connectivity.
 }
 \details{
-This function simplifies a graph by:
+This function consolidates/simplifies a graph by:
 \itemize{
   \item \strong{Dropping edges}: Optionally removes self-loops, duplicate edges, and edges
     leading to singleton nodes (nodes that appear only once in the graph)
-  \item \strong{Consolidating nodes}: Removes intermediate nodes (nodes that occur exactly twice)
+  \item \strong{Contracting nodes}: Removes intermediate nodes (nodes that occur exactly twice)
     by merging the two edges connected through them into a single longer edge
   \item \strong{Aggregating attributes}: When edges are merged, attributes/columns are aggregated
     using \code{\link[collapse]{collap}()}. The default aggregation is mean for numeric columns and mode for categorical columns.
   \item \strong{Recursive consolidation}: If \code{recursive = TRUE}, the function continues
-    consolidating until no more nodes can be consolidated, ensuring complete simplification
+    consolidating until no more nodes can be dropped or contracted, ensuring complete consolidation
 }
 
 Consolidation is useful for simplifying network topology while preserving connectivity.
 For example, if node B connects A->B and B->C, it will be removed and replaced with A->C.
-With \code{recursive = TRUE}, long chains (A->B->C->D) are fully consolidated to A->D in
+With \code{recursive = TRUE}, long chains (A->B->C->D) are fully contracted to A->D in
 a single call.
 
 For undirected graphs, the algorithm also handles cases where a node appears twice
