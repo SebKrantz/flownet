@@ -12,7 +12,7 @@
   - PSL method usage with `nthreads` parameter
   - Trade flow disaggregation workflow (country-to-city level)
 - Added academic references for the Path-Sized Logit model (Ben-Akiva & Bierlaire, 1999)
-- Added link to AequilibriaeE (Python) documentation for additional PSL resources
+- Added link to AequilibraE (Python) documentation for additional PSL resources
 - Improved error messages to be more informative (show which columns are missing, what class was received)
 - Increased vignette table of contents depth for better navigation
 - Added citation for the PSL model in vignette
