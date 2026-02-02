@@ -1,3 +1,9 @@
+# flownet 0.1.2
+
+- In `consolidate_graph()`: argument `consolidate` was renamed to `contract` for improved clarity, while ensuring backwards compatibility.
+
+- Minor improvements to documentation and vignette.
+
 # flownet 0.1.1
 
 - Implemented minor CRAN comments
