@@ -5,7 +5,7 @@ date: "`r Sys.Date()`"
 output:
   rmarkdown::html_vignette:
     toc: true
-    toc_depth: 3
+    toc_depth: 2
 vignette: >
   %\VignetteIndexEntry{Introduction to flownet}
   %\VignetteEngine{knitr::rmarkdown}
