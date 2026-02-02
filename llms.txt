@@ -26,11 +26,11 @@ processing/preparation.
 ## Installation
 
 ``` r
-# Install from R-universe (recommended)
-install.packages("flownet", repos = c("https://sebkrantz.r-universe.dev", getOption("repos")))
+# Install from CRAN
+install.packages("flownet")
 
-# Or install development version from GitHub
-remotes::install_github("SebKrantz/flownet")
+# Install development version from R-universe
+install.packages("flownet", repos = c("https://sebkrantz.r-universe.dev", getOption("repos")))
 ```
 
 ### Dependencies

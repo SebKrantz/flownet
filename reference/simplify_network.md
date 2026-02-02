@@ -1,7 +1,10 @@
 # Simplify Network
 
-Simplify a network graph using shortest paths or node clustering
-methods.
+Spatially simplify a network graph using shortest paths or node
+clustering methods. This further simplifies the network topology but
+does not preserve full connectivity. It should ideally be called after
+[`consolidate_graph()`](https://sebkrantz.github.io/flownet/reference/consolidate_graph.md)
+if the network is still too large/complex.
 
 ## Usage
 
@@ -119,6 +122,9 @@ A data.frame containing the simplified graph with:
 
 ## Details
 
+`simplify_network()` provides two methods to simplify large transport
+networks:
+
 **Method: "shortest-paths"**
 
 - Validates that all origin and destination nodes exist in the network
@@ -190,24 +196,24 @@ graph <- consolidate_graph(graph, keep = nearest_nodes, w = ~ passes)
 #> Dropped 44 loop edges
 #> Dropped 11 edges leading to singleton nodes
 #> Oriented 3431 undirected intermediate edges
-#> Consolidated 5079 intermediate nodes
+#> Contracted 5079 intermediate nodes
 #> Oriented 10 undirected intermediate edges
-#> Consolidated 10 intermediate nodes
+#> Contracted 10 intermediate nodes
 #> Aggregated 11330 edges down to 6597 edges
 #> Oriented 361 undirected intermediate edges
-#> Consolidated 375 intermediate nodes
+#> Contracted 375 intermediate nodes
 #> Oriented 8 undirected intermediate edges
-#> Consolidated 8 intermediate nodes
+#> Contracted 8 intermediate nodes
 #> Aggregated 6597 edges down to 6264 edges
 #> Oriented 41 undirected intermediate edges
-#> Consolidated 43 intermediate nodes
+#> Contracted 43 intermediate nodes
 #> Oriented 1 undirected intermediate edges
-#> Consolidated 1 intermediate nodes
+#> Contracted 1 intermediate nodes
 #> Aggregated 6264 edges down to 6224 edges
 #> Oriented 2 undirected intermediate edges
-#> Consolidated 3 intermediate nodes
+#> Contracted 3 intermediate nodes
 #> Aggregated 6224 edges down to 6221 edges
-#> No nodes to consolidate, returning graph
+#> No nodes to contract, returning graph
 #> 
 #> Consolidated undirected graph graph from 11385 edges to 6221 edges (54.6%)
 #> Final node degrees:

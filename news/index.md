@@ -1,6 +1,17 @@
 # Changelog
 
+## flownet 0.1.2
+
+- In
+  [`consolidate_graph()`](https://sebkrantz.github.io/flownet/reference/consolidate_graph.md):
+  argument `consolidate` was renamed to `contract` for improved clarity,
+  while ensuring backwards compatibility.
+
+- Minor improvements to documentation and vignette.
+
 ## flownet 0.1.1
+
+CRAN release: 2026-01-27
 
 - Implemented minor CRAN comments
 
@@ -19,7 +30,7 @@
   - Trade flow disaggregation workflow (country-to-city level)
 - Added academic references for the Path-Sized Logit model (Ben-Akiva &
   Bierlaire, 1999)
-- Added link to AequilibriaeE (Python) documentation for additional PSL
+- Added link to AequilibraE (Python) documentation for additional PSL
   resources
 - Improved error messages to be more informative (show which columns are
   missing, what class was received)

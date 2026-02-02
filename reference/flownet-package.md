@@ -13,9 +13,9 @@ processing/preparation.
 [`create_undirected_graph()`](https://sebkrantz.github.io/flownet/reference/create_undirected_graph.md)
 — Convert directed graph to undirected  
 [`consolidate_graph()`](https://sebkrantz.github.io/flownet/reference/consolidate_graph.md)
-— Consolidate graph by removing intermediate nodes  
+— Consolidate graph, removing redundant nodes/edges  
 [`simplify_network()`](https://sebkrantz.github.io/flownet/reference/simplify_network.md)
-— Simplify network graph  
+— Spatially simplify network graph  
 
 **Traffic Assignment**
 

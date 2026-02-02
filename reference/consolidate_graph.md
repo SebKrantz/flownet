@@ -1,7 +1,7 @@
 # Consolidate Graph
 
-Consolidate a graph by removing intermediate nodes (nodes that occur
-exactly twice) and optionally dropping loop, duplicate, and singleton
+Consolidate a graph by contracting/removing intermediate nodes (nodes
+that occur exactly twice) and dropping loop, duplicate, and singleton
 edges (leading to dead ends). This simplifies the network topology while
 preserving connectivity.
 
@@ -12,7 +12,7 @@ consolidate_graph(
   graph_df,
   directed = FALSE,
   drop.edges = c("loop", "duplicate", "single"),
-  consolidate = TRUE,
+  contract = TRUE,
   by = NULL,
   keep.nodes = NULL,
   ...,
@@ -42,19 +42,19 @@ consolidate_graph(
   `"single"` removes edges leading to singleton nodes (nodes that occur
   only once). Set to `NULL` to keep all edges.
 
-- consolidate:
+- contract:
 
-  Logical (default: TRUE). If TRUE, consolidates the graph by removing
+  Logical (default: TRUE). If TRUE, contracts the graph by removing
   intermediate nodes (nodes that occur exactly twice) and merging
   connecting edges. If FALSE, only drops edges as specified in
   `drop.edges`.
 
 - by:
 
-  Link characteristics to preserve/not consolidate across, passed as a
+  Link characteristics to preserve/not contract across, passed as a
   one-sided formula or character vector of column names. Typically this
   includes attributes like *mode*, *type*, or *capacity* to ensure that
-  only edges with the same characteristics are consolidated.
+  only edges with the same characteristics are contracted.
 
 - keep.nodes:
 
@@ -66,7 +66,7 @@ consolidate_graph(
 
   Arguments passed to
   [`collap()`](https://fastverse.org/collapse/reference/collap.html) for
-  aggregation across consolidated edges. The defaults are `FUN = fmean`
+  aggregation across contracted edges. The defaults are `FUN = fmean`
   for numeric columns and `catFUN = fmode` for categorical columns.
   Select columns using `cols` or use argument
   `custom = list(fmean = cols1, fsum = cols2, fmode = cols3)` to map
@@ -78,9 +78,9 @@ consolidate_graph(
 
   One of `"none"/FALSE`, `"partial"` (recurse on dropping single edges
   and consolidation but only aggregate once), or `"full"/TRUE`
-  (recursively consolidates and aggregates the graph until no further
+  (recursively contracts and aggregates the graph until no further
   consolidation is possible). This ensures that long chains of
-  intermediate nodes are fully consolidated in a single call.
+  intermediate nodes are fully contracted in a single call.
 
 - verbose:
 
@@ -103,18 +103,18 @@ A data frame representing the consolidated graph with:
 
 - Attribute `"keep.edges"` - Indices of original edges that were kept
 
-- Attribute `"gid"` - Edge group IDs mapping consolidated edges to
+- Attribute `"gid"` - Edge group IDs mapping contracted edges to
   original edges
 
 ## Details
 
-This function simplifies a graph by:
+This function consolidates/simplifies a graph by:
 
 - **Dropping edges**: Optionally removes self-loops, duplicate edges,
   and edges leading to singleton nodes (nodes that appear only once in
   the graph)
 
-- **Consolidating nodes**: Removes intermediate nodes (nodes that occur
+- **Contracting nodes**: Removes intermediate nodes (nodes that occur
   exactly twice) by merging the two edges connected through them into a
   single longer edge
 
@@ -125,14 +125,14 @@ This function simplifies a graph by:
   categorical columns.
 
 - **Recursive consolidation**: If `recursive = TRUE`, the function
-  continues consolidating until no more nodes can be consolidated,
-  ensuring complete simplification
+  continues consolidating until no more nodes can be dropped or
+  contracted, ensuring complete consolidation
 
 Consolidation is useful for simplifying network topology while
 preserving connectivity. For example, if node B connects A-\>B and
 B-\>C, it will be removed and replaced with A-\>C. With
-`recursive = TRUE`, long chains (A-\>B-\>C-\>D) are fully consolidated
-to A-\>D in a single call.
+`recursive = TRUE`, long chains (A-\>B-\>C-\>D) are fully contracted to
+A-\>D in a single call.
 
 For undirected graphs, the algorithm also handles cases where a node
 appears twice as either origin or destination (circular cases).
@@ -173,24 +173,24 @@ graph_cons <- consolidate_graph(graph, keep = nearest_nodes, w = ~ passes)
 #> Dropped 44 loop edges
 #> Dropped 11 edges leading to singleton nodes
 #> Oriented 3431 undirected intermediate edges
-#> Consolidated 5079 intermediate nodes
+#> Contracted 5079 intermediate nodes
 #> Oriented 10 undirected intermediate edges
-#> Consolidated 10 intermediate nodes
+#> Contracted 10 intermediate nodes
 #> Aggregated 11330 edges down to 6597 edges
 #> Oriented 361 undirected intermediate edges
-#> Consolidated 375 intermediate nodes
+#> Contracted 375 intermediate nodes
 #> Oriented 8 undirected intermediate edges
-#> Consolidated 8 intermediate nodes
+#> Contracted 8 intermediate nodes
 #> Aggregated 6597 edges down to 6264 edges
 #> Oriented 41 undirected intermediate edges
-#> Consolidated 43 intermediate nodes
+#> Contracted 43 intermediate nodes
 #> Oriented 1 undirected intermediate edges
-#> Consolidated 1 intermediate nodes
+#> Contracted 1 intermediate nodes
 #> Aggregated 6264 edges down to 6224 edges
 #> Oriented 2 undirected intermediate edges
-#> Consolidated 3 intermediate nodes
+#> Contracted 3 intermediate nodes
 #> Aggregated 6224 edges down to 6221 edges
-#> No nodes to consolidate, returning graph
+#> No nodes to contract, returning graph
 #> 
 #> Consolidated undirected graph graph from 11385 edges to 6221 edges (54.6%)
 #> Final node degrees:

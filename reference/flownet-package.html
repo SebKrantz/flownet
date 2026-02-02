@@ -6,8 +6,8 @@ utilities for network processing/preparation.
 Network Processing
 linestrings_to_graph() — Convert LINESTRING geometries to graph
  create_undirected_graph() — Convert directed graph to undirected
- consolidate_graph() — Consolidate graph by removing intermediate nodes
- simplify_network() — Simplify network graph
+ consolidate_graph() — Consolidate graph, removing redundant nodes/edges
+ simplify_network() — Spatially simplify network graph
 
 Traffic Assignment
 run_assignment() — Run traffic assignment using path-sized logit model
@@ -36,8 +36,8 @@ utilities for network processing/preparation.
 Network Processing
 linestrings_to_graph() — Convert LINESTRING geometries to graph
  create_undirected_graph() — Convert directed graph to undirected
- consolidate_graph() — Consolidate graph by removing intermediate nodes
- simplify_network() — Simplify network graph
+ consolidate_graph() — Consolidate graph, removing redundant nodes/edges
+ simplify_network() — Spatially simplify network graph
 
 Traffic Assignment
 run_assignment() — Run traffic assignment using path-sized logit model
@@ -67,7 +67,7 @@ Replication materials: https://github.com/SebKrantz/OptimalAfricanRoads"><meta p
 
     <a class="navbar-brand me-2" href="../index.html">flownet</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -90,7 +90,7 @@ Replication materials: https://github.com/SebKrantz/OptimalAfricanRoads"><meta p
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Efficient Transport Modeling</h1>
-      <small class="dont-index">Source: <a href="https://github.com/SebKrantz/flownet/blob/master/R/_PACKAGE.R" class="external-link"><code>R/_PACKAGE.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/SebKrantz/flownet/blob/v0.1.2/R/_PACKAGE.R" class="external-link"><code>R/_PACKAGE.R</code></a></small>
       <div class="d-none name"><code>flownet-package.Rd</code></div>
     </div>
 
@@ -100,7 +100,7 @@ and traffic assignment tasks. It implements the path-sized logit (PSL) model for
 utilities for network processing/preparation.</p>
 
 <p><strong>Network Processing</strong></p>
-<p><code><a href="linestrings_to_graph.html">linestrings_to_graph()</a></code> — Convert LINESTRING geometries to graph<br><code><a href="create_undirected_graph.html">create_undirected_graph()</a></code> — Convert directed graph to undirected<br><code><a href="consolidate_graph.html">consolidate_graph()</a></code> — Consolidate graph by removing intermediate nodes<br><code><a href="simplify_network.html">simplify_network()</a></code> — Simplify network graph<br></p>
+<p><code><a href="linestrings_to_graph.html">linestrings_to_graph()</a></code> — Convert LINESTRING geometries to graph<br><code><a href="create_undirected_graph.html">create_undirected_graph()</a></code> — Convert directed graph to undirected<br><code><a href="consolidate_graph.html">consolidate_graph()</a></code> — Consolidate graph, removing redundant nodes/edges<br><code><a href="simplify_network.html">simplify_network()</a></code> — Spatially simplify network graph<br></p>
 
 <p><strong>Traffic Assignment</strong></p>
 <p><code><a href="run_assignment.html">run_assignment()</a></code> — Run traffic assignment using path-sized logit model<br></p>

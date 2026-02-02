@@ -483,24 +483,24 @@ graph_cons <- consolidate_graph(graph_seg, keep = nearest_nodes_seg, w = ~ .leng
 #> Dropped 44 loop edges
 #> Dropped 11 edges leading to singleton nodes
 #> Oriented 3431 undirected intermediate edges
-#> Consolidated 5079 intermediate nodes
+#> Contracted 5079 intermediate nodes
 #> Oriented 10 undirected intermediate edges
-#> Consolidated 10 intermediate nodes
+#> Contracted 10 intermediate nodes
 #> Aggregated 11330 edges down to 6597 edges
 #> Oriented 361 undirected intermediate edges
-#> Consolidated 375 intermediate nodes
+#> Contracted 375 intermediate nodes
 #> Oriented 8 undirected intermediate edges
-#> Consolidated 8 intermediate nodes
+#> Contracted 8 intermediate nodes
 #> Aggregated 6597 edges down to 6264 edges
 #> Oriented 41 undirected intermediate edges
-#> Consolidated 43 intermediate nodes
+#> Contracted 43 intermediate nodes
 #> Oriented 1 undirected intermediate edges
-#> Consolidated 1 intermediate nodes
+#> Contracted 1 intermediate nodes
 #> Aggregated 6264 edges down to 6224 edges
 #> Oriented 2 undirected intermediate edges
-#> Consolidated 3 intermediate nodes
+#> Contracted 3 intermediate nodes
 #> Aggregated 6224 edges down to 6221 edges
-#> No nodes to consolidate, returning graph
+#> No nodes to contract, returning graph
 #> 
 #> Consolidated undirected graph graph_seg from 11385 edges to 6221 edges (54.6%)
 #> Final node degrees:
