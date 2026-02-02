@@ -365,7 +365,7 @@ normalize_graph <- function(graph_df) {
 
 
 #' @title Consolidate Graph
-#' @description Consolidate a graph by removing intermediate nodes (nodes that occur exactly twice) and optionally dropping loop, duplicate, and singleton edges (leading to dead ends). This simplifies the network topology while preserving connectivity.
+#' @description Consolidate a graph by contracting/removing intermediate nodes (nodes that occur exactly twice) and dropping loop, duplicate, and singleton edges (leading to dead ends). This simplifies the network topology while preserving connectivity.
 #'
 #' @param graph_df A data frame representing a graph with columns:
 #'   \code{from} and \code{to} (node IDs), and optionally other columns to preserve.
@@ -377,16 +377,16 @@ normalize_graph <- function(graph_df) {
 #'   \code{"duplicate"} removes duplicate edges (same from-to pair),
 #'   \code{"single"} removes edges leading to singleton nodes (nodes that occur only once).
 #'   Set to \code{NULL} to keep all edges.
-#' @param consolidate Logical (default: TRUE). If TRUE, consolidates the graph by removing
+#' @param contract Logical (default: TRUE). If TRUE, contracts the graph by removing
 #'   intermediate nodes (nodes that occur exactly twice) and merging connecting edges.
 #'   If FALSE, only drops edges as specified in \code{drop.edges}.
-#' @param by Link characteristics to preserve/not consolidate across, passed as a one-sided formula or character vector of column names. Typically this includes attributes like \emph{mode}, \emph{type}, or \emph{capacity} to ensure that only edges with the same characteristics are consolidated.
+#' @param by Link characteristics to preserve/not contract across, passed as a one-sided formula or character vector of column names. Typically this includes attributes like \emph{mode}, \emph{type}, or \emph{capacity} to ensure that only edges with the same characteristics are contracted.
 #' @param keep.nodes Numeric vector (optional). Node IDs to preserve during consolidation,
 #'   even if they occur exactly twice. Also used to preserve nodes when dropping singleton edges.
-#' @param \dots Arguments passed to \code{\link[collapse]{collap}()} for aggregation across consolidated edges. The defaults are \code{FUN = fmean} for numeric columns and \code{catFUN = fmode} for categorical columns. Select columns using \code{cols} or use argument \code{custom = list(fmean = cols1, fsum = cols2, fmode = cols3)} to map different columns to specific aggregation functions. It is highly recommended to weight the aggregation (using \code{w = ~ weight_col}) by the length/cost of the edges.
-#' @param recursive One of \code{"none"/FALSE}, \code{"partial"} (recurse on dropping single edges and consolidation but only aggregate once), or \code{"full"/TRUE} (recursively consolidates and aggregates the graph
+#' @param \dots Arguments passed to \code{\link[collapse]{collap}()} for aggregation across contracted edges. The defaults are \code{FUN = fmean} for numeric columns and \code{catFUN = fmode} for categorical columns. Select columns using \code{cols} or use argument \code{custom = list(fmean = cols1, fsum = cols2, fmode = cols3)} to map different columns to specific aggregation functions. It is highly recommended to weight the aggregation (using \code{w = ~ weight_col}) by the length/cost of the edges.
+#' @param recursive One of \code{"none"/FALSE}, \code{"partial"} (recurse on dropping single edges and consolidation but only aggregate once), or \code{"full"/TRUE} (recursively contracts and aggregates the graph
 #'   until no further consolidation is possible). This ensures that long chains of intermediate
-#'   nodes are fully consolidated in a single call.
+#'   nodes are fully contracted in a single call.
 #' @param verbose Logical (default: TRUE). Whether to print messages about dropped edges
 #'   and consolidation progress.
 #'
@@ -399,25 +399,25 @@ normalize_graph <- function(graph_df) {
 #'     \item \code{from}, \code{to} - Node IDs (updated after consolidation)
 #'     \item Coordinate columns (\code{FX}, \code{FY}, \code{TX}, \code{TY}) if present in original
 #'     \item Attribute \code{"keep.edges"} - Indices of original edges that were kept
-#'     \item Attribute \code{"gid"} - Edge group IDs mapping consolidated edges to original edges
+#'     \item Attribute \code{"gid"} - Edge group IDs mapping contracted edges to original edges
 #'   }
 #'
 #' @details
-#' This function simplifies a graph by:
+#' This function consolidates/simplifies a graph by:
 #' \itemize{
 #'   \item \strong{Dropping edges}: Optionally removes self-loops, duplicate edges, and edges
 #'     leading to singleton nodes (nodes that appear only once in the graph)
-#'   \item \strong{Consolidating nodes}: Removes intermediate nodes (nodes that occur exactly twice)
+#'   \item \strong{Contracting nodes}: Removes intermediate nodes (nodes that occur exactly twice)
 #'     by merging the two edges connected through them into a single longer edge
 #'   \item \strong{Aggregating attributes}: When edges are merged, attributes/columns are aggregated
 #'     using \code{\link[collapse]{collap}()}. The default aggregation is mean for numeric columns and mode for categorical columns.
 #'   \item \strong{Recursive consolidation}: If \code{recursive = TRUE}, the function continues
-#'     consolidating until no more nodes can be consolidated, ensuring complete simplification
+#'     consolidating until no more nodes can be dropped or contracted, ensuring complete consolidation
 #' }
 #'
 #' Consolidation is useful for simplifying network topology while preserving connectivity.
 #' For example, if node B connects A->B and B->C, it will be removed and replaced with A->C.
-#' With \code{recursive = TRUE}, long chains (A->B->C->D) are fully consolidated to A->D in
+#' With \code{recursive = TRUE}, long chains (A->B->C->D) are fully contracted to A->D in
 #' a single call.
 #'
 #' For undirected graphs, the algorithm also handles cases where a node appears twice
@@ -454,9 +454,12 @@ normalize_graph <- function(graph_df) {
 #' @importFrom stats setNames
 consolidate_graph <- function(graph_df, directed = FALSE,
                               drop.edges = c("loop", "duplicate", "single"),
-                              consolidate = TRUE, by = NULL, keep.nodes = NULL, ...,
+                              contract = TRUE, by = NULL,
+                              keep.nodes = NULL, ...,
                               recursive = "full",
                               verbose = TRUE) {
+
+  if(...length() && any(...names() == "consolidate")) contract <- list(...)[["consolidate"]]
 
   if(verbose) namg <- flast(as.character(substitute(graph_df)))
 
@@ -482,7 +485,7 @@ consolidate_graph <- function(graph_df, directed = FALSE,
 
   res <- consolidate_graph_core(graph_df, directed = directed,
                                 drop.edges = drop.edges,
-                                consolidate = consolidate,
+                                contract = contract,
                                 by = by,
                                 keep.nodes = keep.nodes,
                                 reci = reci, nam_keep = nam_keep,
@@ -500,7 +503,7 @@ consolidate_graph <- function(graph_df, directed = FALSE,
       prev_fnrow <- nrow_res
       res <- consolidate_graph_core(res, directed = directed,
                                     drop.edges = drop.edges,
-                                    consolidate = consolidate,
+                                    contract = contract,
                                     by = by,
                                     keep.nodes = keep.nodes,
                                     reci = reci, nam_keep = nam_keep,
@@ -531,7 +534,7 @@ consolidate_graph <- function(graph_df, directed = FALSE,
 # Corec function that can be called recursively
 consolidate_graph_core <- function(graph_df, directed = FALSE,
                               drop.edges = c("loop", "duplicate", "single"),
-                              consolidate = TRUE, by = NULL, keep.nodes = NULL, ...,
+                              contract = TRUE, by = NULL, keep.nodes = NULL, ...,
                               reci, nam_keep, verbose = TRUE) {
 
   keep <- seq_row(graph_df) # Global variable tracking utilized edges
@@ -573,7 +576,7 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
     }
   }
 
-  if(!consolidate) {
+  if(!contract) {
     res <- ss(graph_df, keep, check = FALSE)
     if(reci < 2L) attr(res, "keep.edges") <- keep
     attr(res, ".early.return") <- TRUE
@@ -582,7 +585,7 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
   # TODO: How does not dropping loop or duplicate edges affect the algorithm?
 
   gid <- seq_row(gft)  # Local variable mapping current edges to groups
-  consolidated_any <- FALSE
+  contractd_any <- FALSE
 
   merge_linear_nodes <- function(nodes) {
     if(!length(nodes)) return(FALSE)
@@ -690,14 +693,14 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
         if(verbose) cat(sprintf("Oriented %d undirected intermediate edges\n", length(need_orientation)))
       }
     }
-    if(!merge_linear_nodes(nodes)) stop("Failed to consolidate oriented undirected edges; please verify the graph topology.")
-    consolidated_any <- TRUE
-    if(verbose) cat(sprintf("Consolidated %d intermediate nodes\n", length(nodes)))
+    if(!merge_linear_nodes(nodes)) stop("Failed to contract oriented undirected edges; please verify the graph topology.")
+    contractd_any <- TRUE
+    if(verbose) cat(sprintf("Contracted %d intermediate nodes\n", length(nodes)))
     if(reci == 0L) break
   }
 
-  if(!consolidated_any) {
-    if(verbose) cat("No nodes to consolidate, returning graph\n")
+  if(!contractd_any) {
+    if(verbose) cat("No nodes to contract, returning graph\n")
     res <- ss(graph_df, keep, check = FALSE)
     if(reci < 2L) attr(res, "keep.edges") <- keep
     attr(res, ".early.return") <- TRUE
@@ -753,7 +756,7 @@ compute_degrees <- function(from_vec, to_vec) {
 }
 
 #' @title Simplify Network
-#' @description Simplify a network graph using shortest paths or node clustering methods.
+#' @description Spatially simplify a network graph using shortest paths or node clustering methods. This further simplifies the network topology but does not preserve full connectivity. It should ideally be called after \code{\link{consolidate_graph}()} if the network is still too large/complex.
 #'
 #' @param graph_df A data.frame with columns \code{from} and \code{to} representing the graph edges.
 #'   For the cluster method, the graph must also have columns \code{FX}, \code{FY}, \code{TX}, \code{TY}
@@ -809,6 +812,8 @@ compute_degrees <- function(from_vec, to_vec) {
 #'   }
 #'
 #' @details
+#' \code{simplify_network()} provides two methods to simplify large transport networks:
+#'
 #' \strong{Method: "shortest-paths"}
 #' \itemize{
 #'   \item Validates that all origin and destination nodes exist in the network
@@ -1025,7 +1030,7 @@ cluster_nodes <- function(nodes, keep,
     if(length(ind)) {
       mat <- cbind(Y = nodes$Y[ind], X = nodes$X[ind])
       weights <- if(length(nodes$weights)) nodes$weights[ind] else alloc(1, nrow(mat))
-      res <- leaderCluster(mat, cluster_radius_km, weights, max_iter = 1000L, distance = "haversine")
+      res <- leaderCluster(mat, cluster_radius_km, weights, max_iter = 150L, distance = "haversine")
       clusters[ind] <- res$cluster_id %+=% length(keep)
       centroids <- integer(length(keep) + res$num_clusters)
       centroids[seq_along(keep)] <- keep
@@ -1034,7 +1039,7 @@ cluster_nodes <- function(nodes, keep,
   } else {
     mat <- cbind(Y = nodes$Y, X = nodes$X)
     weights <- if(length(nodes$weights)) nodes$weights[ind] else alloc(1, nrow(mat))
-    res <- leaderCluster(mat, cluster_radius_km, weights, max_iter = 1000L, distance = "haversine")
+    res <- leaderCluster(mat, cluster_radius_km, weights, max_iter = 150L, distance = "haversine")
     clusters <- res$cluster_id
     centroids <- res$cluster_centroids[,2:1]
     dimnames(centroids)[[2L]] <- c("X", "Y")

@@ -78,9 +78,11 @@ A data.frame containing the simplified graph with:
   }
 }
 \description{
-Simplify a network graph using shortest paths or node clustering methods.
+Spatially simplify a network graph using shortest paths or node clustering methods. This further simplifies the network topology but does not preserve full connectivity. It should ideally be called after \code{\link{consolidate_graph}()} if the network is still too large/complex.
 }
 \details{
+\code{simplify_network()} provides two methods to simplify large transport networks:
+
 \strong{Method: "shortest-paths"}
 \itemize{
   \item Validates that all origin and destination nodes exist in the network
