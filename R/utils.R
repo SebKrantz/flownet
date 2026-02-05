@@ -514,7 +514,7 @@ consolidate_graph <- function(graph_df, directed = FALSE,
   if(length(attr(res, ".early.return"))) attr(res, ".early.return") <- NULL
 
   if(verbose) {
-    cat(sprintf("\nConsolidated %s graph %s from %d edges to %d edges (%s%%)\n", if(directed) "directed" else "undirected", namg, fnrow(graph_df), fnrow(res), as.character(signif(100*fnrow(res)/fnrow(graph_df), 3))))
+    cat(sprintf("\nConsolidated %s graph %s from %d edges to %d edges (%.1f%%)\n", if(directed) "directed" else "undirected", namg, fnrow(graph_df), fnrow(res), 100*fnrow(res)/fnrow(graph_df)))
     print(qtab(countOccur(c(res$from, res$to))$Count, dnn = "Final node degrees:"))
   }
 
@@ -1006,7 +1006,7 @@ simplify_network <- function(graph_df, nodes, method = c("shortest-paths", "clus
 
     edges <- which(edges_traversed > 0L)
     result <- ss(graph_df, edges, check = FALSE)
-    if(verbose) cat(sprintf("Retained %d/%d edges traversed by shortest paths (%.2f%%)\n",
+    if(verbose) cat(sprintf("Retained %d/%d edges traversed by shortest paths (%.1f%%)\n",
                             length(edges), fnrow(graph_df),
                             100 * length(edges) / fnrow(graph_df)))
     attr(result, "edges") <- edges
