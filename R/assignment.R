@@ -463,6 +463,7 @@ run_assignment <- function(graph_df, od_matrix_long,
 
     # Edge incidence across selected routes
     delta_ks <- integer(length(cost))
+    edge_probs <- if(retvals_PSL[3L]) numeric(length(cost)) else numeric(1)
 
     if(verbose) {
       pb <- progress_bar$new(
@@ -586,7 +587,7 @@ run_assignment <- function(graph_df, od_matrix_long,
       # }
       # final_flows[shortest_path] <- final_flows[shortest_path] + flow[i] * prob_ks[length(prob_ks)]
       wi = .Call(C_compute_path_sized_logit, paths1, paths2, no_dups, shortest_path,
-                 cost, cost_ks, d_ij, beta, flow[i], delta_ks, final_flows, retvals_PSL)
+                 cost, cost_ks, d_ij, beta, flow[i], delta_ks, edge_probs, final_flows, retvals_PSL)
       if(is.null(wi)) {
         sve(od_pairs, i, NA_integer_)
         next
