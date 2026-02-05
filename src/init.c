@@ -5,8 +5,7 @@
 SEXP check_path_duplicates(SEXP paths1, SEXP paths2, SEXP delta_ks);
 SEXP compute_path_sized_logit(SEXP paths1, SEXP paths2, SEXP no_dups, SEXP shortest_path,
                                SEXP cost, SEXP cost_ks, SEXP d_ij, SEXP beta_PSL, SEXP flow,
-                               SEXP delta_ks, SEXP edge_probs, SEXP final_flows,
-                               SEXP free_delta_ks, SEXP return_edge_weights);
+                               SEXP delta_ks, SEXP final_flows, SEXP retvals_PSL);
 SEXP mark_edges_traversed(SEXP paths, SEXP edges_traversed);
 // SEXP free_delta_ks(SEXP delta_ks, SEXP no_dups, SEXP paths1, SEXP paths2, SEXP shortest_path);
 SEXP set_vector_elt(SEXP x, SEXP i, SEXP elt);
