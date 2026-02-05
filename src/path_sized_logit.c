@@ -215,7 +215,7 @@ SEXP compute_path_sized_logit(SEXP paths1, SEXP paths2, SEXP no_dups, SEXP short
     // Return list with path weights and edges, edge_counts, and edge_weights
     SEXP result = PROTECT(allocVector(VECSXP, 4));
     SET_VECTOR_ELT(result, 0, prob_ks);
-    int *pe = &n_edges, *pec = &n_edges, *pew = &n_edges,
+    int *pe = &n_edges, *pec = &n_edges,
       k = 0, l = length(delta_ks), lp = l+1,
       ret0 = ret[0], ret1 = ret[1], ret2 = ret[2];
     if(ret0) {
@@ -236,9 +236,10 @@ SEXP compute_path_sized_logit(SEXP paths1, SEXP paths2, SEXP no_dups, SEXP short
       }
     }
     // Initialize edge weights
+    double *pew = &sum_exp;
     if(ret2) {
       SET_VECTOR_ELT(result, 3, allocVector(REALSXP, n_edges));
-      pew = INTEGER(VECTOR_ELT(result, 3));
+      pew = REAL(VECTOR_ELT(result, 3));
       memset(pew, 0, n_edges * sizeof(double));
     }
     // Accumulate both edge_probs and final_flows
