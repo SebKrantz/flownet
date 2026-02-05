@@ -5,9 +5,10 @@
 SEXP check_path_duplicates(SEXP paths1, SEXP paths2, SEXP delta_ks);
 SEXP compute_path_sized_logit(SEXP paths1, SEXP paths2, SEXP no_dups, SEXP shortest_path,
                                SEXP cost, SEXP cost_ks, SEXP d_ij, SEXP beta_PSL, SEXP flow,
-                               SEXP delta_ks, SEXP final_flows, SEXP free_delta_ks);
+                               SEXP delta_ks, SEXP edge_probs, SEXP final_flows,
+                               SEXP free_delta_ks, SEXP return_edge_weights);
 SEXP mark_edges_traversed(SEXP paths, SEXP edges_traversed);
-SEXP free_delta_ks(SEXP delta_ks, SEXP no_dups, SEXP paths1, SEXP paths2, SEXP shortest_path);
+// SEXP free_delta_ks(SEXP delta_ks, SEXP no_dups, SEXP paths1, SEXP paths2, SEXP shortest_path);
 SEXP set_vector_elt(SEXP x, SEXP i, SEXP elt);
 SEXP assign_flows_to_paths(SEXP paths, SEXP flows, SEXP final_flows, SEXP indices, SEXP od_pairs);
 SEXP sum_path_costs(SEXP paths, SEXP cost, SEXP result, SEXP indices);
@@ -16,7 +17,7 @@ static const R_CallMethodDef CallEntries[] = {
   {"C_check_path_duplicates", (DL_FUNC) &check_path_duplicates, 3},
   {"C_compute_path_sized_logit", (DL_FUNC) &compute_path_sized_logit, 12},
   {"C_mark_edges_traversed", (DL_FUNC) &mark_edges_traversed, 2},
-  {"C_free_delta_ks", (DL_FUNC) &free_delta_ks, 5},
+  // {"C_free_delta_ks", (DL_FUNC) &free_delta_ks, 5},
   {"C_set_vector_elt", (DL_FUNC) &set_vector_elt, 3},
   {"C_assign_flows_to_paths", (DL_FUNC) &assign_flows_to_paths, 5},
   {"C_sum_path_costs", (DL_FUNC) &sum_path_costs, 4},

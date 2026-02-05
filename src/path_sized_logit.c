@@ -38,27 +38,34 @@ static double POS_INF = 1.0/0.0;
  *      An integer vector, same length as number of edges + 1, used as temporary workspace for edge overlap counts.
  * final_flows : SEXP (double vector)
  *      A vector, same length as number of edges, accumulates the assigned flow to each edge across all paths.
- * free_delta_ks : SEXP (logical scalar)
- *      Whether to reset delta_ks to 0 for all affected edges at end (usually TRUE).
+ * retvals_PSL : SEXP (logical vector of lenth 3)
+ *      [1]: return edges vector?; [2] return edge counts?; [3] return edge weights?
  *
  * Returns
  * -------
- * prob_ks : SEXP (double vector of length (n_no_dups + 1))
+ * If !any(retvals_PSL):
+ *   prob_ks : SEXP (double vector of length (n_no_dups + 1))
  *      Probability vector. The first element corresponds to the shortest path, and the next n_no_dups elements
  *      correspond to the alternative paths given by no_dups.
+ *
+ * If any(retvals_PSL):
+ *   A list with up to four elements:
+ *     [[1]] prob_ks: as above
+ *     [[2]] edges: edge indices
+ *     [[3]] counts: edge counts
+ *     [[4]] eweights: vector with summed probabilities per edge
  *
  * Details
  * -------
  * Computes path overlap factors (gamma) for alternatives and the shortest path.
  * Calculates logit probabilities with path-size correction. Updates a temporary vector delta_ks to count the overlap
  * of network edges among candidate paths. Assigns OD flow to edges in final_flows by the chosen probabilities.
- * Resets delta_ks if requested.
  *
- * Edge numbering: All edge ids in the paths and shortest_path are assumed to be 1-based.
+ * Edge numbering: All edge ids in the paths and shortest_path are assumed to be 1-based double values.
  */
 SEXP compute_path_sized_logit(SEXP paths1, SEXP paths2, SEXP no_dups, SEXP shortest_path,
                               SEXP cost, SEXP cost_ks, SEXP d_ij, SEXP beta_PSL,
-                              SEXP flow, SEXP delta_ks, SEXP final_flows, SEXP free_delta_ks) {
+                              SEXP flow, SEXP delta_ks, SEXP final_flows, SEXP retvals_PSL) {
 
   int n_no_dups = length(no_dups);
   const SEXP *paths1_ptr = SEXPPTR_RO(paths1);
@@ -73,20 +80,49 @@ SEXP compute_path_sized_logit(SEXP paths1, SEXP paths2, SEXP no_dups, SEXP short
   double flow_val = asReal(flow);
   int *delta_ptr = INTEGER(delta_ks)-1; // needed for correct results with 1-based edge IDs (edges output)
   double *final_flows_ptr = REAL(final_flows);
+  int *ret = LOGICAL(retvals_PSL), ret_any = ret[0] + ret[1] + ret[2];
+
 
   // Step 1: Update delta_ks for paths in no_dups
   // delta_ks stores, for each edge, how many times it appears in the alternatives under consideration
-  for (int idx = 0; idx < n_no_dups; idx++) {
-    int k = no_dups_ptr[idx] - 1; // Convert to 0-based
-    int len1 = length(paths1_ptr[k]);
-    int len2 = length(paths2_ptr[k]);
-    double *p1 = REAL(paths1_ptr[k]);
-    double *p2 = REAL(paths2_ptr[k]);
-    for (int i = 0; i < len1; i++) delta_ptr[(int)p1[i]]++;
-    for (int i = 0; i < len2; i++) delta_ptr[(int)p2[i]]++;
+  int n_edges = 0;
+  if(ret_any) {
+    for (int idx = 0; idx < n_no_dups; idx++) {
+      int k = no_dups_ptr[idx] - 1; // Convert to 0-based
+      int len1 = length(paths1_ptr[k]);
+      int len2 = length(paths2_ptr[k]);
+      double *p1 = REAL(paths1_ptr[k]);
+      double *p2 = REAL(paths2_ptr[k]);
+      for (int i = 0; i < len1; i++) {
+        int ip = (int)p1[i];
+        if(delta_ptr[ip] == 0) ++n_edges;
+        delta_ptr[ip]++;
+      }
+      for (int i = 0; i < len2; i++) {
+        int ip = (int)p2[i];
+        if(delta_ptr[ip] == 0) ++n_edges;
+        delta_ptr[ip]++;
+      }
+    }
+    // Update delta_ks for shortest_path
+    for (int i = 0; i < shortest_path_len; i++) {
+      int ip = (int)shortest_path_ptr[i];
+      if(delta_ptr[ip] == 0) ++n_edges;
+      delta_ptr[ip]++;
+    }
+  } else {
+    for (int idx = 0; idx < n_no_dups; idx++) {
+      int k = no_dups_ptr[idx] - 1; // Convert to 0-based
+      int len1 = length(paths1_ptr[k]);
+      int len2 = length(paths2_ptr[k]);
+      double *p1 = REAL(paths1_ptr[k]);
+      double *p2 = REAL(paths2_ptr[k]);
+      for (int i = 0; i < len1; i++) delta_ptr[(int)p1[i]]++;
+      for (int i = 0; i < len2; i++) delta_ptr[(int)p2[i]]++;
+    }
+    // Update delta_ks for shortest_path
+    for (int i = 0; i < shortest_path_len; i++) delta_ptr[(int)shortest_path_ptr[i]]++;
   }
-  // Update delta_ks for shortest_path
-  for (int i = 0; i < shortest_path_len; i++) delta_ptr[(int)shortest_path_ptr[i]]++;
 
   // Step 2: Compute gamma_ks and gamma_1 (path-size factors for each alternative and the shortest path)
   double *gamma_ks = (double *) R_alloc(n_no_dups, sizeof(double));
@@ -135,34 +171,28 @@ SEXP compute_path_sized_logit(SEXP paths1, SEXP paths2, SEXP no_dups, SEXP short
   double util_shortest = -d_ij_val + beta_PSL_val * log(gamma_1);
   if(util_shortest > max_utility && util_shortest != -POS_INF) max_utility = util_shortest;
 
-  // Handle case where all utilities are -infinity
-  if(max_utility == -POS_INF) {
-    UNPROTECT(1);
-    return R_NilValue;
-  }
-
-  // Second pass: compute exponentials with max normalization to prevent underflow
   double sum_exp = 0.0;
-  for (int idx = 0; idx < n_no_dups; idx++) {
-    double util = -cost_ks_ptr[no_dups_ptr[idx]-1] + beta_PSL_val * log(gamma_ks[idx]);
-    double util_diff = util - max_utility;
-    // Clamp to reasonable range to prevent overflow/underflow
-    if(util_diff < -700.0) util_diff = -700.0;  // exp(-700) ≈ 0, but won't underflow
-    prob_ptr[idx+1] = exp(util_diff);
-    sum_exp += prob_ptr[idx+1];
+  if(max_utility != -POS_INF) {
+    // Second pass: compute exponentials with max normalization to prevent underflow
+    for (int idx = 0; idx < n_no_dups; idx++) {
+      double util = -cost_ks_ptr[no_dups_ptr[idx]-1] + beta_PSL_val * log(gamma_ks[idx]);
+      double util_diff = util - max_utility;
+      // Clamp to reasonable range to prevent overflow/underflow
+      if(util_diff < -700.0) util_diff = -700.0;  // exp(-700) ≈ 0, but won't underflow
+      prob_ptr[idx+1] = exp(util_diff);
+      sum_exp += prob_ptr[idx+1];
+    }
+    double util_diff_0 = util_shortest - max_utility;
+    if(util_diff_0 < -700.0) util_diff_0 = -700.0;
+    prob_ptr[0] = exp(util_diff_0);
+    sum_exp += prob_ptr[0];
   }
-  double util_diff_0 = util_shortest - max_utility;
-  if(util_diff_0 < -700.0) util_diff_0 = -700.0;
-  prob_ptr[0] = exp(util_diff_0);
-  sum_exp += prob_ptr[0];
 
-  int invalid_sum = 0;
+  // Handle case where all utilities are -infinity
   // More lenient check: allow very small but positive sum_exp (can happen with extreme costs)
   // Only fail if truly invalid (NaN, <= 0, or infinity)
-  if(sum_exp != sum_exp || sum_exp <= 1e-300 || sum_exp >= POS_INF) invalid_sum = 1;
-
-  // Step 4: Reset delta_ks if requested (to reuse buffer for next OD pair)
-  if(invalid_sum || LOGICAL(free_delta_ks)[0]) {
+  if(max_utility == -POS_INF || sum_exp != sum_exp || sum_exp <= 1e-300 || sum_exp >= POS_INF) {
+    // Reset delta_ks before returning
     for (int idx = 0; idx < n_no_dups; idx++) {
       int k = no_dups_ptr[idx] - 1;
       int len1 = length(paths1_ptr[k]);
@@ -173,9 +203,6 @@ SEXP compute_path_sized_logit(SEXP paths1, SEXP paths2, SEXP no_dups, SEXP short
       for (int i = 0; i < len2; i++) delta_ptr[(int)p2[i]] = 0;
     }
     for (int i = 0; i < shortest_path_len; i++) delta_ptr[(int)shortest_path_ptr[i]] = 0;
-  }
-
-  if(invalid_sum) {
     UNPROTECT(1);
     return R_NilValue;
   }
@@ -183,7 +210,73 @@ SEXP compute_path_sized_logit(SEXP paths1, SEXP paths2, SEXP no_dups, SEXP short
   // Normalize to get probabilities
   for (int i = 0; i <= n_no_dups; i++) prob_ptr[i] /= sum_exp;
 
-  // Step 5: Update final_flows with fractional flow assigned to each edge, for each alternative (including shortest path)
+  // Step 4: Update final_flows (and edge_probs if requested)
+  if (ret_any) {
+    // Return list with path weights and edges, edge_counts, and edge_weights
+    SEXP result = PROTECT(allocVector(VECSXP, 4));
+    SET_VECTOR_ELT(result, 0, prob_ks);
+    int *pe = &n_edges, *pec = &n_edges, *pew = &n_edges,
+      k = 0, l = length(delta_ks), lp = l+1,
+      ret0 = ret[0], ret1 = ret[1], ret2 = ret[2];
+    if(ret0) {
+      SET_VECTOR_ELT(result, 1, allocVector(INTSXP, n_edges));
+      pe = INTEGER(VECTOR_ELT(result, 1));
+    }
+    if(ret1) {
+      SET_VECTOR_ELT(result, 2, allocVector(INTSXP, n_edges));
+      pec = INTEGER(VECTOR_ELT(result, 2));
+    }
+    // Loop through delta_ptr to extract as needed and reset
+    for(int i = 1; i != lp; ++i) {
+      if(delta_ptr[i]) {
+        if(ret0) pe[k] = i; // Store edge index if requested
+        if(ret1) pec[k] = delta_ptr[i]; // Store edge count if requested
+        k++;
+        delta_ptr[i] = 0; // Reset delta_ks for next OD pair
+      }
+    }
+    // Initialize edge weights
+    if(ret2) {
+      SET_VECTOR_ELT(result, 3, allocVector(REALSXP, n_edges));
+      pew = INTEGER(VECTOR_ELT(result, 3));
+      memset(pew, 0, n_edges * sizeof(double));
+    }
+    // Accumulate both edge_probs and final_flows
+    for (int idx = 0; idx < n_no_dups; idx++) {
+      double prob_val = prob_ptr[idx+1];
+      if(prob_val != prob_val || prob_val <= 0) continue;
+      double flow_prob = flow_val * prob_val;
+      int k = no_dups_ptr[idx] - 1;
+      int len1 = length(paths1_ptr[k]);
+      int len2 = length(paths2_ptr[k]);
+      double *p1 = REAL(paths1_ptr[k]);
+      double *p2 = REAL(paths2_ptr[k]);
+      for (int i = 0; i < len1; i++) {
+        int edge = (int)p1[i]-1;
+        if(ret2) pew[edge] += prob_val; // Compute edge weight if requested
+        final_flows_ptr[edge] += flow_prob;
+      }
+      for (int i = 0; i < len2; i++) {
+        int edge = (int)p2[i]-1;
+        if(ret2) pew[edge] += prob_val; // Compute edge weight if requested
+        final_flows_ptr[edge] += flow_prob;
+      }
+    }
+    // Handle shortest path
+    double prob_shortest = prob_ptr[0];
+    if(prob_shortest == prob_shortest && prob_shortest > 0) {
+      double flow_prob_shortest = flow_val * prob_shortest;
+      for (int i = 0; i < shortest_path_len; i++) {
+        int edge = (int)shortest_path_ptr[i]-1;
+        if(ret2) pew[edge] += prob_shortest; // Compute edge weight if requested
+        final_flows_ptr[edge] += flow_prob_shortest;
+      }
+    }
+    UNPROTECT(2);
+    return result;
+  }
+
+  // Only update final_flows (original code path - no overhead)
   for (int idx = 0; idx < n_no_dups; idx++) {
     double prob_val = flow_val * prob_ptr[idx+1];
     if(prob_val != prob_val || prob_val <= 0) continue;
@@ -192,14 +285,24 @@ SEXP compute_path_sized_logit(SEXP paths1, SEXP paths2, SEXP no_dups, SEXP short
     int len2 = length(paths2_ptr[k]);
     double *p1 = REAL(paths1_ptr[k]);
     double *p2 = REAL(paths2_ptr[k]);
-    for (int i = 0; i < len1; i++) final_flows_ptr[(int)p1[i] - 1] += prob_val;
-    for (int i = 0; i < len2; i++) final_flows_ptr[(int)p2[i] - 1] += prob_val;
+    for (int i = 0; i < len1; i++) {
+      int edge = (int)p1[i];
+      final_flows_ptr[edge-1] += prob_val;
+      delta_ptr[edge] = 0;
+    }
+    for (int i = 0; i < len2; i++) {
+      int edge = (int)p2[i];
+      final_flows_ptr[edge-1] += prob_val;
+      delta_ptr[edge] = 0;
+    }
   }
-
-  sum_exp = flow_val * prob_ptr[0];
-  if(sum_exp == sum_exp && sum_exp > 0) {
+  // Handle shortest path
+  double prob_shortest = flow_val * prob_ptr[0];
+  if(prob_shortest == prob_shortest && prob_shortest > 0) {
     for (int i = 0; i < shortest_path_len; i++) {
-      final_flows_ptr[(int)shortest_path_ptr[i] - 1] += sum_exp;
+      int edge = (int)shortest_path_ptr[i];
+      final_flows_ptr[edge-1] += prob_shortest;
+      delta_ptr[edge] = 0;
     }
   }
 
