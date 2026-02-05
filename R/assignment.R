@@ -455,7 +455,7 @@ run_assignment <- function(graph_df, od_matrix_long,
     final_flows <- numeric(length(cost))
 
     # Edge incidence across selected routes
-    delta_ks <- integer(length(cost) + 10L)
+    delta_ks <- integer(length(cost) + 1L)
 
     if(verbose) {
       pb <- progress_bar$new(
@@ -522,7 +522,7 @@ run_assignment <- function(graph_df, od_matrix_long,
       # }
       short_detour_ij = if(geol) d_ikj < detour.max * d_ij & b < a & theta < angle.max else
                                  d_ikj < detour.max * d_ij
-      short_detour_ij[d_ikj < d_ij + .Machine$double.eps*1e3] <- FALSE # Exclude nodes k that are on the shortest path
+      short_detour_ij[d_ikj < d_ij + 1e-10] <- FALSE # Exclude nodes k that are on the shortest path
       # which(d_ij == d_ikj) # These are the nodes on the direct path from i to j which yield the shortest distance.
       ks = which(short_detour_ij)
       cost_ks = d_ikj[ks]

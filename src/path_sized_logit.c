@@ -71,7 +71,7 @@ SEXP compute_path_sized_logit(SEXP paths1, SEXP paths2, SEXP no_dups, SEXP short
   double d_ij_val = REAL(d_ij)[0];
   double beta_PSL_val = asReal(beta_PSL);
   double flow_val = asReal(flow);
-  int *delta_ptr = INTEGER(delta_ks);
+  int *delta_ptr = INTEGER(delta_ks)-1; // needed for correct results with 1-based edge IDs (edges output)
   double *final_flows_ptr = REAL(final_flows);
 
   // Step 1: Update delta_ks for paths in no_dups

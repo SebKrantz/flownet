@@ -120,7 +120,7 @@ SEXP free_delta_ks(SEXP delta_ks, SEXP no_dups, SEXP paths1, SEXP paths2, SEXP s
   int *no_dups_ptr = INTEGER(no_dups);
   double *shortest_path_ptr = REAL(shortest_path);
   int shortest_path_len = length(shortest_path);
-  int *delta_ptr = INTEGER(delta_ks);
+  int *delta_ptr = INTEGER(delta_ks)-1;
 
   // Zero out delta_ks entries for all edges in paths1 and paths2 for non-duplicate paths
   for (int idx = 0; idx < n_no_dups; idx++) {

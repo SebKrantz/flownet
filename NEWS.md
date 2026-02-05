@@ -1,3 +1,7 @@
+# flownet 0.1.3
+
+- Fixed bug in run_assignment with `return.extra = "edges"` where edge indices were incorrectly returned. Due to zero indexing in C vs. 1-indexing in R they where offset by one, thus, in *flownet* versions <= 0.1.2, the correct edge indices can be retained by subtracting 1 from them.
+
 # flownet 0.1.2
 
 - In `consolidate_graph()`: argument `consolidate` was renamed to `contract` for improved clarity, while ensuring backwards compatibility.
