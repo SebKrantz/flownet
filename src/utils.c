@@ -22,7 +22,7 @@ SEXP check_path_duplicates(SEXP paths1, SEXP paths2, SEXP delta_ks) {
   if(n_paths == 0) return allocVector(INTSXP, 0);
 
   // Get pointer to delta_ks for direct indexing
-  int *delta_ptr = INTEGER(delta_ks);
+  int *delta_ptr = INTEGER(delta_ks)-1;
 
   // Allocate buffer for results
   int *buf = (int *) R_alloc(n_paths, sizeof(int)), j = 0;
@@ -112,7 +112,6 @@ SEXP mark_edges_traversed(SEXP paths, SEXP edges_traversed) {
  * @param paths2      List of vectors; secondary part of alternative paths (double vectors of edge IDs)
  * @param shortest_path Numeric vector of edge IDs for the shortest path
  * @return            The modified delta_ks vector (as SEXP)
- */
 SEXP free_delta_ks(SEXP delta_ks, SEXP no_dups, SEXP paths1, SEXP paths2, SEXP shortest_path) {
   int n_no_dups = length(no_dups);
   const SEXP *paths1_ptr = SEXPPTR_RO(paths1);
@@ -120,7 +119,7 @@ SEXP free_delta_ks(SEXP delta_ks, SEXP no_dups, SEXP paths1, SEXP paths2, SEXP s
   int *no_dups_ptr = INTEGER(no_dups);
   double *shortest_path_ptr = REAL(shortest_path);
   int shortest_path_len = length(shortest_path);
-  int *delta_ptr = INTEGER(delta_ks);
+  int *delta_ptr = INTEGER(delta_ks)-1;
 
   // Zero out delta_ks entries for all edges in paths1 and paths2 for non-duplicate paths
   for (int idx = 0; idx < n_no_dups; idx++) {
@@ -138,6 +137,7 @@ SEXP free_delta_ks(SEXP delta_ks, SEXP no_dups, SEXP paths1, SEXP paths2, SEXP s
 
   return delta_ks;
 }
+ */
 
 // Assign to list inside mirai daemon
 SEXP set_vector_elt(SEXP x, SEXP i, SEXP elt) {

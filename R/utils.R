@@ -514,7 +514,7 @@ consolidate_graph <- function(graph_df, directed = FALSE,
   if(length(attr(res, ".early.return"))) attr(res, ".early.return") <- NULL
 
   if(verbose) {
-    cat(sprintf("\nConsolidated %s graph %s from %d edges to %d edges (%s%%)\n", if(directed) "directed" else "undirected", namg, fnrow(graph_df), fnrow(res), as.character(signif(100*fnrow(res)/fnrow(graph_df), 3))))
+    cat(sprintf("\nConsolidated %s graph %s from %d edges to %d edges (%.1f%%)\n", if(directed) "directed" else "undirected", namg, fnrow(graph_df), fnrow(res), 100*fnrow(res)/fnrow(graph_df)))
     print(qtab(countOccur(c(res$from, res$to))$Count, dnn = "Final node degrees:"))
   }
 
@@ -788,6 +788,7 @@ compute_degrees <- function(from_vec, to_vec) {
 #'   \code{nodes}: radius in kilometers around preserved nodes. Graph nodes within this radius
 #'   will be assigned to the nearest preserved node's cluster.
 #'   \code{cluster}: radius in kilometers for clustering remaining nodes using leaderCluster.
+#' @param verbose Logical (default: TRUE). Whether to print progress messages/bars.
 #' @param \dots For \code{method = "cluster"}: additional arguments passed to
 #'   \code{\link[collapse]{collap}} for edge attribute aggregation.
 #'
@@ -888,7 +889,7 @@ compute_degrees <- function(from_vec, to_vec) {
 #' @importFrom leaderCluster leaderCluster
 simplify_network <- function(graph_df, nodes, method = c("shortest-paths", "cluster"),
                              directed = FALSE, cost.column = "cost", by = NULL,
-                             radius_km = list(nodes = 7, cluster = 20), ...) {
+                             radius_km = list(nodes = 7, cluster = 20), verbose = TRUE, ...) {
 
   method <- match.arg(method)
 
@@ -925,6 +926,8 @@ simplify_network <- function(graph_df, nodes, method = c("shortest-paths", "clus
                             vertices = data.frame(name = seq_along(all_nodes))) |>
       delete_vertex_attr("name")
 
+    if(verbose) cat("Created graph with", vcount(ig), "nodes and", ecount(ig), "edges...\n")
+
     # Don't return vertex/edge names
     iopt <- igraph_options(return.vs.es = FALSE)
     on.exit(igraph_options(iopt))
@@ -947,24 +950,41 @@ simplify_network <- function(graph_df, nodes, method = c("shortest-paths", "clus
     # Helper to compute paths with given cost vector
     compute_paths <- function(cost_vec) {
       if(length(nodes_matched)) {
+        N <- length(nodes_matched)
         if(directed) {
+          if(verbose) {
+            pb <- progress_bar$new(format = "Processed :current/:total shortest paths (:percent) at :tick_rate/sec [Elapsed::elapsed | ETA::eta]",
+                                   total = N^2, clear = FALSE, width = 100)
+          }
           for (i in nodes_matched) {
+            if(verbose) pb$tick(N)
             pathsi <- shortest_paths(ig, from = i, to = nodes_matched,
                                      weights = cost_vec, mode = "out", output = "epath")$epath
             .Call(C_mark_edges_traversed, pathsi, edges_traversed)
           }
         } else {
-          n <- length(nodes_matched)
-          for (i in 1:(n - 1L)) {
-            pathsi <- shortest_paths(ig, from = nodes_matched[i], to = nodes_matched[(i + 1L):n],
+          if(verbose) {
+            pb <- progress_bar$new(format = "Processed :current/:total shortest paths (:percent) at :tick_rate/sec [Elapsed::elapsed | ETA::eta]",
+                                   total = N*(N-1)/2, clear = FALSE, width = 100)
+          }
+          for (i in 1:(N - 1L)) {
+            ind = nodes_matched[(i + 1L):N]
+            if(verbose) pb$tick(length(ind))
+            pathsi <- shortest_paths(ig, from = nodes_matched[i], to = ind,
                                      weights = cost_vec, mode = "out", output = "epath")$epath
             .Call(C_mark_edges_traversed, pathsi, edges_traversed)
           }
         }
       } else {
         from_nodes <- as.integer(names(nodes_split))
+        if(verbose) {
+          pb <- progress_bar$new(format = "Processed :current/:total shortest paths (:percent) at :tick_rate/sec [Elapsed::elapsed | ETA::eta]",
+                                 total = fnrow(nodes), clear = FALSE, width = 100)
+        }
         for (i in seq_along(from_nodes)) {
-          pathsi <- shortest_paths(ig, from = from_nodes[i], to = nodes_split[[i]],
+          ind = nodes_split[[i]]
+          if(verbose) pb$tick(length(ind))
+          pathsi <- shortest_paths(ig, from = from_nodes[i], to = ind,
                                    weights = cost_vec, mode = "out", output = "epath")$epath
           .Call(C_mark_edges_traversed, pathsi, edges_traversed)
         }
@@ -986,6 +1006,9 @@ simplify_network <- function(graph_df, nodes, method = c("shortest-paths", "clus
 
     edges <- which(edges_traversed > 0L)
     result <- ss(graph_df, edges, check = FALSE)
+    if(verbose) cat(sprintf("Retained %d/%d edges traversed by shortest paths (%.1f%%)\n",
+                            length(edges), fnrow(graph_df),
+                            100 * length(edges) / fnrow(graph_df)))
     attr(result, "edges") <- edges
     attr(result, "edge_counts") <- edges_traversed[edges]
 
@@ -999,10 +1022,11 @@ simplify_network <- function(graph_df, nodes, method = c("shortest-paths", "clus
     # Optional node weights
     if(is.numeric(cost.column) && length(cost.column) == fnrow(nodes_df)) nodes_df$weights <- cost.column
     # Cluster method
-    cl <- cluster_nodes(nodes_df, nodes, radius_km$nodes, radius_km$cluster)
+    cl <- cluster_nodes(nodes_df, nodes, radius_km$nodes, radius_km$cluster, verbose)
     # Graph Contraction to Clusters
     result <- contract_edges(graph_df, nodes = nodes_df, clusters = cl$clusters,
-                             centroids = cl$centroids, directed = directed, by = by, ...)
+                             centroids = cl$centroids, directed = directed, by = by,
+                             verbose = verbose, ...)
 
   }
 
@@ -1012,12 +1036,13 @@ simplify_network <- function(graph_df, nodes, method = c("shortest-paths", "clus
 # Helper functions for simplify_network() with method = "cluster"
 cluster_nodes <- function(nodes, keep,
                           nodes_radius_km = 7,
-                          cluster_radius_km = 20) {
+                          cluster_radius_km = 20, verbose = TRUE) {
   # Nodes to preserve
   if(length(keep)) {
     clusters <- integer(fnrow(nodes))
     keep <- ckmatch(keep, nodes$node, "Unknown nodes to preserve:")
     clusters[keep] <- seq_along(keep)
+    if(verbose) cat("Clustering nodes close to 'keep' nodes using a radius of ", nodes_radius_km, "km\n", sep = "")
     # Cluster nodes close to cities
     dmat <- geodist_vec(nodes$X[keep], nodes$Y[keep],
                         nodes$X[-keep], nodes$Y[-keep],
@@ -1030,7 +1055,10 @@ cluster_nodes <- function(nodes, keep,
     if(length(ind)) {
       mat <- cbind(Y = nodes$Y[ind], X = nodes$X[ind])
       weights <- if(length(nodes$weights)) nodes$weights[ind] else alloc(1, nrow(mat))
-      res <- leaderCluster(mat, cluster_radius_km, weights, max_iter = 150L, distance = "haversine")
+      if(verbose) cat("Clustering the remaining nodes with the leaderCluster algorithm using a radius of ", cluster_radius_km, "km\n", sep = "")
+      res <- leaderCluster(mat, cluster_radius_km, weights, max_iter = 250L, distance = "haversine")
+      if(res$iter >= 250) warning("leaderCluster did not fully converge within 250 iterations")
+      else if(verbose) cat("leaderCluster algorithm converged in", res$iter, "iterations\n")
       clusters[ind] <- res$cluster_id %+=% length(keep)
       centroids <- integer(length(keep) + res$num_clusters)
       centroids[seq_along(keep)] <- keep
@@ -1039,7 +1067,9 @@ cluster_nodes <- function(nodes, keep,
   } else {
     mat <- cbind(Y = nodes$Y, X = nodes$X)
     weights <- if(length(nodes$weights)) nodes$weights[ind] else alloc(1, nrow(mat))
-    res <- leaderCluster(mat, cluster_radius_km, weights, max_iter = 150L, distance = "haversine")
+    res <- leaderCluster(mat, cluster_radius_km, weights, max_iter = 250L, distance = "haversine")
+    if(res$iter >= 250) warning("leaderCluster did not fully converge within 250 iterations")
+    else if(verbose) cat("leaderCluster algorithm converged in", res$iter, "iterations\n")
     clusters <- res$cluster_id
     centroids <- res$cluster_centroids[,2:1]
     dimnames(centroids)[[2L]] <- c("X", "Y")
@@ -1048,7 +1078,7 @@ cluster_nodes <- function(nodes, keep,
   list(clusters = clusters, centroids = nodes$node[centroids])
 }
 
-contract_edges <- function(graph, nodes, clusters, centroids, directed = FALSE, by = NULL, ...) {
+contract_edges <- function(graph, nodes, clusters, centroids, directed = FALSE, by = NULL, verbose = TRUE, ...) {
     node_centroids <- centroids[clusters]
     graph$from <- node_centroids[ckmatch(graph$from, nodes$node)]
     graph$to <- node_centroids[ckmatch(graph$to, nodes$node)]
@@ -1056,6 +1086,7 @@ contract_edges <- function(graph, nodes, clusters, centroids, directed = FALSE, 
     # Drop self-loops (edges where both endpoints map to same cluster)
     self_loops <- graph$from == graph$to
     if(any(self_loops)) {
+      if(verbose) cat("Dropped", sum(self_loops), "self-loop edges (following clustering)\n")
       graph <- ss(graph, !self_loops, check = FALSE)
     }
 
@@ -1063,6 +1094,7 @@ contract_edges <- function(graph, nodes, clusters, centroids, directed = FALSE, 
     # This merges A->B and B->A into a single edge
     if(!directed) {
       swap <- graph$from > graph$to
+      if(verbose) cat("Oriented", sum(swap), "undirected edges\n")
       if(any(swap)) {
         tmp <- graph$from[swap]
         graph$from[swap] <- graph$to[swap]
@@ -1072,6 +1104,7 @@ contract_edges <- function(graph, nodes, clusters, centroids, directed = FALSE, 
 
     # Include 'by' columns in grouping to prevent cross-mode consolidation
     g <- GRP(graph, c("from", "to", by))
+    if(verbose) cat("Contracting", fnrow(graph), "edges down to", g$N.groups, "edges\n")
     nam <- names(graph)
     res <- g$groups
     add_vars(res, pos = "front") <- list(edge = seq_row(res))

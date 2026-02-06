@@ -69,6 +69,7 @@ The cost values are used to compute shortest paths and determine route probabili
     \code{"counts"} \tab Yes \tab Yes \tab PSL: list of edge visit counts per OD; AoN: integer vector of global edge traversal counts \cr
     \code{"costs"} \tab Yes \tab Yes \tab PSL: list of path costs per OD; AoN: numeric vector of shortest path costs \cr
     \code{"weights"} \tab Yes \tab No \tab List of path weights (probabilities) for each OD pair \cr
+    \code{"eweights"} \tab Yes \tab No \tab List of edge weight vectors (summed path probabilities per edge, same length as edges) \cr
   }}
 
 \item{verbose}{Logical (default: TRUE). Show progress bar and intermediate steps completion status?}
@@ -91,6 +92,7 @@ A list of class \code{"flownet"} containing:
         \item \code{edge_counts} - For PSL: list of edge visit counts per OD pair; for AoN: integer vector of global edge traversal counts
         \item \code{path_costs} - For PSL: list of path costs per OD pair; for AoN: numeric vector of shortest path costs
         \item \code{path_weights} - List of path weights (probabilities) for each OD pair (PSL only)
+        \item \code{edge_weights} - List of edge weight vectors (summed path probabilities per edge, PSL only)
       }
   }
 }

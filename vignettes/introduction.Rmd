@@ -90,8 +90,8 @@ tm_layout(frame = FALSE)
 The `linestrings_to_graph()` function converts LINESTRING geometries to a graph data frame format required for traffic assignment. In this case, the relevant columns are already provided, thus we only need to strip the geometry column and turn it into a normal data frame.
 
 ```{r convert-to-graph}
-# Convert to graph (use atomic_elem to drop sf geometry, qDF for data.frame)
-graph <- atomic_elem(africa_net) |> qDF()
+# Convert to graph
+graph <- st_drop_geometry(africa_net)
 head(graph)
 ```
 
@@ -179,7 +179,7 @@ For more realistic modeling, we can disaggregate country-level trade flows to ci
 
 ```{r city-pop-shares}
 # Compute each city's share of its country's population
-city_pop <- africa_cities_ports |> atomic_elem() |> qDF() |>
+city_pop <- st_drop_geometry(africa_cities_ports) |>
   fcompute(node = nearest_nodes,
            city = qF(city_country),
            pop_share = fsum(population, iso3, TRA = "/"),

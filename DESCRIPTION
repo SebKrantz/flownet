@@ -1,7 +1,7 @@
 Package: flownet
 Type: Package
 Title: Transport Modeling: Network Processing, Route Enumeration, and Traffic Assignment
-Version: 0.1.2
+Version: 0.1.3
 Authors@R: c(person("Sebastian", "Krantz", email = "sebastian.krantz@graduateinstitute.ch", role = c("aut", "cre")),
              person("Kamol", "Roy", role = "ctb"))
 Description: High-performance tools for transport modeling - network processing, route 
