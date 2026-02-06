@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">flownet</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -30,7 +30,7 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Simplify Network</h1>
-      <small class="dont-index">Source: <a href="https://github.com/SebKrantz/flownet/blob/v0.1.2/R/utils.R" class="external-link"><code>R/utils.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/SebKrantz/flownet/blob/v0.1.3/R/utils.R" class="external-link"><code>R/utils.R</code></a></small>
       <div class="d-none name"><code>simplify_network.Rd</code></div>
     </div>
 
@@ -48,6 +48,7 @@
 <span>  cost.column <span class="op">=</span> <span class="st">"cost"</span>,</span>
 <span>  by <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  radius_km <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>nodes <span class="op">=</span> <span class="fl">7</span>, cluster <span class="op">=</span> <span class="fl">20</span><span class="op">)</span>,</span>
+<span>  verbose <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -105,6 +106,10 @@ Only used for <code>method = "cluster"</code>.
 <code>nodes</code>: radius in kilometers around preserved nodes. Graph nodes within this radius
 will be assigned to the nearest preserved node's cluster.
 <code>cluster</code>: radius in kilometers for clustering remaining nodes using leaderCluster.</p></dd>
+
+
+<dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
+<dd><p>Logical (default: TRUE). Whether to print progress messages/bars.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
@@ -203,6 +208,8 @@ will be assigned to the nearest preserved node's cluster.
 <span class="r-in"><span><span class="va">graph_simple</span> <span class="op">&lt;-</span> <span class="fu">simplify_network</span><span class="op">(</span><span class="va">graph</span>, <span class="va">nearest_nodes</span>,</span></span>
 <span class="r-in"><span>                                 method <span class="op">=</span> <span class="st">"shortest-paths"</span>,</span></span>
 <span class="r-in"><span>                                 cost.column <span class="op">=</span> <span class="st">".length"</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Created graph with 4093 nodes and 6221 edges...</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Retained 4422/6221 edges traversed by shortest paths (71.1%)</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">graph_simple</span><span class="op">)</span>  <span class="co"># Reduced number of edges</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 4422</span>
 <span class="r-in"><span></span></span>
@@ -220,6 +227,12 @@ will be assigned to the nearest preserved node's cluster.
 <span class="r-in"><span>                                  cost.column <span class="op">=</span> <span class="va">node_weights</span><span class="op">$</span><span class="va">gravity_rd</span>,</span></span>
 <span class="r-in"><span>                                  radius_km <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>nodes <span class="op">=</span> <span class="fl">30</span>, cluster <span class="op">=</span> <span class="fl">27</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>                                  w <span class="op">=</span> <span class="op">~</span> <span class="va">passes</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Clustering nodes close to 'keep' nodes using a radius of 30km</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Clustering the remaining nodes with the leaderCluster algorithm using a radius of 27km</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> leaderCluster algorithm converged in 7 iterations</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Dropped 3540 self-loop edges (following clustering)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Oriented 637 undirected edges</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Contracting 2681 edges down to 2430 edges</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">graph_cluster</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 2430</span>
 <span class="r-in"><span><span class="co"># }</span></span></span>

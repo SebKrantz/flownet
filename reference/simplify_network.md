@@ -17,6 +17,7 @@ simplify_network(
   cost.column = "cost",
   by = NULL,
   radius_km = list(nodes = 7, cluster = 20),
+  verbose = TRUE,
   ...
 )
 ```
@@ -81,6 +82,10 @@ simplify_network(
   around preserved nodes. Graph nodes within this radius will be
   assigned to the nearest preserved node's cluster. `cluster`: radius in
   kilometers for clustering remaining nodes using leaderCluster.
+
+- verbose:
+
+  Logical (default: TRUE). Whether to print progress messages/bars.
 
 - ...:
 
@@ -224,6 +229,8 @@ graph <- consolidate_graph(graph, keep = nearest_nodes, w = ~ passes)
 graph_simple <- simplify_network(graph, nearest_nodes,
                                  method = "shortest-paths",
                                  cost.column = ".length")
+#> Created graph with 4093 nodes and 6221 edges...
+#> Retained 4422/6221 edges traversed by shortest paths (71.1%)
 nrow(graph_simple)  # Reduced number of edges
 #> [1] 4422
 
@@ -241,6 +248,12 @@ graph_cluster <- simplify_network(graph, nearest_nodes,
                                   cost.column = node_weights$gravity_rd,
                                   radius_km = list(nodes = 30, cluster = 27),
                                   w = ~ passes)
+#> Clustering nodes close to 'keep' nodes using a radius of 30km
+#> Clustering the remaining nodes with the leaderCluster algorithm using a radius of 27km
+#> leaderCluster algorithm converged in 7 iterations
+#> Dropped 3540 self-loop edges (following clustering)
+#> Oriented 637 undirected edges
+#> Contracting 2681 edges down to 2430 edges
 nrow(graph_cluster)
 #> [1] 2430
 # }

@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">flownet</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -57,9 +57,9 @@
                         <h4 data-toc-skip class="author">Sebastian
 Krantz</h4>
             
-            <h4 data-toc-skip class="date">2026-02-02</h4>
+            <h4 data-toc-skip class="date">2026-02-06</h4>
       
-      <small class="dont-index">Source: <a href="https://github.com/SebKrantz/flownet/blob/v0.1.2/vignettes/introduction.Rmd" class="external-link"><code>vignettes/introduction.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/SebKrantz/flownet/blob/v0.1.3/vignettes/introduction.Rmd" class="external-link"><code>vignettes/introduction.Rmd</code></a></small>
       <div class="d-none name"><code>introduction.Rmd</code></div>
     </div>
 
@@ -223,8 +223,8 @@ In this case, the relevant columns are already provided, thus we only
 need to strip the geometry column and turn it into a normal data
 frame.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Convert to graph (use atomic_elem to drop sf geometry, qDF for data.frame)</span></span>
-<span><span class="va">graph</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://fastverse.org/collapse/reference/extract_list.html" class="external-link">atomic_elem</a></span><span class="op">(</span><span class="va">africa_net</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://fastverse.org/collapse/reference/quick-conversion.html" class="external-link">qDF</a></span><span class="op">(</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="co"># Convert to graph</span></span>
+<span><span class="va">graph</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_geometry.html" class="external-link">st_drop_geometry</a></span><span class="op">(</span><span class="va">africa_net</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">graph</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   from to from_ctry to_ctry        FX       FY        TX       TY sp_distance</span></span>
 <span><span class="co">#&gt; 1    1  2       SEN     SEN -17.44671 14.69281 -17.04453 14.70297    43272.22</span></span>
@@ -384,20 +384,21 @@ population.</p>
 </h3>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Compute each city's share of its country's population</span></span>
-<span><span class="va">city_pop</span> <span class="op">&lt;-</span> <span class="va">africa_cities_ports</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://fastverse.org/collapse/reference/extract_list.html" class="external-link">atomic_elem</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://fastverse.org/collapse/reference/quick-conversion.html" class="external-link">qDF</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span><span class="va">city_pop</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_geometry.html" class="external-link">st_drop_geometry</a></span><span class="op">(</span><span class="va">africa_cities_ports</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu"><a href="https://fastverse.org/collapse/reference/ftransform.html" class="external-link">fcompute</a></span><span class="op">(</span>node <span class="op">=</span> <span class="va">nearest_nodes</span>,</span>
 <span>           city <span class="op">=</span> <span class="fu"><a href="https://fastverse.org/collapse/reference/qF.html" class="external-link">qF</a></span><span class="op">(</span><span class="va">city_country</span><span class="op">)</span>,</span>
 <span>           pop_share <span class="op">=</span> <span class="fu"><a href="https://fastverse.org/collapse/reference/fsum.html" class="external-link">fsum</a></span><span class="op">(</span><span class="va">population</span>, <span class="va">iso3</span>, TRA <span class="op">=</span> <span class="st">"/"</span><span class="op">)</span>,</span>
 <span>           keep <span class="op">=</span> <span class="st">"iso3"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">city_pop</span><span class="op">)</span></span>
-<span><span class="co">#&gt;   iso3 node                        city pop_share</span></span>
-<span><span class="co">#&gt; 1  EGY  937               Cairo - Egypt 0.6554678</span></span>
-<span><span class="co">#&gt; 2  NGA  289             Lagos - Nigeria 0.3860030</span></span>
-<span><span class="co">#&gt; 3  COD  635 Kinshasa - Congo (Kinshasa) 0.4784988</span></span>
-<span><span class="co">#&gt; 4  AGO  577             Luanda - Angola 0.5361630</span></span>
-<span><span class="co">#&gt; 5  ZAF  913 Johannesburg - South Africa 0.4947698</span></span>
-<span><span class="co">#&gt; 6  TZA 1296    Dar es Salaam - Tanzania 0.6238426</span></span></code></pre></div>
+<span><span class="co">#&gt;      iso3  node                        city pop_share</span></span>
+<span><span class="co">#&gt;    &lt;char&gt; &lt;int&gt;                      &lt;fctr&gt;     &lt;num&gt;</span></span>
+<span><span class="co">#&gt; 1:    EGY   937               Cairo - Egypt 0.6554678</span></span>
+<span><span class="co">#&gt; 2:    NGA   289             Lagos - Nigeria 0.3860030</span></span>
+<span><span class="co">#&gt; 3:    COD   635 Kinshasa - Congo (Kinshasa) 0.4784988</span></span>
+<span><span class="co">#&gt; 4:    AGO   577             Luanda - Angola 0.5361630</span></span>
+<span><span class="co">#&gt; 5:    ZAF   913 Johannesburg - South Africa 0.4947698</span></span>
+<span><span class="co">#&gt; 6:    TZA  1296    Dar es Salaam - Tanzania 0.6238426</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="step-2-disaggregate-trade-flows">Step 2: Disaggregate Trade Flows<a class="anchor" aria-label="anchor" href="#step-2-disaggregate-trade-flows"></a>
@@ -620,6 +621,8 @@ retains only the traversed edges:</p>
 <span><span class="va">graph_simple</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simplify_network.html">simplify_network</a></span><span class="op">(</span><span class="va">graph_cons</span>, <span class="va">nearest_nodes_seg</span>,</span>
 <span>                                 method <span class="op">=</span> <span class="st">"shortest-paths"</span>,</span>
 <span>                                 cost.column <span class="op">=</span> <span class="st">".length"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Created graph with 4093 nodes and 6221 edges...</span></span>
+<span><span class="co">#&gt; Retained 5445/6221 edges traversed by shortest paths (87.5%)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Consolidated edges:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">graph_cons</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Consolidated edges: 6221</span></span>
@@ -656,6 +659,12 @@ creating coarser network representations:</p>
 <span>                                  cost.column <span class="op">=</span> <span class="va">node_weights</span><span class="op">$</span><span class="va">gravity_rd</span>,</span>
 <span>                                  radius_km <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>nodes <span class="op">=</span> <span class="fl">30</span>, cluster <span class="op">=</span> <span class="fl">27</span><span class="op">)</span>,</span>
 <span>                                  w <span class="op">=</span> <span class="op">~</span> <span class="va">.length</span><span class="op">)</span> </span>
+<span><span class="co">#&gt; Clustering nodes close to 'keep' nodes using a radius of 30km</span></span>
+<span><span class="co">#&gt; Clustering the remaining nodes with the leaderCluster algorithm using a radius of 27km</span></span>
+<span><span class="co">#&gt; leaderCluster algorithm converged in 9 iterations</span></span>
+<span><span class="co">#&gt; Dropped 3544 self-loop edges (following clustering)</span></span>
+<span><span class="co">#&gt; Oriented 637 undirected edges</span></span>
+<span><span class="co">#&gt; Contracting 2677 edges down to 2426 edges</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Clustered edges:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">graph_cluster</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Clustered edges: 2426</span></span>

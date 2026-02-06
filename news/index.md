@@ -1,6 +1,25 @@
 # Changelog
 
+## flownet 0.1.3
+
+- Fixed bug in run_assignment with `return.extra = "edges"` where edge
+  indices were incorrectly returned. Due to zero indexing in C
+  vs. 1-indexing in R they where offset by one, thus, in *flownet*
+  versions \<= 0.1.2, the correct edge indices can be retained by
+  subtracting 1 from them.
+
+- Added option `return.extra = "eweights"` which adds `"egde_weights"`
+  to the results object. Edge weights are the sum of the path
+  probabilites across all paths using that edge. These weights are
+  computed efficiently at C-level, with minimal overhead, if requested.
+
+- Added verbosity to
+  [`simplify_network()`](https://sebkrantz.github.io/flownet/reference/simplify_network.md)
+  (default `verbose = TRUE`).
+
 ## flownet 0.1.2
+
+CRAN release: 2026-02-03
 
 - In
   [`consolidate_graph()`](https://sebkrantz.github.io/flownet/reference/consolidate_graph.md):

@@ -167,8 +167,8 @@ already provided, thus we only need to strip the geometry column and
 turn it into a normal data frame.
 
 ``` r
-# Convert to graph (use atomic_elem to drop sf geometry, qDF for data.frame)
-graph <- atomic_elem(africa_net) |> qDF()
+# Convert to graph
+graph <- st_drop_geometry(africa_net)
 head(graph)
 #>   from to from_ctry to_ctry        FX       FY        TX       TY sp_distance
 #> 1    1  2       SEN     SEN -17.44671 14.69281 -17.04453 14.70297    43272.22
@@ -326,20 +326,21 @@ population.
 
 ``` r
 # Compute each city's share of its country's population
-city_pop <- africa_cities_ports |> atomic_elem() |> qDF() |>
+city_pop <- st_drop_geometry(africa_cities_ports) |>
   fcompute(node = nearest_nodes,
            city = qF(city_country),
            pop_share = fsum(population, iso3, TRA = "/"),
            keep = "iso3")
 
 head(city_pop)
-#>   iso3 node                        city pop_share
-#> 1  EGY  937               Cairo - Egypt 0.6554678
-#> 2  NGA  289             Lagos - Nigeria 0.3860030
-#> 3  COD  635 Kinshasa - Congo (Kinshasa) 0.4784988
-#> 4  AGO  577             Luanda - Angola 0.5361630
-#> 5  ZAF  913 Johannesburg - South Africa 0.4947698
-#> 6  TZA 1296    Dar es Salaam - Tanzania 0.6238426
+#>      iso3  node                        city pop_share
+#>    <char> <int>                      <fctr>     <num>
+#> 1:    EGY   937               Cairo - Egypt 0.6554678
+#> 2:    NGA   289             Lagos - Nigeria 0.3860030
+#> 3:    COD   635 Kinshasa - Congo (Kinshasa) 0.4784988
+#> 4:    AGO   577             Luanda - Angola 0.5361630
+#> 5:    ZAF   913 Johannesburg - South Africa 0.4947698
+#> 6:    TZA  1296    Dar es Salaam - Tanzania 0.6238426
 ```
 
 ### Step 2: Disaggregate Trade Flows
@@ -576,6 +577,8 @@ retains only the traversed edges:
 graph_simple <- simplify_network(graph_cons, nearest_nodes_seg,
                                  method = "shortest-paths",
                                  cost.column = ".length")
+#> Created graph with 4093 nodes and 6221 edges...
+#> Retained 5445/6221 edges traversed by shortest paths (87.5%)
 
 cat("Consolidated edges:", nrow(graph_cons), "\n")
 #> Consolidated edges: 6221
@@ -614,6 +617,12 @@ graph_cluster <- simplify_network(graph_cons, nearest_nodes_seg,
                                   cost.column = node_weights$gravity_rd,
                                   radius_km = list(nodes = 30, cluster = 27),
                                   w = ~ .length) 
+#> Clustering nodes close to 'keep' nodes using a radius of 30km
+#> Clustering the remaining nodes with the leaderCluster algorithm using a radius of 27km
+#> leaderCluster algorithm converged in 9 iterations
+#> Dropped 3544 self-loop edges (following clustering)
+#> Oriented 637 undirected edges
+#> Contracting 2677 edges down to 2426 edges
 
 cat("Clustered edges:", nrow(graph_cluster), "\n")
 #> Clustered edges: 2426

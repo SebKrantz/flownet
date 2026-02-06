@@ -111,15 +111,16 @@ print(x, ...)
   Character vector specifying additional results to return. Use `"all"`
   to return all available extras for the selected method.
 
-  |             |         |         |                                                                                                                |
-  |-------------|---------|---------|----------------------------------------------------------------------------------------------------------------|
-  | **Option**  | **PSL** | **AoN** | **Description**                                                                                                |
-  | `"graph"`   | Yes     | Yes     | The igraph graph object                                                                                        |
-  | `"paths"`   | Yes     | Yes     | PSL: list of lists of edge indices (multiple routes per OD); AoN: list of edge index vectors (one path per OD) |
-  | `"edges"`   | Yes     | No      | List of edge indices used for each OD pair                                                                     |
-  | `"counts"`  | Yes     | Yes     | PSL: list of edge visit counts per OD; AoN: integer vector of global edge traversal counts                     |
-  | `"costs"`   | Yes     | Yes     | PSL: list of path costs per OD; AoN: numeric vector of shortest path costs                                     |
-  | `"weights"` | Yes     | No      | List of path weights (probabilities) for each OD pair                                                          |
+  |              |         |         |                                                                                                                |
+  |--------------|---------|---------|----------------------------------------------------------------------------------------------------------------|
+  | **Option**   | **PSL** | **AoN** | **Description**                                                                                                |
+  | `"graph"`    | Yes     | Yes     | The igraph graph object                                                                                        |
+  | `"paths"`    | Yes     | Yes     | PSL: list of lists of edge indices (multiple routes per OD); AoN: list of edge index vectors (one path per OD) |
+  | `"edges"`    | Yes     | No      | List of edge indices used for each OD pair                                                                     |
+  | `"counts"`   | Yes     | Yes     | PSL: list of edge visit counts per OD; AoN: integer vector of global edge traversal counts                     |
+  | `"costs"`    | Yes     | Yes     | PSL: list of path costs per OD; AoN: numeric vector of shortest path costs                                     |
+  | `"weights"`  | Yes     | No      | List of path weights (probabilities) for each OD pair                                                          |
+  | `"eweights"` | Yes     | No      | List of edge weight vectors (summed path probabilities per edge, same length as edges)                         |
 
 - verbose:
 
@@ -166,6 +167,9 @@ A list of class `"flownet"` containing:
 
   - `path_weights` - List of path weights (probabilities) for each OD
     pair (PSL only)
+
+  - `edge_weights` - List of edge weight vectors (summed path
+    probabilities per edge, PSL only)
 
 ## Details
 
@@ -354,16 +358,16 @@ print(result_psl)
 #> Number of edges: 2344 
 #> Number of simulations/OD-pairs: 204714 
 #> 
-#> Average number of edges utilized per simulation (SD): 561.081  (435.3152)
-#> Average number of visits per edge (SD): 11.62403  (23.3552)
-#> Average path cost (SD): 5019.838  (554.6268)
-#> Average path weight (SD): 0.0293314  (0.0879165)
+#> Average number of edges utilized per simulation (SD): 561.0807  (435.3154)
+#> Average number of visits per edge (SD): 272063101  (494088127)
+#> Average path cost (SD): 5025.893  (553.1439)
+#> Average path weight (SD): 0.02975674  (0.1142098)
 #> 
 #> Final flows summary statistics:
 #>      N  Ndist     Mean       SD  Min       Max  Skew   Kurt
-#>   2344   2259  2188.73  4541.72    0  37246.92  3.48  18.43
-#>   1%    5%   10%    25%     50%      75%      90%       95%       99%
-#>    0  0.05  1.62  39.28  301.48  1677.97  7573.77  11419.34  19460.79
+#>   2344   2258  2189.55  4533.94    0  37244.39  3.47  18.38
+#>   1%    5%   10%    25%     50%      75%     90%       95%       99%
+#>    0  0.06  1.62  39.95  300.59  1678.91  7571.9  11435.33  18959.06
 
 # Visualize AoN Results
 africa_net$final_flows_log10 <- log10(result_psl$final_flows + 1)
@@ -435,18 +439,18 @@ print(result_trade_psl)
 #> Number of edges: 2344 
 #> Number of simulations/OD-pairs: 189020 
 #> 
-#> Average number of edges utilized per simulation (SD): 582.2353  (433.1455)
-#> Average number of visits per edge (SD): 11.98732  (24.20449)
-#> Average path cost (SD): 5171.393  (567.9297)
-#> Average path weight (SD): 0.01955912  (0.07892114)
+#> Average number of edges utilized per simulation (SD): 582.2351  (433.1458)
+#> Average number of visits per edge (SD): 311453366  (528391713)
+#> Average path cost (SD): 5177.577  (566.4261)
+#> Average path weight (SD): 0.01998045  (0.1056897)
 #> 
 #> Final flows summary statistics:
 #>      N  Ndist         Mean           SD  Min          Max  Skew   Kurt
-#>   2344   2226  1'273430.15  2'909962.24    0  21'903042.7   3.7  18.53
+#>   2344   2229  1'273530.57  2'906376.07    0  21'886267.3  3.71  18.55
 #>   1%  5%    10%       25%        50%        75%          90%          95%
-#>    0   0  71.23  17584.12  145086.78  908973.72  3'619965.69  6'948795.48
-#>           99%
-#>   14'978197.2
+#>    0   0  75.24  17706.73  147937.12  917798.25  3'620478.47  6'948801.47
+#>         99%
+#>   14'982098
 
 # Compare PSL vs AoN: PSL typically shows more distributed flows
 africa_net$trade_flows_psl_log10 <- log10(result_trade_psl$final_flows + 1)
