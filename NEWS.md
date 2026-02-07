@@ -1,4 +1,4 @@
-# flownet 0.1.3
+# flownet 0.2.0
 
 - Fixed bug in run_assignment with `return.extra = "edges"` where edge indices were incorrectly returned. Due to zero indexing in C vs. 1-indexing in R they where offset by one, thus, in *flownet* versions <= 0.1.2, the correct edge indices can be retained by subtracting 1 from them.
 
@@ -13,6 +13,8 @@
 - Reordered elements in results object (class 'flownet') in a natural way: providing first the final flows, followed by path and edge-level additional results if requested through `return.extra`.
 
 - Bumped *kit* dependency to 0.0.21 (for `fpmin()` and `fpmax()`).
+
+- Added more unit tests covering `return.extra` options.
 
 # flownet 0.1.2
 
