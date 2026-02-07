@@ -626,7 +626,7 @@ run_assignment <- function(graph_df, od_matrix_long,
         if(countsl) res$counts <- counts
         if(edgesl) res$edges <- edges
         if(costsl) res$costs <- costs
-        if(weightsl) res$PSF <- PSF
+        if(PSFl) res$PSF <- PSF
         if(weightsl) res$weights <- weights
         if(eweightsl) res$eweights <- eweights
       }

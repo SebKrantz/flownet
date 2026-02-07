@@ -41,8 +41,8 @@ static double POS_INF = 1.0/0.0;
  *      Only used when retvals_PSL[2] is TRUE. Reused across OD pairs (reset only for visited edges).
  * final_flows : SEXP (double vector)
  *      A vector, same length as number of edges, accumulates the assigned flow to each edge across all paths.
- * retvals_PSL : SEXP (logical vector of length 3)
- *      [0]: return edges vector?; [1] return edge counts?; [2] return edge weights?
+ * retvals_PSL : SEXP (logical vector of length 4)
+ *      [0]: return edges vector?; [1] return edge counts?; [2] return edge weights; [3] return path-size factors?
  *
  * Returns
  * -------
@@ -218,7 +218,7 @@ SEXP compute_path_sized_logit(SEXP paths1, SEXP paths2, SEXP no_dups, SEXP short
       for (int i = 0; i < len2; i++) delta_ptr[(int)p2[i]] = 0;
     }
     for (int i = 0; i < shortest_path_len; i++) delta_ptr[(int)shortest_path_ptr[i]] = 0;
-    UNPROTECT(1);
+    UNPROTECT(1+ret[3]);
     return R_NilValue;
   }
 
