@@ -173,12 +173,13 @@ linestrings_from_graph <- function(graph_df, crs = 4326) {
 #'
 #' @export
 #' @importFrom collapse ftransform GRP get_vars add_vars add_vars<- ffirst colorderv %!in% collap
+#' @importFrom kit fpmin fpmax
 create_undirected_graph <- function(graph_df, by = NULL, ...) {
   if(length(by)) {
     if(is.call(by)) by <- all.vars(by)
     if(!is.character(by)) stop("by needs to be a one-sided formula or a character vector of column names")
   }
-  graph_df <- ftransform(graph_df, from = pmin(from, to), to = pmax(from, to))
+  graph_df <- ftransform(graph_df, from = fpmin(from, to), to = fpmax(from, to))
   g <- GRP(graph_df, c("from", "to", by), sort = FALSE)
   nam <- names(graph_df)
   agg_first <- c("edge", "FX", "FY", "TX", "TY")
