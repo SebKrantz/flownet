@@ -228,7 +228,7 @@ SEXP compute_path_sized_logit(SEXP paths1, SEXP paths2, SEXP no_dups, SEXP short
   // Step 4: Update final_flows (and edge_probs if requested)
   if (ret_any || ret[3]) {
     // Return list with path weights and edges, edge_counts, and edge_weights
-    SEXP result = PROTECT(allocVector(VECSXP, 4));
+    SEXP result = PROTECT(allocVector(VECSXP, 5)); // up to 5 elements: prob_ks, edges, counts, eweights, PS (path-size factors)
     SET_VECTOR_ELT(result, 0, prob_ks);
     if(ret[3]) SET_VECTOR_ELT(result, 4, PS); // include path-size factors in output if requested
     int *pe = NULL, *pec = NULL,
