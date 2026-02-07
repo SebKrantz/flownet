@@ -86,13 +86,13 @@ SEXP compute_path_sized_logit(SEXP paths1, SEXP paths2, SEXP no_dups, SEXP short
   double *edge_probs_ptr = REAL(edge_probs)-1; // same offset for 1-based indexing
   double *final_flows_ptr = REAL(final_flows);
   if(length(retvals_PSL) != 4) error("Internal error: retvals_PSL needs to be of length 4. Please file an issue.");
-  int *ret = LOGICAL(retvals_PSL), ret_any = ret[0] + ret[1] + ret[2]; // no need to know number of edges for ret[3]
+  int *ret = LOGICAL(retvals_PSL), ret_edge_info = ret[0] + ret[1] + ret[2]; // no need to know number of edges for ret[3]
 
 
   // Step 1: Update delta_ks for paths in no_dups
   // delta_ks stores, for each edge, how many times it appears in the alternatives under consideration
   int n_edges = 0;
-  if(ret_any) {
+  if(ret_edge_info) {
     for (int idx = 0; idx < n_no_dups; idx++) {
       int k = no_dups_ptr[idx] - 1; // Convert to 0-based
       int len1 = length(paths1_ptr[k]);
@@ -226,11 +226,11 @@ SEXP compute_path_sized_logit(SEXP paths1, SEXP paths2, SEXP no_dups, SEXP short
   for (int i = 0; i <= n_no_dups; i++) prob_ptr[i] /= sum_exp;
 
   // Step 4: Update final_flows (and edge_probs if requested)
-  if (ret_any || ret[3]) {
+  if (ret_edge_info) {
     // Return list with path weights and edges, edge_counts, and edge_weights
-    SEXP result = PROTECT(allocVector(VECSXP, 5)); // up to 5 elements: prob_ks, edges, counts, eweights, PS (path-size factors)
+    SEXP result = PROTECT(allocVector(VECSXP, 4)); // up to 4 elements: prob_ks, edges, counts, eweights
+    if(ret[3]) setAttrib(prob_ks, install("PSF"), PS);  // include path-size factors in output if requested
     SET_VECTOR_ELT(result, 0, prob_ks);
-    if(ret[3]) SET_VECTOR_ELT(result, 4, PS); // include path-size factors in output if requested
     int *pe = NULL, *pec = NULL,
       k = 0, l = length(delta_ks), lp = l+1,
       ret0 = ret[0], ret1 = ret[1], ret2 = ret[2];
@@ -280,8 +280,8 @@ SEXP compute_path_sized_logit(SEXP paths1, SEXP paths2, SEXP no_dups, SEXP short
       double *pew = REAL(VECTOR_ELT(result, 3));
       for(int i = 1; i != lp; ++i) {
         if(delta_ptr[i]) {
-          if(ret1) pe[k] = i; // Store edge index if needed
-          if(ret2) pec[k] = delta_ptr[i]; // Store edge count if requested
+          if(ret0) pe[k] = i; // Store edge index if needed
+          if(ret1) pec[k] = delta_ptr[i]; // Store edge count if requested
           pew[k] = edge_probs_ptr[i]; // Extract compact edge weight
           k++;
           delta_ptr[i] = 0; // Reset delta_ks for next OD pair
@@ -291,8 +291,8 @@ SEXP compute_path_sized_logit(SEXP paths1, SEXP paths2, SEXP no_dups, SEXP short
     } else {
       for(int i = 1; i != lp; ++i) {
         if(delta_ptr[i]) {
-          if(ret1) pe[k] = i; // Store edge index if needed
-          if(ret2) pec[k] = delta_ptr[i]; // Store edge count if requested
+          if(ret0) pe[k] = i; // Store edge index if needed
+          if(ret1) pec[k] = delta_ptr[i]; // Store edge count if requested
           k++;
           delta_ptr[i] = 0; // Reset delta_ks for next OD pair
         }
@@ -331,7 +331,7 @@ SEXP compute_path_sized_logit(SEXP paths1, SEXP paths2, SEXP no_dups, SEXP short
       delta_ptr[edge] = 0;
     }
   }
-
-  UNPROTECT(1);
+  if(ret[3]) setAttrib(prob_ks, install("PSF"), PS);
+  UNPROTECT(1+ret[3]);
   return prob_ks;
 }

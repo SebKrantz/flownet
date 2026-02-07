@@ -608,8 +608,9 @@ run_assignment <- function(graph_df, od_matrix_long,
         if(edgesl) sve(edges, i, wi[[2L]]) # ei = whichv(delta_ks, 0L, invert = TRUE)
         if(countsl) sve(counts, i, wi[[3L]])
         if(costsl) sve(costs, i, c(d_ij, cost_ks[no_dups]))
-        if(PSFl) sve(PSF, i, wi[[5L]])
-        if(weightsl) sve(weights, i, if(is.atomic(wi)) wi else wi[[1L]])
+        pw = if(is.atomic(wi)) wi else wi[[1L]]
+        if(PSFl) sve(PSF, i, attr(pw, "PSF"))
+        if(weightsl) sve(weights, i, pw)
         if(eweightsl) sve(eweights, i, wi[[4L]])
         # .Call(C_free_delta_ks, delta_ks, no_dups, paths1, paths2, shortest_path)
       }
