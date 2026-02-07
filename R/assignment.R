@@ -228,7 +228,7 @@
 #' }
 #'
 #' @export
-#' @importFrom collapse funique.default ss fnrow seq_row ckmatch anyv whichv setDimnames fmatch %+=% gsplit setv any_duplicated fduplicated GRP group
+#' @importFrom collapse funique.default ss fnrow seq_row ckmatch anyv whichv setDimnames fmatch %+=% gsplit setv any_duplicated fduplicated GRP group unattrib
 #' @importFrom kit fpmin fpmax
 #' @importFrom igraph V graph_from_data_frame delete_vertex_attr igraph_options distances shortest_paths vcount ecount
 #' @importFrom geodist geodist_vec
@@ -294,8 +294,8 @@ run_assignment <- function(graph_df, od_matrix_long,
         message("graph_df needs to have columns FX, FY, TX and TY to compute angle-based detour restrictions")
       } else {
         nodes_df <- nodes_from_graph(graph_df, sf = FALSE)
-        X <- nodes_df$X
-        Y <- nodes_df$Y
+        X <- unattrib(nodes_df$X)
+        Y <- unattrib(nodes_df$Y)
       }
     }
     # Need unirected edge ID to remove duplicates in directed graph
