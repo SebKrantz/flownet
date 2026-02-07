@@ -23,7 +23,7 @@ run_assignment(
   nthreads = 1L
 )
 
-\method{print}{flownet}(x, ...)
+\method{print}{flownet}(x, digits = 2, ...)
 }
 \arguments{
 \item{graph_df}{A data.frame with columns \code{from}, \code{to}, and optionally a cost column.
@@ -77,6 +77,8 @@ The cost values are used to compute shortest paths and determine route probabili
 \item{nthreads}{Integer (default: 1L). Number of threads (daemons) to use for parallel processing with \code{\link[mirai]{mirai}}. Should not exceed the number of logical processors.}
 
 \item{x}{An object of class \code{flownet}, typically returned by \code{\link{run_assignment}}.}
+
+\item{digits}{Number of digits for summarizing final flows. Passed to \code{\link[collapse]{print.qsu}()}.}
 }
 \value{
 A list of class \code{"flownet"} containing:

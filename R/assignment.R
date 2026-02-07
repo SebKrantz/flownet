@@ -226,7 +226,7 @@
 #' }
 #'
 #' @export
-#' @importFrom collapse funique.default ss fnrow seq_row ckmatch anyv whichv setDimnames fmatch %+=% gsplit setv any_duplicated fduplicated GRP
+#' @importFrom collapse funique.default ss fnrow seq_row ckmatch anyv whichv setDimnames fmatch %+=% gsplit setv any_duplicated fduplicated GRP group
 #' @importFrom kit fpmin fpmax
 #' @importFrom igraph V graph_from_data_frame delete_vertex_attr igraph_options distances shortest_paths vcount ecount
 #' @importFrom geodist geodist_vec
@@ -702,10 +702,11 @@ run_assignment <- function(graph_df, od_matrix_long,
 #' @rdname run_assignment
 #'
 #' @param x An object of class \code{flownet}, typically returned by \code{\link{run_assignment}}.
+#' @param digits Number of digits for summarizing final flows. Passed to \code{\link[collapse]{print.qsu}()}.
 #'
 #' @export
 #' @importFrom collapse fmean fsd vlengths descr print.qsu
-print.flownet <- function(x, ...) {
+print.flownet <- function(x, digits = 2, ...) {
   cat("FlowNet object\n")
   cat("Call:", deparse(x$call), "\n\n")
   if (!is.null(x$dmat) && is.matrix(x$dmat))
@@ -761,7 +762,7 @@ print.flownet <- function(x, ...) {
     if(length(x$call$return.extra)) cat("\n")
     dff <- descr(x$final_flows)
     cat("Final flows summary statistics:\n")
-    print.qsu(dff$final_flows$Stats, digits = 2)
-    print.qsu(dff$final_flows$Quant, digits = 2)
+    print.qsu(dff$final_flows$Stats, digits = digits, ...)
+    print.qsu(dff$final_flows$Quant, digits = digits, ...)
   }
 }
