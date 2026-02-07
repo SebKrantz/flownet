@@ -12,9 +12,12 @@
 
 - Reordered elements in results object (class 'flownet') in a natural way: providing first the final flows, followed by path and edge-level additional results if requested through `return.extra`.
 
+- Added more unit tests covering `return.extra` options.
+
+- Added variable labels to included `africa_*` datasets - try `collapse::namlab()` on them.
+
 - Bumped *kit* dependency to 0.0.21 (for `fpmin()` and `fpmax()`).
 
-- Added more unit tests covering `return.extra` options.
 
 # flownet 0.1.2
 
