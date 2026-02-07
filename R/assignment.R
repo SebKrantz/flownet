@@ -227,6 +227,7 @@
 #'
 #' @export
 #' @importFrom collapse funique.default ss fnrow seq_row ckmatch anyv whichv setDimnames fmatch %+=% gsplit setv any_duplicated fduplicated GRP
+#' @importFrom kit fpmin fpmax
 #' @importFrom igraph V graph_from_data_frame delete_vertex_attr igraph_options distances shortest_paths vcount ecount
 #' @importFrom geodist geodist_vec
 #' @importFrom mirai mirai_map daemons everywhere
@@ -282,8 +283,8 @@ run_assignment <- function(graph_df, od_matrix_long,
 
   if(verbose) cat("Created graph with", vcount(g), "nodes and", ecount(g), "edges...\n")
 
-  # Geolocation and distance matrix are only used for PSL
   if(!is_aon) {
+    # Geolocation and distance matrix are only used for PSL
     geol <- is.finite(angle.max) && angle.max > 0 && angle.max < 180
     if(geol) {
       if(!all(c("FX", "FY", "TX", "TY") %in% names(graph_df))) {
@@ -295,6 +296,8 @@ run_assignment <- function(graph_df, od_matrix_long,
         Y <- nodes_df$Y
       }
     }
+    # Need unirected edge ID to remove duplicates in directed graph
+    undir_edge_id <- if(directed) group(fpmin(from_node, to_node), fpmax(from_node, to_node)) else NULL
   }
 
   # Distance Matrix
@@ -558,7 +561,7 @@ run_assignment <- function(graph_df, od_matrix_long,
       # cost_ks[k] == sum(cost[paths1[[k]]]) + sum(cost[paths2[[k]]])
 
       # Get indices of paths that do not contain duplicate edges
-      no_dups = .Call(C_check_path_duplicates, paths1, paths2, delta_ks)
+      no_dups = .Call(C_check_path_duplicates, paths1, paths2, delta_ks, undir_edge_id)
 
       # Now Path-Sized Logit: Need to compute overlap between routes
       # # Number of routes in choice set that use link j

@@ -2,9 +2,13 @@
 
 - Fixed bug in run_assignment with `return.extra = "edges"` where edge indices were incorrectly returned. Due to zero indexing in C vs. 1-indexing in R they where offset by one, thus, in *flownet* versions <= 0.1.2, the correct edge indices can be retained by subtracting 1 from them.
 
+- Improved [Step 7](https://sebkrantz.github.io/flownet/reference/run_assignment.html#route-enumeration-algorithm) (elimination of path with duplicate edges) in the route enumeration algorithm to properly handle directed paths, i.e., candidate paths where an intermediate node is approached via an edge and departed from via the same edge but in a different direction, are now also removed. 
+
 - Added option `return.extra = "eweights"` which adds `"egde_weights"` to the results object. Edge weights are the sum of the path probabilites across all paths using that edge. These weights are computed efficiently at C-level, with minimal overhead, if requested.
 
 - Added verbosity to `simplify_network()` (default `verbose = TRUE`). 
+
+- Bumped *kit* dependency to 0.0.21 (for `fpmin()` and `fpmax()`).
 
 # flownet 0.1.2
 

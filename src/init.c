@@ -2,7 +2,7 @@
 #include <Rinternals.h>
 #include <R_ext/Rdynload.h>
 
-SEXP check_path_duplicates(SEXP paths1, SEXP paths2, SEXP delta_ks);
+SEXP check_path_duplicates(SEXP paths1, SEXP paths2, SEXP delta_ks, SEXP undir_edge_id);
 SEXP compute_path_sized_logit(SEXP paths1, SEXP paths2, SEXP no_dups, SEXP shortest_path,
                               SEXP cost, SEXP cost_ks, SEXP d_ij, SEXP beta_PSL, SEXP flow,
                               SEXP delta_ks, SEXP edge_probs, SEXP final_flows, SEXP retvals_PSL);
