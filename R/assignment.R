@@ -332,7 +332,7 @@ run_assignment <- function(graph_df, od_matrix_long,
   N <- length(flow)
 
   # Return block
-  retvals <- any(return.extra %in% c("paths", "edges", "counts", "costs", "weights", "eweights"))
+  retvals <- any(return.extra %in% c("paths", "edges", "counts", "costs", "PSF", "weights", "eweights"))
   if(retvals) {
     if(anyv(return.extra, "paths")) {
       pathsl <- TRUE
@@ -608,9 +608,14 @@ run_assignment <- function(graph_df, od_matrix_long,
         if(edgesl) sve(edges, i, wi[[2L]]) # ei = whichv(delta_ks, 0L, invert = TRUE)
         if(countsl) sve(counts, i, wi[[3L]])
         if(costsl) sve(costs, i, c(d_ij, cost_ks[no_dups]))
-        pw = if(is.atomic(wi)) wi else wi[[1L]]
-        if(PSFl) sve(PSF, i, attr(pw, "PSF"))
-        if(weightsl) sve(weights, i, pw)
+        if(weightsl || PSFl) {
+          pw = if(is.atomic(wi)) wi else wi[[1L]]
+          if(PSFl) {
+            sve(PSF, i, attr(pw, "PSF"))
+            attributes(pw) <- NULL
+          }
+          if(weightsl) sve(weights, i, pw)
+        }
         if(eweightsl) sve(eweights, i, wi[[4L]])
         # .Call(C_free_delta_ks, delta_ks, no_dups, paths1, paths2, shortest_path)
       }
