@@ -88,10 +88,10 @@ A list of class \code{"flownet"} containing:
       \itemize{
         \item \code{graph} - The igraph graph object
         \item \code{paths} - For PSL: list of lists of edge indices (multiple routes per OD pair); for AoN: list of edge index vectors (one shortest path per OD pair)
-        \item \code{edges} - List of edge indices used for each OD pair (PSL only)
-        \item \code{edge_counts} - For PSL: list of edge visit counts per OD pair; for AoN: integer vector of global edge traversal counts
         \item \code{path_costs} - For PSL: list of path costs per OD pair; for AoN: numeric vector of shortest path costs
         \item \code{path_weights} - List of path weights (probabilities) for each OD pair (PSL only)
+        \item \code{edges} - List of edge indices used for each OD pair (PSL only)
+        \item \code{edge_counts} - For PSL: list of edge visit counts per OD pair; for AoN: integer vector of global edge traversal counts
         \item \code{edge_weights} - List of edge weight vectors (summed path probabilities per edge, PSL only)
       }
   }
