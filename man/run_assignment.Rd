@@ -23,7 +23,7 @@ run_assignment(
   nthreads = 1L
 )
 
-\method{print}{flownet}(x, ...)
+\method{print}{flownet}(x, digits = 2, ...)
 }
 \arguments{
 \item{graph_df}{A data.frame with columns \code{from}, \code{to}, and optionally a cost column.
@@ -65,10 +65,11 @@ The cost values are used to compute shortest paths and determine route probabili
     \strong{Option} \tab \strong{PSL} \tab \strong{AoN} \tab \strong{Description} \cr
     \code{"graph"} \tab Yes \tab Yes \tab The igraph graph object \cr
     \code{"paths"} \tab Yes \tab Yes \tab PSL: list of lists of edge indices (multiple routes per OD); AoN: list of edge index vectors (one path per OD) \cr
+    \code{"costs"} \tab Yes \tab Yes \tab PSL: list of path costs per OD; AoN: numeric vector of shortest path costs \cr
+    \code{"PSF"} \tab Yes \tab No \tab List of path-size factors per OD \cr
+    \code{"weights"} \tab Yes \tab No \tab List of path weights (probabilities) for each OD pair \cr
     \code{"edges"} \tab Yes \tab No \tab List of edge indices used for each OD pair \cr
     \code{"counts"} \tab Yes \tab Yes \tab PSL: list of edge visit counts per OD; AoN: integer vector of global edge traversal counts \cr
-    \code{"costs"} \tab Yes \tab Yes \tab PSL: list of path costs per OD; AoN: numeric vector of shortest path costs \cr
-    \code{"weights"} \tab Yes \tab No \tab List of path weights (probabilities) for each OD pair \cr
     \code{"eweights"} \tab Yes \tab No \tab List of edge weight vectors (summed path probabilities per edge, same length as edges) \cr
   }}
 
@@ -77,6 +78,8 @@ The cost values are used to compute shortest paths and determine route probabili
 \item{nthreads}{Integer (default: 1L). Number of threads (daemons) to use for parallel processing with \code{\link[mirai]{mirai}}. Should not exceed the number of logical processors.}
 
 \item{x}{An object of class \code{flownet}, typically returned by \code{\link{run_assignment}}.}
+
+\item{digits}{Number of digits for summarizing final flows. Passed to \code{\link[collapse]{print.qsu}()}.}
 }
 \value{
 A list of class \code{"flownet"} containing:
@@ -88,10 +91,11 @@ A list of class \code{"flownet"} containing:
       \itemize{
         \item \code{graph} - The igraph graph object
         \item \code{paths} - For PSL: list of lists of edge indices (multiple routes per OD pair); for AoN: list of edge index vectors (one shortest path per OD pair)
+        \item \code{path_costs} - For PSL: list of path costs per OD pair; for AoN: numeric vector of shortest path costs
+        \item \code{path_size_factors} - List of path-size factors per OD pair (PSL only)
+        \item \code{path_weights} - List of path weights (probabilities) for each OD pair (PSL only)
         \item \code{edges} - List of edge indices used for each OD pair (PSL only)
         \item \code{edge_counts} - For PSL: list of edge visit counts per OD pair; for AoN: integer vector of global edge traversal counts
-        \item \code{path_costs} - For PSL: list of path costs per OD pair; for AoN: numeric vector of shortest path costs
-        \item \code{path_weights} - List of path weights (probabilities) for each OD pair (PSL only)
         \item \code{edge_weights} - List of edge weight vectors (summed path probabilities per edge, PSL only)
       }
   }
@@ -155,7 +159,7 @@ For each origin-destination pair, the algorithm identifies alternative routes as
         as multiple intermediate nodes may yield exactly the same route.
   \item (Optionally) use \code{npaths.max} to sample the remaining routes if still too many.
   \item Compute the actual paths and filter out those with duplicate edges
-        (where the intermediate node is approached and departed via the same edge).
+        (where the intermediate node is approached and departed via the same edge). In directed graphs, edges with matching "to-from" and "from-to" nodes are considered the same edge for this step.
 }
 This pre-selection using distance matrices speeds up route enumeration considerably
 by avoiding the computation of implausible paths.

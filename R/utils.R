@@ -173,12 +173,13 @@ linestrings_from_graph <- function(graph_df, crs = 4326) {
 #'
 #' @export
 #' @importFrom collapse ftransform GRP get_vars add_vars add_vars<- ffirst colorderv %!in% collap
+#' @importFrom kit fpmin fpmax
 create_undirected_graph <- function(graph_df, by = NULL, ...) {
   if(length(by)) {
     if(is.call(by)) by <- all.vars(by)
     if(!is.character(by)) stop("by needs to be a one-sided formula or a character vector of column names")
   }
-  graph_df <- ftransform(graph_df, from = pmin(from, to), to = pmax(from, to))
+  graph_df <- ftransform(graph_df, from = fpmin(from, to), to = fpmax(from, to))
   g <- GRP(graph_df, c("from", "to", by), sort = FALSE)
   nam <- names(graph_df)
   agg_first <- c("edge", "FX", "FY", "TX", "TY")
@@ -384,22 +385,20 @@ normalize_graph <- function(graph_df) {
 #' @param keep.nodes Numeric vector (optional). Node IDs to preserve during consolidation,
 #'   even if they occur exactly twice. Also used to preserve nodes when dropping singleton edges.
 #' @param \dots Arguments passed to \code{\link[collapse]{collap}()} for aggregation across contracted edges. The defaults are \code{FUN = fmean} for numeric columns and \code{catFUN = fmode} for categorical columns. Select columns using \code{cols} or use argument \code{custom = list(fmean = cols1, fsum = cols2, fmode = cols3)} to map different columns to specific aggregation functions. It is highly recommended to weight the aggregation (using \code{w = ~ weight_col}) by the length/cost of the edges.
-#' @param recursive One of \code{"none"/FALSE}, \code{"partial"} (recurse on dropping single edges and consolidation but only aggregate once), or \code{"full"/TRUE} (recursively contracts and aggregates the graph
-#'   until no further consolidation is possible). This ensures that long chains of intermediate
-#'   nodes are fully contracted in a single call.
+#' @param recursive One of \code{"none"/FALSE} (drop edges, contract, and aggregate once), \code{"partial"} (recursively drop edges and contract but only aggregate once), or \code{"full"/TRUE} (recursively drop edges, contract, and aggregate the graph
+#'   until no further consolidation is possible).
 #' @param verbose Logical (default: TRUE). Whether to print messages about dropped edges
 #'   and consolidation progress.
 #'
 #' @return A data frame representing the consolidated graph with:
 #'   \itemize{
-#'     \item \code{edge} - Edge identifier (added as first column)
 #'     \item All columns from \code{graph_df} (aggregated if consolidation occurred),
-#'       excluding \code{from}, \code{to}, and optionally \code{FX}, \code{FY}, \code{TX}, \code{TY}
+#'       excluding \code{from}, \code{to}, and optionally \code{edge} and \code{FX}, \code{FY}, \code{TX}, \code{TY}
 #'       (which are re-added if present in original)
-#'     \item \code{from}, \code{to} - Node IDs (updated after consolidation)
+#'     \item \code{from}, \code{to}, \code{edge} - Node/edge IDs (updated after consolidation)
 #'     \item Coordinate columns (\code{FX}, \code{FY}, \code{TX}, \code{TY}) if present in original
-#'     \item Attribute \code{"keep.edges"} - Indices of original edges that were kept
-#'     \item Attribute \code{"gid"} - Edge group IDs mapping contracted edges to original edges
+#'     \item Attribute \code{"keep.edges"} - Indices of original edges that were kept (before aggregation)
+#'     \item Attribute \code{"group.id"} - Integer mapping each kept edge to its row in the result (after aggregation)
 #'   }
 #'
 #' @details
@@ -449,7 +448,7 @@ normalize_graph <- function(graph_df) {
 #' c(original = nrow(graph), consolidated = nrow(graph_cons))
 #'
 #' @export
-#' @importFrom collapse fnrow get_vars anyv setv ss seq_row fduplicated fmatch whichv whichNA allNA ffirst GRP collap %iin% %!in% %!iin% join colorderv funique.default %!=% %==% missing_cases qtab flast varying radixorderv groupv na_rm
+#' @importFrom collapse fnrow get_vars anyv setv ss seq_row fduplicated fmatch whichv whichNA allNA ffirst GRP collap %iin% %!in% %!iin% join colorderv funique.default %!=% %==% missing_cases qtab varying radixorderv groupv na_rm
 #' @importFrom kit countOccur
 #' @importFrom stats setNames
 consolidate_graph <- function(graph_df, directed = FALSE,
@@ -461,7 +460,10 @@ consolidate_graph <- function(graph_df, directed = FALSE,
 
   if(...length() && any(...names() == "consolidate")) contract <- list(...)[["consolidate"]]
 
-  if(verbose) namg <- flast(as.character(substitute(graph_df)))
+  if(verbose) {
+    namg <- as.character(substitute(graph_df))
+    if(length(namg) != 1L) namg <- "."
+  }
 
   reci <- switch(as.character(recursive), none =, `FALSE` = 0L, partial = 1L, full =, `TRUE` = 2L,
                  stop("recursive needs to be one of 'none'/FALSE, 'partial', or 'full'/TRUE"))
@@ -508,6 +510,7 @@ consolidate_graph <- function(graph_df, directed = FALSE,
                                     keep.nodes = keep.nodes,
                                     reci = reci, nam_keep = nam_keep,
                                     verbose = verbose, ...)
+      if(length(attr(res, ".early.return"))) break
     }
   }
 
@@ -523,7 +526,7 @@ consolidate_graph <- function(graph_df, directed = FALSE,
     if(any(nam_rm[3:4] %in% nam)) res <- join(res, setNames(nodes, c("from", "FX", "FY")), on = "from", verbose = 0L)
     if(any(nam_rm[5:6] %in% nam)) res <- join(res, setNames(nodes, c("to", "TX", "TY")), on = "to", verbose = 0L)
   }
-  add_vars(res, pos = "front") <- list(edge = seq_row(res))
+  if(anyv(nam, "edge")) add_vars(res, pos = "front") <- list(edge = seq_row(res))
 
   # Reordering columns
   res <- colorderv(res, radixorderv(fmatch(names(res), nam)))
@@ -660,7 +663,7 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
     degree_table <- compute_degrees(gft$from, gft$to)
     if(!fnrow(degree_table)) break
 
-    if(anyv(drop.edges, "single") && anyv(degree_table$deg_total, 1L)) {
+    if(anyv(drop.edges, "single") && reci > 0L && anyv(degree_table$deg_total, 1L)) {
       nodes <- degree_table$node[degree_table$deg_total %==% 1L]
       if(length(keep.nodes)) nodes <- nodes[nodes %!iin% keep.nodes]
       if(length(nodes)) {
@@ -763,7 +766,7 @@ compute_degrees <- function(from_vec, to_vec) {
 #'   representing node coordinates.
 #' @param nodes For \code{method = "shortest-paths"}: either an atomic vector of node IDs, or a
 #'   data.frame with columns \code{from} and \code{to} specifying origin-destination pairs.
-#'   For \code{method = "cluster"}: an atomic vector of node IDs to preserve. These nodes will
+#'   For \code{method = "cluster"}: an (optional) atomic vector of node IDs to preserve. These nodes will
 #'   be kept as cluster centroids, and nearby nodes (within \code{radius_km$nodes}) will be
 #'   assigned to their clusters. Remaining nodes are clustered using \code{\link[leaderCluster]{leaderCluster}}.
 #' @param method Character string (default: "shortest-paths"). Method to use for simplification:
@@ -882,12 +885,12 @@ compute_degrees <- function(from_vec, to_vec) {
 #' }
 #'
 #' @export
-#' @importFrom collapse fnrow ss ckmatch funique.default fmatch gsplit fmin dapply whichv %+=% GRP add_vars seq_row add_stub colorderv %!in% collap get_vars alloc
+#' @importFrom collapse fnrow ss ckmatch funique funique.default fmatch gsplit fmin dapply whichv %+=% GRP add_vars seq_row add_stub colorderv %!in% collap get_vars alloc
 #' @importFrom kit iif
 #' @importFrom igraph graph_from_data_frame delete_vertex_attr igraph_options shortest_paths
 #' @importFrom geodist geodist_vec geodist_min
 #' @importFrom leaderCluster leaderCluster
-simplify_network <- function(graph_df, nodes, method = c("shortest-paths", "cluster"),
+simplify_network <- function(graph_df, nodes = NULL, method = c("shortest-paths", "cluster"),
                              directed = FALSE, cost.column = "cost", by = NULL,
                              radius_km = list(nodes = 7, cluster = 20), verbose = TRUE, ...) {
 
@@ -936,11 +939,12 @@ simplify_network <- function(graph_df, nodes, method = c("shortest-paths", "clus
 
     # Pre-process nodes input ONCE (before any group loop)
     if(is.atomic(nodes)) {
-      nodes_matched <- ckmatch(nodes, all_nodes, e = "Unknown nodes:")
+      nodes_matched <- ckmatch(funique.default(nodes), all_nodes, e = "Unknown nodes:")
       nodes_split <- NULL
     } else if(is.data.frame(nodes)) {
       if(!all(c("from", "to") %in% names(nodes)))
         stop("nodes data.frame must have columns 'from' and 'to'")
+      nodes <- funique(nodes, cols = c("from", "to"))
       nodes_split <- gsplit(ckmatch(nodes$to, all_nodes, e = "Unknown 'to' nodes:"),
                             ckmatch(nodes$from, all_nodes, e = "Unknown 'from' nodes:"),
                             use.g.names = TRUE)
@@ -1022,7 +1026,7 @@ simplify_network <- function(graph_df, nodes, method = c("shortest-paths", "clus
     # Optional node weights
     if(is.numeric(cost.column) && length(cost.column) == fnrow(nodes_df)) nodes_df$weights <- cost.column
     # Cluster method
-    cl <- cluster_nodes(nodes_df, nodes, radius_km$nodes, radius_km$cluster, verbose)
+    cl <- cluster_nodes(nodes_df, funique.default(nodes), radius_km$nodes, radius_km$cluster, verbose)
     # Graph Contraction to Clusters
     result <- contract_edges(graph_df, nodes = nodes_df, clusters = cl$clusters,
                              centroids = cl$centroids, directed = directed, by = by,

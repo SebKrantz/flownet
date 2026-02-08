@@ -7,6 +7,8 @@
 [![cran checks](https://badges.cranchecks.info/worst/flownet.svg)](https://cran.r-project.org/web/checks/check_results_flownet.html)
 ![downloads per month](https://cranlogs.r-pkg.org/badges/flownet?color=blue)
 ![downloads](https://cranlogs.r-pkg.org/badges/grand-total/flownet?color=blue)
+[![Conda Version](https://img.shields.io/conda/vn/conda-forge/r-flownet.svg)](https://anaconda.org/conda-forge/r-flownet)
+[![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/r-flownet.svg)](https://anaconda.org/conda-forge/r-flownet)
 [![Codecov test coverage](https://codecov.io/gh/SebKrantz/flownet/graph/badge.svg)](https://app.codecov.io/gh/SebKrantz/flownet)
 [![minimal R version](https://img.shields.io/badge/R%3E%3D-3.5.0-6666ff.svg)](https://cran.r-project.org/)
 [![dependencies](https://tinyverse.netlify.app/badge/flownet)](https://CRAN.R-project.org/package=flownet)
@@ -38,7 +40,7 @@ install.packages("flownet", repos = c("https://sebkrantz.r-universe.dev", getOpt
 ### Dependencies
 
 - `collapse` (>= 2.1.5) - Fast data transformations and memory efficient programming
-- `kit` (>= 0.0.5) - Fast tabulation and vectorized switches
+- `kit` (>= 0.0.21) - Fast tabulation and vectorized switches
 - `igraph` (>= 2.1.4) - Graph operations and shortest path algorithms
 - `sf` (>= 1.0.0) - Spatial data handling
 - `geodist` (>= 0.1.1) - Fast geodesic distance computations

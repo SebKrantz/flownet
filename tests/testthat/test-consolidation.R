@@ -107,7 +107,7 @@ test_that("consolidate_graph by parameter preserves mode groups", {
   expect_true("mode" %in% names(result))
 })
 
-test_that("consolidate_graph adds edge column", {
+test_that("consolidate_graph adds edge column only if present", {
   # Graph with branching (not just a chain)
   graph <- data.frame(
     from = c(1, 2, 2, 3, 4),
@@ -115,6 +115,12 @@ test_that("consolidate_graph adds edge column", {
     cost = c(1, 2, 3, 1, 1)
   )
 
+  result <- consolidate_graph(graph, keep.nodes = c(1, 5), verbose = FALSE)
+
+  expect_false("edge" %in% names(result))
+  expect_true(nrow(result) > 0)
+
+  graph$edge <- seq_len(nrow(graph))
   result <- consolidate_graph(graph, keep.nodes = c(1, 5), verbose = FALSE)
 
   expect_true("edge" %in% names(result))
