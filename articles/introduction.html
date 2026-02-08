@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">flownet</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -57,9 +57,9 @@
                         <h4 data-toc-skip class="author">Sebastian
 Krantz</h4>
             
-            <h4 data-toc-skip class="date">2026-02-06</h4>
+            <h4 data-toc-skip class="date">2026-02-08</h4>
       
-      <small class="dont-index">Source: <a href="https://github.com/SebKrantz/flownet/blob/v0.1.3/vignettes/introduction.Rmd" class="external-link"><code>vignettes/introduction.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/SebKrantz/flownet/blob/v0.2.0/vignettes/introduction.Rmd" class="external-link"><code>vignettes/introduction.Rmd</code></a></small>
       <div class="d-none name"><code>introduction.Rmd</code></div>
     </div>
 
@@ -119,36 +119,63 @@ Bank. Replication materials are available at <a href="https://github.com/SebKran
 <span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">africa_net</span>, max.level <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Classes 'sf' and 'data.frame':   2344 obs. of  28 variables:</span></span>
 <span><span class="co">#&gt;  $ from             : int  1 2 2 2 3 3 4 4 5 5 ...</span></span>
+<span><span class="co">#&gt;   ..- attr(*, "label")= chr "Origin node index"</span></span>
 <span><span class="co">#&gt;  $ to               : int  2 3 4 5 4 10 5 17 13 17 ...</span></span>
+<span><span class="co">#&gt;   ..- attr(*, "label")= chr "Destination node index"</span></span>
 <span><span class="co">#&gt;  $ from_ctry        : chr  "SEN" "SEN" "SEN" "SEN" ...</span></span>
+<span><span class="co">#&gt;   ..- attr(*, "label")= chr "Origin country ISO3 code"</span></span>
 <span><span class="co">#&gt;  $ to_ctry          : chr  "SEN" "SEN" "SEN" "SEN" ...</span></span>
+<span><span class="co">#&gt;   ..- attr(*, "label")= chr "Destination country ISO3 code"</span></span>
 <span><span class="co">#&gt;  $ FX               : num  -17.4 -17 -17 -17 -16.6 ...</span></span>
+<span><span class="co">#&gt;   ..- attr(*, "label")= chr "Origin node longitude"</span></span>
 <span><span class="co">#&gt;  $ FY               : num  14.7 14.7 14.7 14.7 15.1 ...</span></span>
+<span><span class="co">#&gt;   ..- attr(*, "label")= chr "Origin node latitude"</span></span>
 <span><span class="co">#&gt;  $ TX               : num  -17 -16.6 -16.5 -16.4 -16.5 ...</span></span>
+<span><span class="co">#&gt;   ..- attr(*, "label")= chr "Destination node longitude"</span></span>
 <span><span class="co">#&gt;  $ TY               : num  14.7 15.1 14.8 14.3 14.8 ...</span></span>
+<span><span class="co">#&gt;   ..- attr(*, "label")= chr "Destination node latitude"</span></span>
 <span><span class="co">#&gt;  $ sp_distance      : num  43272 63043 62787 78226 43802 ...</span></span>
+<span><span class="co">#&gt;   ..- attr(*, "label")= chr "Spherical (great-circle) distance in meters"</span></span>
 <span><span class="co">#&gt;  $ distance         : num  65988 87290 89470 99998 61112 ...</span></span>
+<span><span class="co">#&gt;   ..- attr(*, "label")= chr "Road distance in meters (OSRM routing)"</span></span>
 <span><span class="co">#&gt;  $ duration         : num  46.1 72.2 61.1 72.9 72.9 ...</span></span>
+<span><span class="co">#&gt;   ..- attr(*, "label")= chr "Travel duration in minutes (OSRM routing)"</span></span>
 <span><span class="co">#&gt;  $ speed_kmh        : num  85.8 72.5 87.9 82.3 50.3 ...</span></span>
+<span><span class="co">#&gt;   ..- attr(*, "label")= chr "Average speed in km/h (distance/duration)"</span></span>
 <span><span class="co">#&gt;  $ passes           : num  104.3 10 1.5 55 1 ...</span></span>
+<span><span class="co">#&gt;   ..- attr(*, "label")= chr "Number of optimal inter-city routes using this edge"</span></span>
 <span><span class="co">#&gt;  $ gravity          : num  215.33 20.138 11.642 122.201 0.526 ...</span></span>
+<span><span class="co">#&gt;   ..- attr(*, "label")= chr "Sum of population gravity weights from routes"</span></span>
 <span><span class="co">#&gt;  $ gravity_rd       : num  157.523 14.738 10.558 88.008 0.395 ...</span></span>
+<span><span class="co">#&gt;   ..- attr(*, "label")= chr "Sum of road-distance-weighted gravity from routes"</span></span>
 <span><span class="co">#&gt;  $ border_dist      : num  0 0 0 0 0 0 0 0 0 0 ...</span></span>
+<span><span class="co">#&gt;   ..- attr(*, "label")= chr "Additional border crossing distance in meters"</span></span>
 <span><span class="co">#&gt;  $ total_dist       : num  65988 87290 89470 99998 61112 ...</span></span>
+<span><span class="co">#&gt;   ..- attr(*, "label")= chr "Total distance incl. border crossing penalty (meters)"</span></span>
 <span><span class="co">#&gt;  $ border_time      : num  0 0 0 0 0 0 0 0 0 0 ...</span></span>
+<span><span class="co">#&gt;   ..- attr(*, "label")= chr "Additional border crossing time in minutes"</span></span>
 <span><span class="co">#&gt;  $ total_time       : num  46.1 72.2 61.1 72.9 72.9 ...</span></span>
+<span><span class="co">#&gt;   ..- attr(*, "label")= chr "Total travel time incl. border crossing (minutes)"</span></span>
 <span><span class="co">#&gt;  $ duration_100kmh  : num  39.6 52.4 53.7 60 36.7 ...</span></span>
+<span><span class="co">#&gt;   ..- attr(*, "label")= chr "Hypothetical travel time at 100 km/h (minutes)"</span></span>
 <span><span class="co">#&gt;  $ total_time_100kmh: num  39.6 52.4 53.7 60 36.7 ...</span></span>
+<span><span class="co">#&gt;   ..- attr(*, "label")= chr "Hypothetical total time at 100 km/h incl. border"</span></span>
 <span><span class="co">#&gt;  $ rugg             : num  25204 23657 25761 24773 11332 ...</span></span>
+<span><span class="co">#&gt;   ..- attr(*, "label")= chr "Terrain ruggedness index along the edge"</span></span>
 <span><span class="co">#&gt;  $ pop_wpop         : num  670689 191412 177028 137875 65316 ...</span></span>
+<span><span class="co">#&gt;   ..- attr(*, "label")= chr "Population within corridor (WorldPop)"</span></span>
 <span><span class="co">#&gt;  $ pop_wpop_km2     : num  2263 450 415 262 216 ...</span></span>
+<span><span class="co">#&gt;   ..- attr(*, "label")= chr "Population density per km2 along corridor"</span></span>
 <span><span class="co">#&gt;  $ cost_km          : num  699437 605210 607230 581290 520635 ...</span></span>
+<span><span class="co">#&gt;   ..- attr(*, "label")= chr "Estimated road construction/maintenance cost per km (USD)"</span></span>
 <span><span class="co">#&gt;  $ upgrade_cat      : chr  "Asphalt Mix Resurfacing" "Mixed Works" "Asphalt Mix Resurfacing" "Asphalt Mix Resurfacing" ...</span></span>
+<span><span class="co">#&gt;   ..- attr(*, "label")= chr "Road upgrade category"</span></span>
 <span><span class="co">#&gt;  $ ug_cost_km       : num  165533 325805 143711 137572 440804 ...</span></span>
+<span><span class="co">#&gt;   ..- attr(*, "label")= chr "Upgrade cost per km in USD"</span></span>
 <span><span class="co">#&gt;  $ geometry         :sfc_LINESTRING of length 2344; first list element:  'XY' num [1:10, 1:2] -17.4 -17 -17 -17.1 -17.1 ...</span></span>
 <span><span class="co">#&gt;  - attr(*, "sf_column")= chr "geometry"</span></span>
 <span><span class="co">#&gt;  - attr(*, "agr")= Factor w/ 3 levels "constant","aggregate",..: NA NA NA NA NA NA NA NA NA NA ...</span></span>
-<span><span class="co">#&gt;   ..- attr(*, "names")= chr [1:24] "from" "to" NA NA ...</span></span>
+<span><span class="co">#&gt;   ..- attr(*, "names")= chr [1:28] "from" "to" NA NA ...</span></span>
 <span></span>
 <span><span class="co"># View cities/ports</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://fastverse.org/collapse/reference/select_replace_vars.html" class="external-link">fselect</a></span><span class="op">(</span><span class="va">africa_cities_ports</span>, <span class="va">city</span>, <span class="va">country</span>, <span class="va">population</span><span class="op">)</span><span class="op">)</span></span>

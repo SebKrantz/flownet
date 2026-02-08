@@ -9,7 +9,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">flownet</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -32,7 +32,7 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Run Traffic Assignment</h1>
-      <small class="dont-index">Source: <a href="https://github.com/SebKrantz/flownet/blob/v0.1.3/R/assignment.R" class="external-link"><code>R/assignment.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/SebKrantz/flownet/blob/v0.2.0/R/assignment.R" class="external-link"><code>R/assignment.R</code></a></small>
       <div class="d-none name"><code>run_assignment.Rd</code></div>
     </div>
 
@@ -62,7 +62,7 @@
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S3 method for class 'flownet'</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">x</span>, digits <span class="op">=</span> <span class="fl">2</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -126,7 +126,7 @@ The cost values are used to compute shortest paths and determine route probabili
 <dt id="arg-return-extra">return.extra<a class="anchor" aria-label="anchor" href="#arg-return-extra"></a></dt>
 <dd><p>Character vector specifying additional results to return.
   Use <code>"all"</code> to return all available extras for the selected method.</p>
-<p></p><table class="table table"><tr><td><strong>Option</strong></td><td><strong>PSL</strong></td><td><strong>AoN</strong></td><td><strong>Description</strong></td></tr><tr><td><code>"graph"</code></td><td>Yes</td><td>Yes</td><td>The igraph graph object</td></tr><tr><td><code>"paths"</code></td><td>Yes</td><td>Yes</td><td>PSL: list of lists of edge indices (multiple routes per OD); AoN: list of edge index vectors (one path per OD)</td></tr><tr><td><code>"edges"</code></td><td>Yes</td><td>No</td><td>List of edge indices used for each OD pair</td></tr><tr><td><code>"counts"</code></td><td>Yes</td><td>Yes</td><td>PSL: list of edge visit counts per OD; AoN: integer vector of global edge traversal counts</td></tr><tr><td><code>"costs"</code></td><td>Yes</td><td>Yes</td><td>PSL: list of path costs per OD; AoN: numeric vector of shortest path costs</td></tr><tr><td><code>"weights"</code></td><td>Yes</td><td>No</td><td>List of path weights (probabilities) for each OD pair</td></tr><tr><td><code>"eweights"</code></td><td>Yes</td><td>No</td><td>List of edge weight vectors (summed path probabilities per edge, same length as edges)</td></tr></table></dd>
+<p></p><table class="table table"><tr><td><strong>Option</strong></td><td><strong>PSL</strong></td><td><strong>AoN</strong></td><td><strong>Description</strong></td></tr><tr><td><code>"graph"</code></td><td>Yes</td><td>Yes</td><td>The igraph graph object</td></tr><tr><td><code>"paths"</code></td><td>Yes</td><td>Yes</td><td>PSL: list of lists of edge indices (multiple routes per OD); AoN: list of edge index vectors (one path per OD)</td></tr><tr><td><code>"costs"</code></td><td>Yes</td><td>Yes</td><td>PSL: list of path costs per OD; AoN: numeric vector of shortest path costs</td></tr><tr><td><code>"PSF"</code></td><td>Yes</td><td>No</td><td>List of path-size factors per OD</td></tr><tr><td><code>"weights"</code></td><td>Yes</td><td>No</td><td>List of path weights (probabilities) for each OD pair</td></tr><tr><td><code>"edges"</code></td><td>Yes</td><td>No</td><td>List of edge indices used for each OD pair</td></tr><tr><td><code>"counts"</code></td><td>Yes</td><td>Yes</td><td>PSL: list of edge visit counts per OD; AoN: integer vector of global edge traversal counts</td></tr><tr><td><code>"eweights"</code></td><td>Yes</td><td>No</td><td>List of edge weight vectors (summed path probabilities per edge, same length as edges)</td></tr></table></dd>
 
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
@@ -140,6 +140,10 @@ The cost values are used to compute shortest paths and determine route probabili
 <dt id="arg-x">x<a class="anchor" aria-label="anchor" href="#arg-x"></a></dt>
 <dd><p>An object of class <code>flownet</code>, typically returned by <code>run_assignment</code>.</p></dd>
 
+
+<dt id="arg-digits">digits<a class="anchor" aria-label="anchor" href="#arg-digits"></a></dt>
+<dd><p>Number of digits for summarizing final flows. Passed to <code><a href="https://fastverse.org/collapse/reference/qsu.html" class="external-link">print.qsu()</a></code>.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -148,10 +152,11 @@ The cost values are used to compute shortest paths and determine route probabili
 <li><p><code>od_pairs_used</code> - Indices of OD pairs with valid flows</p></li>
 <li><p>Additional elements as specified in <code>return.extra</code>:</p><ul><li><p><code>graph</code> - The igraph graph object</p></li>
 <li><p><code>paths</code> - For PSL: list of lists of edge indices (multiple routes per OD pair); for AoN: list of edge index vectors (one shortest path per OD pair)</p></li>
+<li><p><code>path_costs</code> - For PSL: list of path costs per OD pair; for AoN: numeric vector of shortest path costs</p></li>
+<li><p><code>path_size_factors</code> - List of path-size factors per OD pair (PSL only)</p></li>
+<li><p><code>path_weights</code> - List of path weights (probabilities) for each OD pair (PSL only)</p></li>
 <li><p><code>edges</code> - List of edge indices used for each OD pair (PSL only)</p></li>
 <li><p><code>edge_counts</code> - For PSL: list of edge visit counts per OD pair; for AoN: integer vector of global edge traversal counts</p></li>
-<li><p><code>path_costs</code> - For PSL: list of path costs per OD pair; for AoN: numeric vector of shortest path costs</p></li>
-<li><p><code>path_weights</code> - List of path weights (probabilities) for each OD pair (PSL only)</p></li>
 <li><p><code>edge_weights</code> - List of edge weight vectors (summed path probabilities per edge, PSL only)</p></li>
 </ul></li>
 </ul></div>
@@ -209,7 +214,7 @@ values strengthen penalization; <code>beta = 0</code> gives standard MNL behavio
         as multiple intermediate nodes may yield exactly the same route.</p></li>
 <li><p>(Optionally) use <code>npaths.max</code> to sample the remaining routes if still too many.</p></li>
 <li><p>Compute the actual paths and filter out those with duplicate edges
-        (where the intermediate node is approached and departed via the same edge).</p></li>
+        (where the intermediate node is approached and departed via the same edge). In directed graphs, edges with matching "to-from" and "from-to" nodes are considered the same edge for this step.</p></li>
 </ol><p>This pre-selection using distance matrices speeds up route enumeration considerably
 by avoiding the computation of implausible paths.</p>
 </div>
@@ -311,7 +316,7 @@ directions. <em>Journal of Choice Modelling, 2</em>(1), 65-100. <a href="https:/
 <span class="r-out co"><span class="r-pr">#&gt;</span> Number of simulations/OD-pairs: 204714 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Average number of edges utilized per simulation (SD): 561.0807  (435.3154)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Average number of visits per edge (SD): 272063101  (494088127)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Average number of visits per edge (SD): 11.53833  (23.1319)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Average path cost (SD): 5025.893  (553.1439)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Average path weight (SD): 0.02975674  (0.1142098)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
@@ -392,7 +397,7 @@ directions. <em>Journal of Choice Modelling, 2</em>(1), 65-100. <a href="https:/
 <span class="r-out co"><span class="r-pr">#&gt;</span> Number of simulations/OD-pairs: 189020 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Average number of edges utilized per simulation (SD): 582.2351  (433.1458)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Average number of visits per edge (SD): 311453366  (528391713)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Average number of visits per edge (SD): 11.89921  (23.97433)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Average path cost (SD): 5177.577  (566.4261)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Average path weight (SD): 0.01998045  (0.1056897)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>

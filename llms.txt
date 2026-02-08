@@ -37,7 +37,7 @@ install.packages("flownet", repos = c("https://sebkrantz.r-universe.dev", getOpt
 
 - `collapse` (\>= 2.1.5) - Fast data transformations and memory
   efficient programming
-- `kit` (\>= 0.0.5) - Fast tabulation and vectorized switches
+- `kit` (\>= 0.0.21) - Fast tabulation and vectorized switches
 - `igraph` (\>= 2.1.4) - Graph operations and shortest path algorithms
 - `sf` (\>= 1.0.0) - Spatial data handling
 - `geodist` (\>= 0.1.1) - Fast geodesic distance computations

@@ -11,7 +11,7 @@ if the network is still too large/complex.
 ``` r
 simplify_network(
   graph_df,
-  nodes,
+  nodes = NULL,
   method = c("shortest-paths", "cluster"),
   directed = FALSE,
   cost.column = "cost",
@@ -34,9 +34,9 @@ simplify_network(
 
   For `method = "shortest-paths"`: either an atomic vector of node IDs,
   or a data.frame with columns `from` and `to` specifying
-  origin-destination pairs. For `method = "cluster"`: an atomic vector
-  of node IDs to preserve. These nodes will be kept as cluster
-  centroids, and nearby nodes (within `radius_km$nodes`) will be
+  origin-destination pairs. For `method = "cluster"`: an (optional)
+  atomic vector of node IDs to preserve. These nodes will be kept as
+  cluster centroids, and nearby nodes (within `radius_km$nodes`) will be
   assigned to their clusters. Remaining nodes are clustered using
   [`leaderCluster`](https://rdrr.io/pkg/leaderCluster/man/leaderCluster.html).
 

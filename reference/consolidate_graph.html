@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">flownet</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -30,7 +30,7 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Consolidate Graph</h1>
-      <small class="dont-index">Source: <a href="https://github.com/SebKrantz/flownet/blob/v0.1.3/R/utils.R" class="external-link"><code>R/utils.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/SebKrantz/flownet/blob/v0.2.0/R/utils.R" class="external-link"><code>R/utils.R</code></a></small>
       <div class="d-none name"><code>consolidate_graph.Rd</code></div>
     </div>
 
@@ -96,9 +96,8 @@ even if they occur exactly twice. Also used to preserve nodes when dropping sing
 
 
 <dt id="arg-recursive">recursive<a class="anchor" aria-label="anchor" href="#arg-recursive"></a></dt>
-<dd><p>One of <code>"none"/FALSE</code>, <code>"partial"</code> (recurse on dropping single edges and consolidation but only aggregate once), or <code>"full"/TRUE</code> (recursively contracts and aggregates the graph
-until no further consolidation is possible). This ensures that long chains of intermediate
-nodes are fully contracted in a single call.</p></dd>
+<dd><p>One of <code>"none"/FALSE</code> (drop edges, contract, and aggregate once), <code>"partial"</code> (recursively drop edges and contract but only aggregate once), or <code>"full"/TRUE</code> (recursively drop edges, contract, and aggregate the graph
+until no further consolidation is possible).</p></dd>
 
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
@@ -108,14 +107,13 @@ and consolidation progress.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A data frame representing the consolidated graph with:</p><ul><li><p><code>edge</code> - Edge identifier (added as first column)</p></li>
-<li><p>All columns from <code>graph_df</code> (aggregated if consolidation occurred),
-      excluding <code>from</code>, <code>to</code>, and optionally <code>FX</code>, <code>FY</code>, <code>TX</code>, <code>TY</code>
+    <p>A data frame representing the consolidated graph with:</p><ul><li><p>All columns from <code>graph_df</code> (aggregated if consolidation occurred),
+      excluding <code>from</code>, <code>to</code>, and optionally <code>edge</code> and <code>FX</code>, <code>FY</code>, <code>TX</code>, <code>TY</code>
       (which are re-added if present in original)</p></li>
-<li><p><code>from</code>, <code>to</code> - Node IDs (updated after consolidation)</p></li>
+<li><p><code>from</code>, <code>to</code>, <code>edge</code> - Node/edge IDs (updated after consolidation)</p></li>
 <li><p>Coordinate columns (<code>FX</code>, <code>FY</code>, <code>TX</code>, <code>TY</code>) if present in original</p></li>
-<li><p>Attribute <code>"keep.edges"</code> - Indices of original edges that were kept</p></li>
-<li><p>Attribute <code>"gid"</code> - Edge group IDs mapping contracted edges to original edges</p></li>
+<li><p>Attribute <code>"keep.edges"</code> - Indices of original edges that were kept (before aggregation)</p></li>
+<li><p>Attribute <code>"group.id"</code> - Integer mapping each kept edge to its row in the result (after aggregation)</p></li>
 </ul></div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

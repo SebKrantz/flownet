@@ -76,11 +76,10 @@ consolidate_graph(
 
 - recursive:
 
-  One of `"none"/FALSE`, `"partial"` (recurse on dropping single edges
-  and consolidation but only aggregate once), or `"full"/TRUE`
-  (recursively contracts and aggregates the graph until no further
-  consolidation is possible). This ensures that long chains of
-  intermediate nodes are fully contracted in a single call.
+  One of `"none"/FALSE` (drop edges, contract, and aggregate once),
+  `"partial"` (recursively drop edges and contract but only aggregate
+  once), or `"full"/TRUE` (recursively drop edges, contract, and
+  aggregate the graph until no further consolidation is possible).
 
 - verbose:
 
@@ -91,20 +90,19 @@ consolidate_graph(
 
 A data frame representing the consolidated graph with:
 
-- `edge` - Edge identifier (added as first column)
-
 - All columns from `graph_df` (aggregated if consolidation occurred),
-  excluding `from`, `to`, and optionally `FX`, `FY`, `TX`, `TY` (which
-  are re-added if present in original)
+  excluding `from`, `to`, and optionally `edge` and `FX`, `FY`, `TX`,
+  `TY` (which are re-added if present in original)
 
-- `from`, `to` - Node IDs (updated after consolidation)
+- `from`, `to`, `edge` - Node/edge IDs (updated after consolidation)
 
 - Coordinate columns (`FX`, `FY`, `TX`, `TY`) if present in original
 
 - Attribute `"keep.edges"` - Indices of original edges that were kept
+  (before aggregation)
 
-- Attribute `"gid"` - Edge group IDs mapping contracted edges to
-  original edges
+- Attribute `"group.id"` - Integer mapping each kept edge to its row in
+  the result (after aggregation)
 
 ## Details
 

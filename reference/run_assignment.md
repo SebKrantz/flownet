@@ -25,7 +25,7 @@ run_assignment(
 )
 
 # S3 method for class 'flownet'
-print(x, ...)
+print(x, digits = 2, ...)
 ```
 
 ## Arguments
@@ -116,10 +116,11 @@ print(x, ...)
   | **Option**   | **PSL** | **AoN** | **Description**                                                                                                |
   | `"graph"`    | Yes     | Yes     | The igraph graph object                                                                                        |
   | `"paths"`    | Yes     | Yes     | PSL: list of lists of edge indices (multiple routes per OD); AoN: list of edge index vectors (one path per OD) |
+  | `"costs"`    | Yes     | Yes     | PSL: list of path costs per OD; AoN: numeric vector of shortest path costs                                     |
+  | `"PSF"`      | Yes     | No      | List of path-size factors per OD                                                                               |
+  | `"weights"`  | Yes     | No      | List of path weights (probabilities) for each OD pair                                                          |
   | `"edges"`    | Yes     | No      | List of edge indices used for each OD pair                                                                     |
   | `"counts"`   | Yes     | Yes     | PSL: list of edge visit counts per OD; AoN: integer vector of global edge traversal counts                     |
-  | `"costs"`    | Yes     | Yes     | PSL: list of path costs per OD; AoN: numeric vector of shortest path costs                                     |
-  | `"weights"`  | Yes     | No      | List of path weights (probabilities) for each OD pair                                                          |
   | `"eweights"` | Yes     | No      | List of edge weight vectors (summed path probabilities per edge, same length as edges)                         |
 
 - verbose:
@@ -137,6 +138,11 @@ print(x, ...)
 - x:
 
   An object of class `flownet`, typically returned by `run_assignment`.
+
+- digits:
+
+  Number of digits for summarizing final flows. Passed to
+  [`print.qsu()`](https://fastverse.org/collapse/reference/qsu.html).
 
 ## Value
 
@@ -157,16 +163,19 @@ A list of class `"flownet"` containing:
     per OD pair); for AoN: list of edge index vectors (one shortest path
     per OD pair)
 
+  - `path_costs` - For PSL: list of path costs per OD pair; for AoN:
+    numeric vector of shortest path costs
+
+  - `path_size_factors` - List of path-size factors per OD pair (PSL
+    only)
+
+  - `path_weights` - List of path weights (probabilities) for each OD
+    pair (PSL only)
+
   - `edges` - List of edge indices used for each OD pair (PSL only)
 
   - `edge_counts` - For PSL: list of edge visit counts per OD pair; for
     AoN: integer vector of global edge traversal counts
-
-  - `path_costs` - For PSL: list of path costs per OD pair; for AoN:
-    numeric vector of shortest path costs
-
-  - `path_weights` - List of path weights (probabilities) for each OD
-    pair (PSL only)
 
   - `edge_weights` - List of edge weight vectors (summed path
     probabilities per edge, PSL only)
@@ -250,7 +259,8 @@ routes as follows:
 
 7.  Compute the actual paths and filter out those with duplicate edges
     (where the intermediate node is approached and departed via the same
-    edge).
+    edge). In directed graphs, edges with matching "to-from" and
+    "from-to" nodes are considered the same edge for this step.
 
 This pre-selection using distance matrices speeds up route enumeration
 considerably by avoiding the computation of implausible paths.
@@ -359,7 +369,7 @@ print(result_psl)
 #> Number of simulations/OD-pairs: 204714 
 #> 
 #> Average number of edges utilized per simulation (SD): 561.0807  (435.3154)
-#> Average number of visits per edge (SD): 272063101  (494088127)
+#> Average number of visits per edge (SD): 11.53833  (23.1319)
 #> Average path cost (SD): 5025.893  (553.1439)
 #> Average path weight (SD): 0.02975674  (0.1142098)
 #> 
@@ -440,7 +450,7 @@ print(result_trade_psl)
 #> Number of simulations/OD-pairs: 189020 
 #> 
 #> Average number of edges utilized per simulation (SD): 582.2351  (433.1458)
-#> Average number of visits per edge (SD): 311453366  (528391713)
+#> Average number of visits per edge (SD): 11.89921  (23.97433)
 #> Average path cost (SD): 5177.577  (566.4261)
 #> Average path weight (SD): 0.01998045  (0.1056897)
 #> 
