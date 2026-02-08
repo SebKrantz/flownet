@@ -6,7 +6,7 @@
 \usage{
 simplify_network(
   graph_df,
-  nodes,
+  nodes = NULL,
   method = c("shortest-paths", "cluster"),
   directed = FALSE,
   cost.column = "cost",
@@ -23,7 +23,7 @@ representing node coordinates.}
 
 \item{nodes}{For \code{method = "shortest-paths"}: either an atomic vector of node IDs, or a
 data.frame with columns \code{from} and \code{to} specifying origin-destination pairs.
-For \code{method = "cluster"}: an atomic vector of node IDs to preserve. These nodes will
+For \code{method = "cluster"}: an (optional) atomic vector of node IDs to preserve. These nodes will
 be kept as cluster centroids, and nearby nodes (within \code{radius_km$nodes}) will be
 assigned to their clusters. Remaining nodes are clustered using \code{\link[leaderCluster]{leaderCluster}}.}
 

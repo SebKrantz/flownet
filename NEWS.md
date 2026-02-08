@@ -16,6 +16,8 @@
 
 - Added variable labels to included `africa_*` datasets - try `collapse::namlab()` on them.
 
+- Small improvements to recursive logic in `consolidate_graph()`.
+
 - Bumped *kit* dependency to 0.0.21 (for `fpmin()` and `fpmax()`).
 
 

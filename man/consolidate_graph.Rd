@@ -41,9 +41,8 @@ even if they occur exactly twice. Also used to preserve nodes when dropping sing
 
 \item{\dots}{Arguments passed to \code{\link[collapse]{collap}()} for aggregation across contracted edges. The defaults are \code{FUN = fmean} for numeric columns and \code{catFUN = fmode} for categorical columns. Select columns using \code{cols} or use argument \code{custom = list(fmean = cols1, fsum = cols2, fmode = cols3)} to map different columns to specific aggregation functions. It is highly recommended to weight the aggregation (using \code{w = ~ weight_col}) by the length/cost of the edges.}
 
-\item{recursive}{One of \code{"none"/FALSE}, \code{"partial"} (recurse on dropping single edges and consolidation but only aggregate once), or \code{"full"/TRUE} (recursively contracts and aggregates the graph
-until no further consolidation is possible). This ensures that long chains of intermediate
-nodes are fully contracted in a single call.}
+\item{recursive}{One of \code{"none"/FALSE} (drop edges, contract, and aggregate once), \code{"partial"} (recursively drop edges and contract but only aggregate once), or \code{"full"/TRUE} (recursively drop edges, contract, and aggregate the graph
+until no further consolidation is possible).}
 
 \item{verbose}{Logical (default: TRUE). Whether to print messages about dropped edges
 and consolidation progress.}
@@ -51,14 +50,13 @@ and consolidation progress.}
 \value{
 A data frame representing the consolidated graph with:
   \itemize{
-    \item \code{edge} - Edge identifier (added as first column)
     \item All columns from \code{graph_df} (aggregated if consolidation occurred),
-      excluding \code{from}, \code{to}, and optionally \code{FX}, \code{FY}, \code{TX}, \code{TY}
+      excluding \code{from}, \code{to}, and optionally \code{edge} and \code{FX}, \code{FY}, \code{TX}, \code{TY}
       (which are re-added if present in original)
-    \item \code{from}, \code{to} - Node IDs (updated after consolidation)
+    \item \code{from}, \code{to}, \code{edge} - Node/edge IDs (updated after consolidation)
     \item Coordinate columns (\code{FX}, \code{FY}, \code{TX}, \code{TY}) if present in original
-    \item Attribute \code{"keep.edges"} - Indices of original edges that were kept
-    \item Attribute \code{"gid"} - Edge group IDs mapping contracted edges to original edges
+    \item Attribute \code{"keep.edges"} - Indices of original edges that were kept (before aggregation)
+    \item Attribute \code{"group.id"} - Integer mapping each kept edge to its row in the result (after aggregation)
   }
 }
 \description{
