@@ -14,6 +14,15 @@ was to represent network graphs using simple data frames with `from` and
 network edits such as adding multimodal connector links, and the
 development of generalized cost functions using network features.
 
+This vignette, while aiming to comprehensively cover the package, does
+not really do justice to it as CRAN noes not permit long-running
+computations (often required with the PSL) or complex visual outputs
+(network plots \>= 1Mb in size) inside package vignettes. Therefore, I
+have also written a comprehensive [release blog
+post](https://sebkrantz.github.io/Rblog/2026/02/09/introducing-flownet-efficient-transport-modeling-in-r/)
+covering PSL modelling on the African and US road networks. This post
+should also be consulted and treated as complementary to this vignette.
+
 ## Getting Started
 
 Let’s start by loading the required packages and exploring the example
@@ -889,6 +898,8 @@ simplify networks for efficient computation.
 
 ### Next Steps
 
+- Read the [release blog
+  post](https://sebkrantz.github.io/Rblog/2026/02/09/introducing-flownet-efficient-transport-modeling-in-r/)
 - Explore the full function documentation: `?flownet-package`
 - Experiment with different parameter values (`beta`, `detour.max`,
   `angle.max`)

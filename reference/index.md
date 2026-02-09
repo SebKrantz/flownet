@@ -30,8 +30,8 @@ shortest path.
 
 ## Graph Utilities
 
-Utility functions to normalized and extract information from graphs
-(represented using data frames).
+Utility functions to normalize graphs (represented using data frames)
+and extract information from them.
 
 - [`normalize_graph()`](https://sebkrantz.github.io/flownet/reference/normalize_graph.md)
   : Normalize Graph Node IDs

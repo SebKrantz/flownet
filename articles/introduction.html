@@ -57,9 +57,9 @@
                         <h4 data-toc-skip class="author">Sebastian
 Krantz</h4>
             
-            <h4 data-toc-skip class="date">2026-02-08</h4>
+            <h4 data-toc-skip class="date">2026-02-09</h4>
       
-      <small class="dont-index">Source: <a href="https://github.com/SebKrantz/flownet/blob/v0.2.0/vignettes/introduction.Rmd" class="external-link"><code>vignettes/introduction.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/SebKrantz/flownet/blob/master/vignettes/introduction.Rmd" class="external-link"><code>vignettes/introduction.Rmd</code></a></small>
       <div class="d-none name"><code>introduction.Rmd</code></div>
     </div>
 
@@ -81,6 +81,14 @@ columns. This facilitates applied work, e.g., further manual network
 edits such as adding multimodal connector links, and the development of
 generalized cost functions using network features.
 <!-- This makes it particularly suitable for modeling transport networks where multiple alternative routes may share common segments. --></p>
+<p>This vignette, while aiming to comprehensively cover the package,
+does not really do justice to it as CRAN noes not permit long-running
+computations (often required with the PSL) or complex visual outputs
+(network plots &gt;= 1Mb in size) inside package vignettes. Therefore, I
+have also written a comprehensive <a href="https://sebkrantz.github.io/Rblog/2026/02/09/introducing-flownet-efficient-transport-modeling-in-r/" class="external-link">release
+blog post</a> covering PSL modelling on the African and US road
+networks. This post should also be consulted and treated as
+complementary to this vignette.</p>
 </div>
 <div class="section level2">
 <h2 id="getting-started">Getting Started<a class="anchor" aria-label="anchor" href="#getting-started"></a>
@@ -953,6 +961,9 @@ simplify networks for efficient computation.</p>
 <h3 id="next-steps">Next Steps<a class="anchor" aria-label="anchor" href="#next-steps"></a>
 </h3>
 <ul>
+<li>Read the <a href="https://sebkrantz.github.io/Rblog/2026/02/09/introducing-flownet-efficient-transport-modeling-in-r/" class="external-link">release
+blog post</a>
+</li>
 <li>Explore the full function documentation:
 <code>?flownet-package</code>
 </li>

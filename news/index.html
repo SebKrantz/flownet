@@ -30,12 +30,13 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/SebKrantz/flownet/blob/v0.2.0/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/SebKrantz/flownet/blob/master/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.2.0" id="flownet-020">flownet 0.2.0<a class="anchor" aria-label="anchor" href="#flownet-020"></a></h2>
-<ul><li><p>Fixed bug in run_assignment with <code>return.extra = "edges"</code> where edge indices were incorrectly returned. Due to zero indexing in C vs. 1-indexing in R they where offset by one, thus, in <em>flownet</em> versions &lt;= 0.1.2, the correct edge indices can be retained by subtracting 1 from them.</p></li>
+<ul><li><p>Release blog post at: <a href="https://sebkrantz.github.io/Rblog/2026/02/09/introducing-flownet-efficient-transport-modeling-in-r/" class="external-link uri">https://sebkrantz.github.io/Rblog/2026/02/09/introducing-flownet-efficient-transport-modeling-in-r/</a></p></li>
+<li><p>Fixed bug in run_assignment with <code>return.extra = "edges"</code> where edge indices were incorrectly returned. Due to zero indexing in C vs. 1-indexing in R they where offset by one, thus, in <em>flownet</em> versions &lt;= 0.1.2, the correct edge indices can be retained by subtracting 1 from them.</p></li>
 <li><p>Improved <a href="https://sebkrantz.github.io/flownet/reference/run_assignment.html#route-enumeration-algorithm">Step 7</a> (elimination of path with duplicate edges) in the route enumeration algorithm to properly handle directed paths, i.e., candidate paths where an intermediate node is approached via an edge and departed from via the same edge but in a different direction, are now also removed.</p></li>
 <li><p>Added option <code>return.extra = "PSF"</code> which adds <code>"path_size_factors"</code> to the results object. This should be useful to calibrate the PSL model.</p></li>
 <li><p>Added option <code>return.extra = "eweights"</code> which adds <code>"egde_weights"</code> to the results object. Edge weights are the sum of the path probabilities across all paths using that edge. These weights are computed efficiently at C-level, with minimal overhead, if requested.</p></li>
