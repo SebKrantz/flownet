@@ -1,5 +1,7 @@
 # flownet 0.2.0
 
+- Release blog post at: https://sebkrantz.github.io/Rblog/2026/02/09/introducing-flownet-efficient-transport-modeling-in-r/ 
+
 - Fixed bug in run_assignment with `return.extra = "edges"` where edge indices were incorrectly returned. Due to zero indexing in C vs. 1-indexing in R they where offset by one, thus, in *flownet* versions <= 0.1.2, the correct edge indices can be retained by subtracting 1 from them.
 
 - Improved [Step 7](https://sebkrantz.github.io/flownet/reference/run_assignment.html#route-enumeration-algorithm) (elimination of path with duplicate edges) in the route enumeration algorithm to properly handle directed paths, i.e., candidate paths where an intermediate node is approached via an edge and departed from via the same edge but in a different direction, are now also removed. 

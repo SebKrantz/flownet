@@ -29,6 +29,8 @@ knitr::opts_chunk$set(
 
 The `flownet` package provides efficient tools for transportation modeling, specifically network processing/preparation, route enumeration, and traffic assignment tasks. The package implements the **path-sized logit (PSL) model** for traffic assignment, which accounts for route overlap when assigning traffic flows to network edges. It can handle directed or undirected graphs, and it's network processing functions/algorithms support multimodal networks. A key design decision was to represent network graphs using simple data frames with `from` and `to` node columns. This facilitates applied work, e.g., further manual network edits such as adding multimodal connector links, and the development of generalized cost functions using network features. <!-- This makes it particularly suitable for modeling transport networks where multiple alternative routes may share common segments. -->
 
+This vignette, while aiming to comprehensively cover the package, does not really do justice to it as CRAN noes not permit long-running computations (often required with the PSL) or complex visual outputs (network plots >= 1Mb in size) inside package vignettes. Therefore, I have also written a comprehensive [release blog post](https://sebkrantz.github.io/Rblog/2026/02/09/introducing-flownet-efficient-transport-modeling-in-r/) covering PSL modelling on the African and US road networks. This post should also be consulted and treated as complementary to this vignette. 
+
 ## Getting Started
 
 Let's start by loading the required packages and exploring the example datasets included with `flownet`:
@@ -486,6 +488,7 @@ The package provides efficient tools for transport modeling with the path-sized 
 
 ### Next Steps
 
+- Read the [release blog post](https://sebkrantz.github.io/Rblog/2026/02/09/introducing-flownet-efficient-transport-modeling-in-r/)
 - Explore the full function documentation: `?flownet-package`
 - Experiment with different parameter values (`beta`, `detour.max`, `angle.max`)
 - Try the PSL method instead of AoN for smaller networks or subsets
