@@ -251,7 +251,7 @@ nodes_from_graph <- function(graph_df, sf = FALSE, crs = 4326) {
 }
 
 #' @title Compute Distance Matrix from Graph
-#' @description Compute a distance matrix for all node pairs in a graph using cppRouting.
+#' @description Compute a distance matrix for all node pairs in a graph using \emph{igraph}.
 #'
 #' @param graph_df A data frame representing a graph with columns:
 #'   \code{from}, \code{to}, and \code{cost}.
@@ -268,7 +268,7 @@ nodes_from_graph <- function(graph_df, sf = FALSE, crs = 4326) {
 #' @details
 #' This function:
 #' \itemize{
-#'   \item Converts the graph data frame to a cppRouting graph object
+#'   \item Converts the graph data frame to a \emph{igraph} graph object
 #'   \item Contracts the graph for efficient distance computation
 #'   \item Computes the distance matrix for all node pairs using the specified algorithm
 #' }

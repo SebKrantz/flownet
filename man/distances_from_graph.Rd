@@ -24,12 +24,12 @@ A matrix of distances between all node pairs, where rows and columns
   (based on the \code{cost} column) between all pairs of nodes.
 }
 \description{
-Compute a distance matrix for all node pairs in a graph using cppRouting.
+Compute a distance matrix for all node pairs in a graph using \emph{igraph}.
 }
 \details{
 This function:
 \itemize{
-  \item Converts the graph data frame to a cppRouting graph object
+  \item Converts the graph data frame to a \emph{igraph} graph object
   \item Contracts the graph for efficient distance computation
   \item Computes the distance matrix for all node pairs using the specified algorithm
 }
