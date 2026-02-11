@@ -293,6 +293,7 @@ run_assignment <- function(graph_df, od_matrix_long,
         geol <- FALSE
         message("graph_df needs to have columns FX, FY, TX and TY to compute angle-based detour restrictions")
       } else {
+        max_angle <- angle.max / 180 * pi
         nodes_df <- nodes_from_graph(graph_df, sf = FALSE)
         X <- unattrib(nodes_df$X)
         Y <- unattrib(nodes_df$Y)
@@ -502,7 +503,7 @@ run_assignment <- function(graph_df, od_matrix_long,
         if(geol) {
           b = dmat_geo[fi, ]
           a = b[ti]
-          theta = acos((a^2 + b^2 - dmat_geo[, ti]^2)/(2*a*b)) * 180 / pi # Angle between a and b
+          theta = acos((a^2 + b^2 - dmat_geo[, ti]^2)/(2*a*b)) # Angle between a and b
         }
       } else {
         if(j %% dmat_chunk_nrow == 0L) {
@@ -527,7 +528,7 @@ run_assignment <- function(graph_df, od_matrix_long,
         if(geol) {
           b = dmat_geo_rows[k, ]
           a = b[ti]
-          theta = acos((a^2 + b^2 - dmat_geo_cols[, k]^2)/(2*a*b)) * 180 / pi # Angle between a and b
+          theta = acos((a^2 + b^2 - dmat_geo_cols[, k]^2)/(2*a*b)) # Angle between a and b
         }
         # if(anyNA(theta)) stop(sprintf("k is %d, j is %d, chunk_size is %d, window size is %d", k, j, dmat_chunk_nrow, length(window)))
         # if(k > dmat_chunk_nrow) stop("k too large")
@@ -537,7 +538,7 @@ run_assignment <- function(graph_df, od_matrix_long,
       #   sve(od_pairs, i, NA_integer_)
       #   next
       # }
-      short_detour_ij = if(geol) d_ikj < detour.max * d_ij & b < a & theta < angle.max else
+      short_detour_ij = if(geol) d_ikj < detour.max * d_ij & b < a & theta < max_angle else
                                  d_ikj < detour.max * d_ij
       short_detour_ij[d_ikj < d_ij + 1e-10] <- FALSE # Exclude nodes k that are on the shortest path
       # which(d_ij == d_ikj) # These are the nodes on the direct path from i to j which yield the shortest distance.
