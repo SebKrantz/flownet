@@ -1,0 +1,25 @@
+<urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
+<url><loc>https://sebkrantz.github.io/flownet/dev/LICENSE-text.html</loc></url>
+<url><loc>https://sebkrantz.github.io/flownet/dev/articles/index.html</loc></url>
+<url><loc>https://sebkrantz.github.io/flownet/dev/articles/introduction.html</loc></url>
+<url><loc>https://sebkrantz.github.io/flownet/dev/authors.html</loc></url>
+<url><loc>https://sebkrantz.github.io/flownet/dev/index.html</loc></url>
+<url><loc>https://sebkrantz.github.io/flownet/dev/news/index.html</loc></url>
+<url><loc>https://sebkrantz.github.io/flownet/dev/reference/africa_cities_ports.html</loc></url>
+<url><loc>https://sebkrantz.github.io/flownet/dev/reference/africa_network.html</loc></url>
+<url><loc>https://sebkrantz.github.io/flownet/dev/reference/africa_segments.html</loc></url>
+<url><loc>https://sebkrantz.github.io/flownet/dev/reference/africa_trade.html</loc></url>
+<url><loc>https://sebkrantz.github.io/flownet/dev/reference/consolidate_graph.html</loc></url>
+<url><loc>https://sebkrantz.github.io/flownet/dev/reference/create_undirected_graph.html</loc></url>
+<url><loc>https://sebkrantz.github.io/flownet/dev/reference/distances_from_graph.html</loc></url>
+<url><loc>https://sebkrantz.github.io/flownet/dev/reference/flownet-package.html</loc></url>
+<url><loc>https://sebkrantz.github.io/flownet/dev/reference/index.html</loc></url>
+<url><loc>https://sebkrantz.github.io/flownet/dev/reference/linestrings_from_graph.html</loc></url>
+<url><loc>https://sebkrantz.github.io/flownet/dev/reference/linestrings_to_graph.html</loc></url>
+<url><loc>https://sebkrantz.github.io/flownet/dev/reference/melt_od_matrix.html</loc></url>
+<url><loc>https://sebkrantz.github.io/flownet/dev/reference/nodes_from_graph.html</loc></url>
+<url><loc>https://sebkrantz.github.io/flownet/dev/reference/normalize_graph.html</loc></url>
+<url><loc>https://sebkrantz.github.io/flownet/dev/reference/run_assignment.html</loc></url>
+<url><loc>https://sebkrantz.github.io/flownet/dev/reference/simplify_network.html</loc></url>
+</urlset>
+
