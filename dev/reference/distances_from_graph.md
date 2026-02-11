@@ -1,7 +1,6 @@
 # Compute Distance Matrix from Graph
 
-Compute a distance matrix for all node pairs in a graph using
-cppRouting.
+Compute a distance matrix for all node pairs in a graph using *igraph*.
 
 ## Usage
 
@@ -43,7 +42,7 @@ correspond to node IDs. The matrix contains the shortest path distances
 
 This function:
 
-- Converts the graph data frame to a cppRouting graph object
+- Converts the graph data frame to a *igraph* graph object
 
 - Contracts the graph for efficient distance computation
 
