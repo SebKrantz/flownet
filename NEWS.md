@@ -1,4 +1,4 @@
-# flownet 0.2.0.9000
+# flownet 0.2.1
 
 - `angle.max` constraint in `run_assignment()` is now two-sided (angle measured from origin and destination node against the straight line between them), rather than just one-sided (from origin). Also, the implementation is slightly more efficient.
 
