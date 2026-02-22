@@ -79,7 +79,7 @@ with 453 POINT features and 12 fields:
 City data from Simplemaps World Cities Database
 (<https://simplemaps.com/data/world-cities>). Port data from World Bank
 Global International Ports dataset
-(<https://datacatalog.worldbank.org/search/dataset/0038118>).
+(<https://datacatalog.worldbank.org/search/dataset/0038118/global-international-ports>).
 
 Dataset constructed for: Krantz, S. (2024). Optimal Investments in
 Africa's Road Network. Policy Research Working Paper 10893. World Bank.
