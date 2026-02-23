@@ -9,7 +9,7 @@
 ## Citation
 
 Source:
-[`DESCRIPTION`](https://github.com/SebKrantz/flownet/blob/v0.2.1/DESCRIPTION)
+[`DESCRIPTION`](https://github.com/SebKrantz/flownet/blob/master/DESCRIPTION)
 
 Krantz S (2026). *flownet: Transport Modeling: Network Processing, Route
 Enumeration, and Traffic Assignment*. R package version 0.2.1,

@@ -2,6 +2,8 @@
 
 ## flownet 0.2.1
 
+CRAN release: 2026-02-22
+
 - `angle.max` constraint in
   [`run_assignment()`](https://sebkrantz.github.io/flownet/reference/run_assignment.md)
   is now two-sided (angle measured from origin and destination node
