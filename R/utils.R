@@ -448,7 +448,7 @@ normalize_graph <- function(graph_df) {
 #' c(original = nrow(graph), consolidated = nrow(graph_cons))
 #'
 #' @export
-#' @importFrom collapse fnrow get_vars anyv setv ss seq_row fduplicated fmatch whichv whichNA allNA ffirst GRP collap %iin% %!in% %!iin% join colorderv funique.default %!=% %==% missing_cases qtab varying radixorderv groupv na_rm
+#' @importFrom collapse fnrow get_vars anyv setv copyv ss seq_row fduplicated fmatch whichv whichNA allNA ffirst GRP collap %iin% %!in% %!iin% join colorderv funique.default %!=% %==% missing_cases qtab varying radixorderv groupv na_rm
 #' @importFrom kit countOccur
 #' @importFrom stats setNames
 consolidate_graph <- function(graph_df, directed = FALSE,
@@ -541,7 +541,7 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
                               reci, nam_keep, verbose = TRUE) {
 
   keep <- seq_row(graph_df) # Global variable tracking utilized edges
-  gft <- get_vars(graph_df, c("from", "to", by)) |> unclass() # Local variable representing the current graph worked on
+  gft <- get_vars(graph_df, c("from", "to", by)) |> unclass() |> copyv(NA, NA) # Local variable representing the current graph worked on
 
   if(length(by)) {
     by_id <- groupv(get_vars(graph_df, by))
