@@ -1,5 +1,18 @@
 # Changelog
 
+## flownet 0.2.2
+
+- Fixed issue in
+  [`consolidate_graph()`](https://sebkrantz.github.io/flownet/reference/consolidate_graph.md)
+  which used to modify columns (`from` and `to` in-place). Users in
+  older versions are advised to input a
+  [`data.table::copy()`](https://rdrr.io/pkg/data.table/man/copy.html)
+  of the graph to retain it.
+
+- Fixes issue with multithreading for newer versions of *mirai* (or R).
+  Thanks [@kent37](https://github.com/kent37)
+  ([\#69](https://github.com/SebKrantz/flownet/issues/69)).
+
 ## flownet 0.2.1
 
 CRAN release: 2026-02-22

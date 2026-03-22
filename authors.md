@@ -12,13 +12,13 @@ Source:
 [`DESCRIPTION`](https://github.com/SebKrantz/flownet/blob/master/DESCRIPTION)
 
 Krantz S (2026). *flownet: Transport Modeling: Network Processing, Route
-Enumeration, and Traffic Assignment*. R package version 0.2.1,
+Enumeration, and Traffic Assignment*. R package version 0.2.2,
 <https://sebkrantz.github.io/flownet/>.
 
     @Manual{,
       title = {flownet: Transport Modeling: Network Processing, Route Enumeration, and Traffic Assignment},
       author = {Sebastian Krantz},
       year = {2026},
-      note = {R package version 0.2.1},
+      note = {R package version 0.2.2},
       url = {https://sebkrantz.github.io/flownet/},
     }

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">flownet</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.2.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.2.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -33,6 +33,11 @@
       <small>Source: <a href="https://github.com/SebKrantz/flownet/blob/master/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.2.2" id="flownet-022">flownet 0.2.2<a class="anchor" aria-label="anchor" href="#flownet-022"></a></h2>
+<ul><li><p>Fixed issue in <code><a href="../reference/consolidate_graph.html">consolidate_graph()</a></code> which used to modify columns (<code>from</code> and <code>to</code> in-place). Users in older versions are advised to input a <code><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">data.table::copy()</a></code> of the graph to retain it.</p></li>
+<li><p>Fixes issue with multithreading for newer versions of <em>mirai</em> (or R). Thanks <a href="https://github.com/kent37" class="external-link">@kent37</a> (<a href="https://github.com/SebKrantz/flownet/issues/69" class="external-link">#69</a>).</p></li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.2.1" id="flownet-021">flownet 0.2.1<a class="anchor" aria-label="anchor" href="#flownet-021"></a></h2><p class="text-muted">CRAN release: 2026-02-22</p>
 <ul><li>
