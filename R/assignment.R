@@ -232,7 +232,7 @@
 #' @importFrom kit fpmin fpmax
 #' @importFrom igraph V graph_from_data_frame delete_vertex_attr igraph_options distances shortest_paths vcount ecount
 #' @importFrom geodist geodist_vec
-#' @importFrom mirai mirai_map daemons everywhere
+#' @importFrom mirai mirai_map daemons
 #' @importFrom progress progress_bar
 run_assignment <- function(graph_df, od_matrix_long,
                            directed = FALSE,
@@ -661,13 +661,10 @@ run_assignment <- function(graph_df, od_matrix_long,
   if(!is.finite(nthreads) || nthreads <= 1L) {
     res$final_flows <- run_assignment_core(seq_len(N), verbose, TRUE)
   } else {
-    envir <- environment()
     # Split OD matrix in equal parts
     ind <- sample.int(as.integer(nthreads), N, replace = TRUE)
     ind_list <- gsplit(g = if(is_aon) sort(ind) else ind) # Since AoN should reduce calls to shortest_paths()
     daemons(n = nthreads - 1L)
-    # Pass current environment dynamically
-    everywhere({}, envir)
     # Now run the map in the background
     res_other <- mirai_map(ind_list[-1L], run_assignment_core)
     # Runs the first instance in the current session
@@ -697,7 +694,7 @@ run_assignment <- function(graph_df, od_matrix_long,
       }
     }
     res$final_flows <- final_flows
-    rm(res_other, envir, ind_list, final_flows)
+    rm(res_other, ind_list, final_flows)
   }
 
   if(anyNA(od_pairs)) {
