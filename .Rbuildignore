@@ -4,6 +4,7 @@
 ^\.DS\_Store$
 .DS_Store
 .claude
+^CLAUDE\.md$
 .cursor
 misc
 LICENSE
