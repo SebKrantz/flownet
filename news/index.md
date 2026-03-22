@@ -2,6 +2,8 @@
 
 ## flownet 0.2.2
 
+CRAN release: 2026-03-22
+
 - Fixed issue in
   [`consolidate_graph()`](https://sebkrantz.github.io/flownet/reference/consolidate_graph.md)
   which used to modify columns (`from` and `to` in-place). Users in
