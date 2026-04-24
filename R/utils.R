@@ -711,18 +711,22 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
 
   gid <- seq_row(gft)  # Local variable mapping current edges to groups
   contractd_any <- FALSE
+  c_no_progress <- FALSE
 
   merge_linear_nodes <- function(nodes) {
     if(!length(nodes)) return(FALSE)
     use_c_contraction <- isTRUE(getOption("flownet.use_c_contraction", TRUE))
     if(use_c_contraction && is.integer(gft$from) && is.integer(gft$to) && is.integer(gid)) {
       cres <- contract_linear_nodes_c(gft$from, gft$to, gid, nodes)
-      if(!isTRUE(cres$ok)) return(FALSE)
-      gft$from <<- cres$from
-      gft$to <<- cres$to
-      gid <<- cres$gid
-      ffirst(gft$from, gid, "fill", set = TRUE)
-      return(TRUE)
+      if(isTRUE(cres$ok)) {
+        gft$from <<- cres$from
+        gft$to <<- cres$to
+        gid <<- cres$gid
+        ffirst(gft$from, gid, "fill", set = TRUE)
+        return(TRUE)
+      }
+      c_no_progress <<- TRUE
+      return(NA)
     }
     from_ind <- fmatch(nodes, gft$from)
     to_ind <- fmatch(nodes, gft$to)
@@ -790,7 +794,9 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
     TRUE
   }
 
+  iter <- 0L
   repeat {
+    iter <- iter + 1L
 
     tic <- now_s()
     degree_table <- compute_degrees(gft$from, gft$to)
@@ -833,11 +839,18 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
         if(verbose) cat(sprintf("Oriented %d undirected intermediate edges\n", length(need_orientation)))
       }
     }
+
+    n_candidates <- length(nodes)
     tic <- now_s()
-    if(!merge_linear_nodes(nodes)) stop("Failed to contract oriented undirected edges; please verify the graph topology.")
+    merge_ok <- merge_linear_nodes(nodes)
+    if(is.na(merge_ok) && c_no_progress) {
+      if(verbose) cat(sprintf("No further C contraction progress at %d candidates; breaking inner loop.\n", n_candidates))
+      break
+    }
+    if(!isTRUE(merge_ok)) stop("Failed to contract oriented undirected edges; please verify the graph topology.")
     timers["contract"] <- timers["contract"] + (now_s() - tic)
     contractd_any <- TRUE
-    if(verbose) cat(sprintf("Contracted %d intermediate nodes\n", length(nodes)))
+    if(verbose) cat(sprintf("Contracted %d intermediate nodes\n", n_candidates))
     if(reci == 0L) break
   }
 
