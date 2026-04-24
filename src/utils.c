@@ -1,5 +1,6 @@
 #include <R.h>
 #include <Rinternals.h>
+#include <string.h>
 
 #ifndef SEXPPTR_RO
 #define SEXPPTR_RO(x) ((const SEXP *)DATAPTR_RO(x))  // to avoid overhead of looped VECTOR_ELT
@@ -251,5 +252,180 @@ SEXP sum_path_costs(SEXP paths, SEXP cost, SEXP result, SEXP indices) {
   }
 
   return result;
+}
+
+/**
+ * Contract already-oriented intermediate nodes in an undirected graph.
+ *
+ * @param from Integer vector of origin node ids
+ * @param to Integer vector of destination node ids
+ * @param gid Integer vector mapping local edges to group ids
+ * @param nodes Integer vector of candidate intermediate node ids
+ * @return list(from = <int>, to = <int>, gid = <int>, ok = <logical>)
+ */
+SEXP contract_linear_nodes(SEXP from, SEXP to, SEXP gid, SEXP nodes) {
+  if (TYPEOF(from) != INTSXP || TYPEOF(to) != INTSXP || TYPEOF(gid) != INTSXP || TYPEOF(nodes) != INTSXP) {
+    error("C_contract_linear_nodes expects integer vectors for from, to, gid, and nodes.");
+  }
+  R_xlen_t n_edges = XLENGTH(from);
+  R_xlen_t n_nodes = XLENGTH(nodes);
+  if (XLENGTH(to) != n_edges || XLENGTH(gid) != n_edges) {
+    error("Internal length mismatch: from, to, and gid must have identical length.");
+  }
+
+  SEXP out_from = PROTECT(duplicate(from));
+  SEXP out_to = PROTECT(duplicate(to));
+  SEXP out_gid = PROTECT(duplicate(gid));
+
+  int *from_ptr = INTEGER(out_from);
+  int *to_ptr = INTEGER(out_to);
+  int *gid_ptr = INTEGER(out_gid);
+  int *nodes_ptr = INTEGER(nodes);
+
+  /*
+   * `consolidate_graph_core()` remaps endpoints to dense 1..N (funique + fmatch)
+   * before calling here, so node_slot[] is O(N) and avoids hashing. We still
+   * scan for max_node to size that array and remain safe if inputs are not
+   * remapped in a future code path.
+   */
+  int max_node = 0;
+  for (R_xlen_t e = 0; e < n_edges; e++) {
+    int v = from_ptr[e];
+    if (v != NA_INTEGER && v > max_node) max_node = v;
+    v = to_ptr[e];
+    if (v != NA_INTEGER && v > max_node) max_node = v;
+  }
+  for (R_xlen_t i = 0; i < n_nodes; i++) {
+    int v = nodes_ptr[i];
+    if (v != NA_INTEGER && v > max_node) max_node = v;
+  }
+  if (max_node <= 0) {
+    SEXP ok = PROTECT(ScalarLogical(FALSE));
+    SEXP ans = PROTECT(allocVector(VECSXP, 4));
+    SET_VECTOR_ELT(ans, 0, out_from);
+    SET_VECTOR_ELT(ans, 1, out_to);
+    SET_VECTOR_ELT(ans, 2, out_gid);
+    SET_VECTOR_ELT(ans, 3, ok);
+    SEXP nms = PROTECT(allocVector(STRSXP, 4));
+    SET_STRING_ELT(nms, 0, mkChar("from"));
+    SET_STRING_ELT(nms, 1, mkChar("to"));
+    SET_STRING_ELT(nms, 2, mkChar("gid"));
+    SET_STRING_ELT(nms, 3, mkChar("ok"));
+    setAttrib(ans, R_NamesSymbol, nms);
+    UNPROTECT(6);
+    return ans;
+  }
+
+  /* node_slot[v] = i+1 if v is the (i+1)-th candidate node, else 0. */
+  size_t dense_len = (size_t) max_node + 1U;
+  int *node_slot = (int *) R_alloc(dense_len, sizeof(int));
+  memset(node_slot, 0, dense_len * sizeof(int));
+  for (R_xlen_t i = 0; i < n_nodes; i++) {
+    int v = nodes_ptr[i];
+    if (v == NA_INTEGER || v <= 0) continue;
+    if (node_slot[v] == 0) node_slot[v] = (int) (i + 1);
+  }
+
+  /*
+   * Precompute, for each candidate intermediate node (slot i in `nodes`):
+   *   in_edge[i]  = smallest edge index where gft$to   == nodes[i]
+   *   out_edge[i] = smallest edge index where gft$from == nodes[i]
+   * Matches collapse::fmatch semantics (first match) used by the R path.
+   */
+  int *in_edge = (int *) R_alloc((size_t) n_nodes, sizeof(int));
+  int *out_edge = (int *) R_alloc((size_t) n_nodes, sizeof(int));
+  char *processed = (char *) R_alloc((size_t) n_nodes, sizeof(char));
+  memset(in_edge, 0, (size_t) n_nodes * sizeof(int));
+  memset(out_edge, 0, (size_t) n_nodes * sizeof(int));
+  memset(processed, 0, (size_t) n_nodes * sizeof(char));
+
+  for (R_xlen_t e = n_edges; e > 0; e--) {
+    R_xlen_t idx = e - 1;
+    int f = from_ptr[idx];
+    int t = to_ptr[idx];
+    if (f != NA_INTEGER && f > 0) {
+      int pos = node_slot[f];
+      if (pos) out_edge[pos - 1] = (int) e;
+    }
+    if (t != NA_INTEGER && t > 0) {
+      int pos = node_slot[t];
+      if (pos) in_edge[pos - 1] = (int) e;
+    }
+  }
+
+  /*
+   * Walk each linear chain exactly once. A node i is a chain head iff the
+   * `from` endpoint of its in-edge is not itself an intermediate (i.e. not a
+   * candidate node with both an in- and an out-edge). Each walk:
+   *   - marks the outgoing edge `c_oe` as merged (from=NA, gid=gid[head_edge])
+   *   - advances the head's `to` to the next node
+   *   - records the in-edge of the intermediate for a final `to` rewrite
+   *     so that every merged-into edge shares the same (from, to) pair
+   *     after ffirst()-fill, matching the R implementation's semantics.
+   * Pure cycles of intermediates have no head and are safely skipped.
+   */
+  int *chain_buf = (int *) R_alloc((size_t) n_nodes, sizeof(int));
+  int ok_flag = 0;
+  for (R_xlen_t i = 0; i < n_nodes; i++) {
+    if (processed[i]) continue;
+    int ie = in_edge[i];
+    int oe = out_edge[i];
+    if (ie == 0 || oe == 0) {
+      processed[i] = 1;
+      continue;
+    }
+
+    int pred = from_ptr[ie - 1];
+    int pred_pos = (pred == NA_INTEGER || pred <= 0) ? 0 : node_slot[pred];
+    if (pred_pos != 0 && in_edge[pred_pos - 1] != 0 && out_edge[pred_pos - 1] != 0) {
+      continue; // not a chain head; will be reached by its predecessor
+    }
+
+    int head_edge = ie;
+    int head_gid = gid_ptr[head_edge - 1];
+    int chain_len = 0;
+    R_xlen_t cur_pos = i;
+    int end_node = NA_INTEGER;
+    while (1) {
+      int c_oe = out_edge[cur_pos];
+      if (c_oe == 0) break;
+      int next_node = to_ptr[c_oe - 1];
+      gid_ptr[c_oe - 1] = head_gid;
+      from_ptr[c_oe - 1] = NA_INTEGER;
+      processed[cur_pos] = 1;
+      chain_buf[chain_len++] = (int) in_edge[cur_pos];
+      ok_flag = 1;
+      end_node = next_node;
+
+      if (next_node == NA_INTEGER || next_node <= 0) break;
+      int next_pos = node_slot[next_node];
+      if (next_pos == 0) break;
+      if (processed[next_pos - 1]) break;
+      if (in_edge[next_pos - 1] == 0 || out_edge[next_pos - 1] == 0) break;
+      cur_pos = (R_xlen_t) (next_pos - 1);
+    }
+
+    /* Align every merged in-edge with the final chain endpoint so that
+     * downstream GRP() groups these edges with the representative. */
+    for (int j = 0; j < chain_len; j++) {
+      to_ptr[chain_buf[j] - 1] = end_node;
+    }
+  }
+
+  SEXP ok = PROTECT(ScalarLogical(ok_flag));
+  SEXP ans = PROTECT(allocVector(VECSXP, 4));
+  SET_VECTOR_ELT(ans, 0, out_from);
+  SET_VECTOR_ELT(ans, 1, out_to);
+  SET_VECTOR_ELT(ans, 2, out_gid);
+  SET_VECTOR_ELT(ans, 3, ok);
+  SEXP nms = PROTECT(allocVector(STRSXP, 4));
+  SET_STRING_ELT(nms, 0, mkChar("from"));
+  SET_STRING_ELT(nms, 1, mkChar("to"));
+  SET_STRING_ELT(nms, 2, mkChar("gid"));
+  SET_STRING_ELT(nms, 3, mkChar("ok"));
+  setAttrib(ans, R_NamesSymbol, nms);
+
+  UNPROTECT(6);
+  return ans;
 }
 

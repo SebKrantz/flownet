@@ -93,6 +93,30 @@ test_that("consolidate_graph removes singleton edges", {
   expect_false(6 %in% all_nodes)
 })
 
+test_that("consolidate_graph recursive modes differ on singleton tail peeling", {
+  # Triangle core plus a two-edge tail from node 3
+  graph <- data.frame(
+    from = c(1, 2, 3, 3, 4),
+    to = c(2, 3, 1, 4, 5),
+    cost = 1
+  )
+
+  res_none <- consolidate_graph(graph, drop.edges = "single",
+                                recursive = "none", contract = FALSE,
+                                verbose = FALSE)
+  res_partial <- consolidate_graph(graph, drop.edges = "single",
+                                   recursive = "partial", contract = FALSE,
+                                   verbose = FALSE)
+  res_full <- consolidate_graph(graph, drop.edges = "single",
+                                recursive = "full", contract = FALSE,
+                                verbose = FALSE)
+
+  # One peel for "none" keeps one tail edge, recursive modes remove both.
+  expect_equal(nrow(res_none), 4L)
+  expect_equal(nrow(res_partial), 3L)
+  expect_equal(nrow(res_full), 3L)
+})
+
 test_that("consolidate_graph by parameter preserves mode groups", {
   graph <- data.frame(
     from = c(1, 2, 1, 2),
@@ -105,6 +129,69 @@ test_that("consolidate_graph by parameter preserves mode groups", {
 
   # Should not consolidate across modes
   expect_true("mode" %in% names(result))
+})
+
+test_that("consolidate_graph keeps by-boundary nodes under partial recursion", {
+  graph <- data.frame(
+    from = c(1, 2, 3, 4),
+    to = c(2, 3, 4, 5),
+    mode = c("road", "road", "rail", "rail"),
+    class = c("a", "a", "b", "b"),
+    cost = c(1, 1, 1, 1)
+  )
+
+  result <- consolidate_graph(graph, by = ~ mode + class,
+                              keep.nodes = c(1, 5),
+                              recursive = "partial",
+                              verbose = FALSE)
+
+  all_nodes <- unique(c(result$from, result$to))
+  # Node 3 is a by-boundary (road->rail) and should be preserved.
+  expect_true(3 %in% all_nodes)
+})
+
+test_that("consolidate_graph handles long singleton tails robustly", {
+  core <- data.frame(
+    from = c(1, 2, 3),
+    to = c(2, 3, 1),
+    cost = 1
+  )
+  # Attach a long dead-end chain to node 1.
+  tail_n <- 250
+  tail <- data.frame(
+    from = c(1, 4:(tail_n + 2)),
+    to = c(4, 5:(tail_n + 3)),
+    cost = 1
+  )
+  graph <- rbind(core, tail)
+
+  result <- consolidate_graph(graph, drop.edges = "single",
+                              recursive = "partial", contract = FALSE,
+                              verbose = FALSE)
+
+  # Recursive singleton peeling should remove the complete tail.
+  expect_equal(nrow(result), nrow(core))
+  expect_true(all(result$from %in% c(1, 2, 3)))
+  expect_true(all(result$to %in% c(1, 2, 3)))
+})
+
+test_that("consolidate_graph summarizes singleton peeling logs", {
+  graph <- data.frame(
+    from = c(1, 2, 3, 4),
+    to = c(2, 3, 4, 5),
+    cost = 1
+  )
+
+  logs <- capture.output(
+    consolidate_graph(graph, drop.edges = "single",
+                      recursive = "partial", contract = FALSE,
+                      verbose = TRUE)
+  )
+  drop_logs <- logs[grepl("Dropped .*edges leading to singleton nodes", logs)]
+
+  # New implementation should print summarized peel logs, not one line per edge.
+  expect_true(length(drop_logs) <= 2L)
+  expect_true(any(grepl("peeling steps", drop_logs)))
 })
 
 test_that("consolidate_graph adds edge column only if present", {

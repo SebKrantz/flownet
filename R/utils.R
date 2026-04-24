@@ -1,11 +1,15 @@
 
 utils::globalVariables(c(
-  "from", "to", "edge", "FX", "FY", "TX", "TY", "X", "Y", "cost", "flow", ".stop"
+  "from", "to", "edge", "FX", "FY", "TX", "TY", "X", "Y", "cost", "flow", ".stop",
+  "C_contract_linear_nodes"
   # Add any other variable names that appear in the notes
   # "." # Often needed if you use the data.table or magrittr pipe syntax
 ))
 
 sve <- function(x, i, elt) .Call(C_set_vector_elt, x, i, elt)
+contract_linear_nodes_c <- function(from, to, gid, nodes) {
+  .Call(C_contract_linear_nodes, from, to, gid, as.integer(nodes)) # nolint: object_usage_linter
+}
 
 #' @title Convert Linestring to Graph
 #'
@@ -534,12 +538,120 @@ consolidate_graph <- function(graph_df, directed = FALSE,
 }
 
 
-# Corec function that can be called recursively
+# Linear-time helper for singleton edge peeling
+drop_singletons_linear <- function(from_vec, to_vec, keep.nodes = NULL, recursive = TRUE) {
+  n_edges <- length(from_vec)
+  if(!n_edges) return(list(keep = integer(0), dropped = 0L, rounds = 0L))
+
+  nodes <- funique.default(c(from_vec, to_vec))
+  n_nodes <- length(nodes)
+  from_id <- fmatch(from_vec, nodes)
+  to_id <- fmatch(to_vec, nodes)
+  deg <- tabulate(c(from_id, to_id), nbins = n_nodes)
+
+  keep_node <- rep(FALSE, n_nodes)
+  if(length(keep.nodes)) {
+    keep_idx <- fmatch(keep.nodes, nodes)
+    keep_idx <- keep_idx[whichNA(keep_idx, invert = TRUE)]
+    if(length(keep_idx)) keep_node[keep_idx] <- TRUE
+  }
+
+  active <- rep(TRUE, n_edges)
+
+  if(!recursive) {
+    singleton_nodes <- which((deg == 1L) & !keep_node)
+    if(!length(singleton_nodes)) return(list(keep = seq_len(n_edges), dropped = 0L, rounds = 0L))
+    drop_edge <- (from_id %in% singleton_nodes) | (to_id %in% singleton_nodes)
+    keep <- whichv(drop_edge, FALSE)
+    return(list(keep = keep, dropped = n_edges - length(keep), rounds = 1L))
+  }
+
+  counts_from <- tabulate(from_id, nbins = n_nodes)
+  counts_to <- tabulate(to_id, nbins = n_nodes)
+  ord_from <- radixorderv(from_id)
+  ord_to <- radixorderv(to_id)
+  start_from <- cumsum(c(1L, counts_from[-n_nodes]))
+  start_to <- cumsum(c(1L, counts_to[-n_nodes]))
+
+  find_active_incident_edge <- function(node_id) {
+    nf <- counts_from[node_id]
+    if(nf > 0L) {
+      seg <- ord_from[start_from[node_id]:(start_from[node_id] + nf - 1L)]
+      hit <- seg[active[seg]]
+      if(length(hit)) return(hit[1L])
+    }
+    nt <- counts_to[node_id]
+    if(nt > 0L) {
+      seg <- ord_to[start_to[node_id]:(start_to[node_id] + nt - 1L)]
+      hit <- seg[active[seg]]
+      if(length(hit)) return(hit[1L])
+    }
+    0L
+  }
+
+  queue <- integer(max(1L, min(n_nodes, 1024L)))
+  in_queue <- rep(FALSE, n_nodes)
+  qhead <- 1L
+  qtail <- 0L
+  rounds <- 0L
+
+  push_nodes <- function(node_ids) {
+    node_ids <- node_ids[whichNA(node_ids, invert = TRUE)]
+    if(!length(node_ids)) return(invisible(NULL))
+    node_ids <- node_ids[!keep_node[node_ids] & !in_queue[node_ids] & (deg[node_ids] == 1L)]
+    if(!length(node_ids)) return(invisible(NULL))
+    needed <- qtail + length(node_ids)
+    if(needed > length(queue)) {
+      queue <<- c(queue, integer(max(length(queue), needed - length(queue))))
+    }
+    rng <- (qtail + 1L):needed
+    queue[rng] <<- node_ids
+    in_queue[node_ids] <<- TRUE
+    qtail <<- needed
+    invisible(NULL)
+  }
+
+  push_nodes(which((deg == 1L) & !keep_node))
+  dropped <- 0L
+
+  while(qhead <= qtail) {
+    rounds <- rounds + 1L
+    node_id <- queue[qhead]
+    qhead <- qhead + 1L
+    in_queue[node_id] <- FALSE
+
+    if(deg[node_id] != 1L) next
+
+    edge_id <- find_active_incident_edge(node_id)
+    if(edge_id == 0L) {
+      deg[node_id] <- 0L
+      next
+    }
+
+    if(!active[edge_id]) next
+    active[edge_id] <- FALSE
+    dropped <- dropped + 1L
+
+    a <- from_id[edge_id]
+    b <- to_id[edge_id]
+    if(deg[a] > 0L) deg[a] <- deg[a] - 1L
+    if(deg[b] > 0L) deg[b] <- deg[b] - 1L
+
+    push_nodes(c(a, b))
+  }
+
+  list(keep = which(active), dropped = dropped, rounds = rounds)
+}
+
+# Core function that can be called recursively
 consolidate_graph_core <- function(graph_df, directed = FALSE,
                               drop.edges = c("loop", "duplicate", "single"),
                               contract = TRUE, by = NULL, keep.nodes = NULL, ...,
                               reci, nam_keep, verbose = TRUE) {
 
+  now_s <- function() proc.time()[["elapsed"]]
+  timers <- c(singleton = 0, orient = 0, contract = 0, aggregate = 0)
+  tic <- now_s()
   keep <- seq_row(graph_df) # Global variable tracking utilized edges
   gft <- get_vars(graph_df, c("from", "to", by)) |> unclass() |> copyv(NA, NA) # Local variable representing the current graph worked on
 
@@ -564,34 +676,54 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
   }
 
   if(anyv(drop.edges, "single") && fnrow(gft)) {
-    repeat {
-      nodes_rm <- unclass(countOccur(c(gft$from, gft$to)))
-      if(!anyv(nodes_rm$Count, 1L)) break
-      nodes_rm <- nodes_rm$Variable[nodes_rm$Count %==% 1L]
-      if(length(keep.nodes)) nodes_rm <- nodes_rm[nodes_rm %!iin% keep.nodes]
-      if(length(nodes_rm)) {
-        ind <- which(gft$from %!in% nodes_rm & gft$to %!in% nodes_rm)
-        if(verbose) cat(sprintf("Dropped %d edges leading to singleton nodes\n", fnrow(gft) - length(ind)))
-        keep <- keep[ind]
-        gft <- ss(gft, ind, check = FALSE)
-      } else break
-      if(reci == 0L) break
+    peel <- drop_singletons_linear(gft$from, gft$to, keep.nodes = keep.nodes, recursive = reci > 0L)
+    if(peel$dropped > 0L) {
+      if(verbose) cat(sprintf("Dropped %d edges leading to singleton nodes in %d peeling steps\n", peel$dropped, peel$rounds))
+      keep <- keep[peel$keep]
+      gft <- ss(gft, peel$keep, check = FALSE)
     }
   }
+  timers["singleton"] <- timers["singleton"] + (now_s() - tic)
 
   if(!contract) {
     res <- ss(graph_df, keep, check = FALSE)
     if(reci < 2L) attr(res, "keep.edges") <- keep
     attr(res, ".early.return") <- TRUE
+    if(verbose) cat(sprintf("Timing (s): singleton=%.2f\n", timers["singleton"]))
     return(res)
   }
   # TODO: How does not dropping loop or duplicate edges affect the algorithm?
+
+  # Dense 1..|V| node ids for contraction/orientation/C (same pattern as simplify_network).
+  # Inverse map applied to aggregated result so returned from/to stay original ids.
+  norm_nodes <- NULL
+  if(fnrow(gft)) {
+    nv_from <- as.integer(gft$from)
+    nv_to <- as.integer(gft$to)
+    norm_nodes <- funique.default(c(nv_from, nv_to), sort = TRUE)
+    if(length(norm_nodes)) {
+      gft$from <- fmatch(nv_from, norm_nodes)
+      gft$to <- fmatch(nv_to, norm_nodes)
+      if(length(keep.nodes))
+        keep.nodes <- fmatch(as.integer(keep.nodes), norm_nodes, nomatch = NA_integer_)
+    }
+  }
 
   gid <- seq_row(gft)  # Local variable mapping current edges to groups
   contractd_any <- FALSE
 
   merge_linear_nodes <- function(nodes) {
     if(!length(nodes)) return(FALSE)
+    use_c_contraction <- isTRUE(getOption("flownet.use_c_contraction", TRUE))
+    if(use_c_contraction && is.integer(gft$from) && is.integer(gft$to) && is.integer(gid)) {
+      cres <- contract_linear_nodes_c(gft$from, gft$to, gid, nodes)
+      if(!isTRUE(cres$ok)) return(FALSE)
+      gft$from <<- cres$from
+      gft$to <<- cres$to
+      gid <<- cres$gid
+      ffirst(gft$from, gid, "fill", set = TRUE)
+      return(TRUE)
+    }
     from_ind <- fmatch(nodes, gft$from)
     to_ind <- fmatch(nodes, gft$to)
     if(anyNA(from_ind) || anyNA(to_ind)) {
@@ -660,20 +792,23 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
 
   repeat {
 
+    tic <- now_s()
     degree_table <- compute_degrees(gft$from, gft$to)
+    timers["singleton"] <- timers["singleton"] + (now_s() - tic)
     if(!fnrow(degree_table)) break
 
     if(anyv(drop.edges, "single") && reci > 0L && anyv(degree_table$deg_total, 1L)) {
       nodes <- degree_table$node[degree_table$deg_total %==% 1L]
       if(length(keep.nodes)) nodes <- nodes[nodes %!iin% keep.nodes]
       if(length(nodes)) {
-        ind <- which(gft$from %!in% nodes & gft$to %!in% nodes)
-        dropped <- fnrow(gft) - length(ind)
-        if(dropped > 0L) {
-          if(verbose) cat(sprintf("Dropped %d edges leading to singleton nodes\n", dropped))
-          gft <- ss(gft, ind, check = FALSE)
-          gid <- gid[ind]
-          keep <- keep[ind]
+        tic <- now_s()
+        peel <- drop_singletons_linear(gft$from, gft$to, keep.nodes = keep.nodes, recursive = TRUE)
+        timers["singleton"] <- timers["singleton"] + (now_s() - tic)
+        if(peel$dropped > 0L) {
+          if(verbose) cat(sprintf("Dropped %d edges leading to singleton nodes in %d peeling steps\n", peel$dropped, peel$rounds))
+          gft <- ss(gft, peel$keep, check = FALSE)
+          gid <- gid[peel$keep]
+          keep <- keep[peel$keep]
           if(reci > 0L) next
         }
       }
@@ -692,11 +827,15 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
       idx <- fmatch(nodes, degree_table$node)
       need_orientation <- nodes[degree_table$deg_from[idx] == 2L | degree_table$deg_to[idx] == 2L]
       if(length(need_orientation)) {
+        tic <- now_s()
         if(!orient_undirected_nodes(need_orientation)) stop("Failed to orient undirected edges for consolidation; please verify the input graph.")
+        timers["orient"] <- timers["orient"] + (now_s() - tic)
         if(verbose) cat(sprintf("Oriented %d undirected intermediate edges\n", length(need_orientation)))
       }
     }
+    tic <- now_s()
     if(!merge_linear_nodes(nodes)) stop("Failed to contract oriented undirected edges; please verify the graph topology.")
+    timers["contract"] <- timers["contract"] + (now_s() - tic)
     contractd_any <- TRUE
     if(verbose) cat(sprintf("Contracted %d intermediate nodes\n", length(nodes)))
     if(reci == 0L) break
@@ -720,9 +859,17 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
   }
 
   # Aggregation
+  tic <- now_s()
   res <- ss(graph_df, keep, nam_keep, check = FALSE)
   if(verbose) cat("Aggregated", length(keep), "edges down to", g$N.groups, "edges\n")
   res <- collap(res, g, keep.col.order = FALSE, ...)
+  timers["aggregate"] <- timers["aggregate"] + (now_s() - tic)
+  if(length(norm_nodes)) {
+    res$from <- norm_nodes[as.integer(res$from)]
+    res$to <- norm_nodes[as.integer(res$to)]
+  }
+  if(verbose) cat(sprintf("Timing (s): singleton=%.2f, orient=%.2f, contract=%.2f, aggregate=%.2f\n",
+                          timers["singleton"], timers["orient"], timers["contract"], timers["aggregate"]))
   if(reci < 2L) {
     attr(res, "keep.edges") <- keep
     attr(res, "group.id") <- g$group.id
