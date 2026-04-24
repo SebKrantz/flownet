@@ -25,6 +25,34 @@ expect_consolidate_equiv_c_r <- function(graph, ..., tol = 1e-9) {
   )
 }
 
+legacy_drop_singletons_recursive <- function(from_vec, to_vec, keep.nodes = NULL, recursive = TRUE) {
+  n_edges <- length(from_vec)
+  if(!n_edges) return(list(keep = integer(0), dropped = 0L, rounds = 0L))
+  keep <- seq_len(n_edges)
+  rounds <- 0L
+  repeat {
+    rounds <- rounds + 1L
+    cnt <- unclass(kit::countOccur(c(from_vec, to_vec)))
+    deg1 <- cnt$Variable[cnt$Count == 1L]
+    if(length(keep.nodes)) deg1 <- setdiff(deg1, keep.nodes)
+    if(!length(deg1)) break
+    drop <- (from_vec %in% deg1) | (to_vec %in% deg1)
+    if(!any(drop)) break
+    keep <- keep[!drop]
+    from_vec <- from_vec[!drop]
+    to_vec <- to_vec[!drop]
+    if(!recursive || !length(from_vec)) break
+  }
+  list(keep = keep, dropped = as.integer(n_edges - length(keep)), rounds = rounds)
+}
+
+expect_singleton_peel_equiv <- function(from_vec, to_vec, keep.nodes = NULL, recursive = TRUE) {
+  ref <- legacy_drop_singletons_recursive(from_vec, to_vec, keep.nodes, recursive)
+  cur <- drop_singletons_linear(from_vec, to_vec, keep.nodes, recursive)
+  expect_equal(cur$keep, ref$keep)
+  expect_equal(cur$dropped, ref$dropped)
+}
+
 test_that("consolidate_graph C vs R contraction are equivalent (simple chain)", {
   graph <- data.frame(
     from = c(1L, 2L, 3L),
@@ -92,6 +120,34 @@ test_that("consolidate_graph C vs R contraction are equivalent (weighted chain)"
     weight = c(1, 3)
   )
   expect_consolidate_equiv_c_r(graph, keep.nodes = c(1L, 3L), w = ~ weight)
+})
+
+test_that("drop_singletons_linear matches legacy recursive peeling", {
+  # Tail attached to triangle core.
+  g1 <- data.frame(
+    from = c(1L, 2L, 3L, 3L, 4L),
+    to = c(2L, 3L, 1L, 4L, 5L)
+  )
+  expect_singleton_peel_equiv(g1$from, g1$to, recursive = TRUE)
+  expect_singleton_peel_equiv(g1$from, g1$to, recursive = FALSE)
+
+  # Keep-node suppression on a long chain.
+  g2 <- data.frame(
+    from = c(1L, 2L, 3L, 4L, 5L, 6L),
+    to = c(2L, 3L, 4L, 5L, 6L, 7L)
+  )
+  expect_singleton_peel_equiv(g2$from, g2$to, keep.nodes = c(1L, 4L, 7L), recursive = TRUE)
+
+  # Deterministic random sparse graph.
+  set.seed(42)
+  n <- 300L
+  g3 <- data.frame(
+    from = sample.int(80L, n, replace = TRUE),
+    to = sample.int(80L, n, replace = TRUE)
+  )
+  g3 <- g3[g3$from != g3$to, , drop = FALSE]
+  expect_singleton_peel_equiv(g3$from, g3$to, recursive = TRUE)
+  expect_singleton_peel_equiv(g3$from, g3$to, keep.nodes = sample.int(80L, 5L), recursive = TRUE)
 })
 
 # --- consolidate_graph() Tests ---
