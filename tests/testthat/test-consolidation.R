@@ -1,5 +1,99 @@
 # Tests for consolidate_graph() and simplify_network()
 
+# Strip volatile attrs and sort rows so C vs R contraction paths are comparable.
+canonical_consolidate_df <- function(x) {
+  x <- as.data.frame(x)
+  for (a in c("keep.edges", "group.id", ".early.return")) attr(x, a) <- NULL
+  nm <- intersect(names(x), c("from", "to", "mode", "class", "cost", "weight"))
+  ord <- if (length(nm)) do.call(order, x[nm]) else seq_len(nrow(x))
+  x <- x[ord, , drop = FALSE]
+  rownames(x) <- NULL
+  x
+}
+
+expect_consolidate_equiv_c_r <- function(graph, ..., tol = 1e-9) {
+  o <- options()
+  on.exit(options(o), add = TRUE)
+  options(flownet.use_c_contraction = TRUE)
+  res_c <- consolidate_graph(graph, ..., verbose = FALSE)
+  options(flownet.use_c_contraction = FALSE)
+  res_r <- consolidate_graph(graph, ..., verbose = FALSE)
+  expect_equal(
+    canonical_consolidate_df(res_c),
+    canonical_consolidate_df(res_r),
+    tolerance = tol
+  )
+}
+
+test_that("consolidate_graph C vs R contraction are equivalent (simple chain)", {
+  graph <- data.frame(
+    from = c(1L, 2L, 3L),
+    to = c(2L, 3L, 4L),
+    cost = c(1, 2, 3)
+  )
+  expect_consolidate_equiv_c_r(graph)
+})
+
+test_that("consolidate_graph C vs R contraction are equivalent (full recursion chain)", {
+  graph <- data.frame(
+    from = c(1L, 2L, 3L, 4L, 5L),
+    to = c(2L, 3L, 4L, 5L, 6L),
+    cost = c(1, 1, 1, 1, 1)
+  )
+  expect_consolidate_equiv_c_r(
+    graph,
+    keep.nodes = c(1L, 6L),
+    recursive = "full"
+  )
+})
+
+test_that("consolidate_graph C vs R contraction are equivalent (parallel 3-edge bundles)", {
+  k <- 150L
+  u1 <- seq.int(3L, k + 2L)
+  u2 <- seq.int(k + 3L, 2L * k + 2L)
+  graph <- data.frame(
+    from = as.integer(c(rep.int(1L, k), u1, u2)),
+    to = as.integer(c(u1, u2, rep.int(2L, k))),
+    mode = "road",
+    class = "a",
+    cost = 1,
+    stringsAsFactors = FALSE
+  )
+  expect_consolidate_equiv_c_r(
+    graph,
+    drop.edges = "loop",
+    by = ~ mode + class,
+    keep.nodes = c(1L, 2L),
+    recursive = "partial"
+  )
+})
+
+test_that("consolidate_graph C vs R contraction are equivalent (by + keep.nodes)", {
+  graph <- data.frame(
+    from = c(1L, 2L, 3L, 4L),
+    to = c(2L, 3L, 4L, 5L),
+    mode = c("road", "road", "rail", "rail"),
+    class = c("a", "a", "b", "b"),
+    cost = c(1, 1, 1, 1)
+  )
+  expect_consolidate_equiv_c_r(
+    graph,
+    by = ~ mode + class,
+    keep.nodes = c(1L, 5L),
+    recursive = "partial"
+  )
+})
+
+test_that("consolidate_graph C vs R contraction are equivalent (weighted chain)", {
+  graph <- data.frame(
+    from = c(1L, 2L),
+    to = c(2L, 3L),
+    cost = c(10, 20),
+    weight = c(1, 3)
+  )
+  expect_consolidate_equiv_c_r(graph, keep.nodes = c(1L, 3L), w = ~ weight)
+})
+
 # --- consolidate_graph() Tests ---
 
 test_that("consolidate_graph reduces edge count for intermediate nodes", {
