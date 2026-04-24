@@ -137,6 +137,7 @@ test_that("drop_singletons_linear matches legacy recursive peeling", {
     to = c(2L, 3L, 4L, 5L, 6L, 7L)
   )
   expect_singleton_peel_equiv(g2$from, g2$to, keep.nodes = c(1L, 4L, 7L), recursive = TRUE)
+  expect_singleton_peel_equiv(g2$from, g2$to, keep.nodes = c(1L, 4L, 7L), recursive = FALSE)
 
   # Deterministic random sparse graph.
   set.seed(42)
@@ -147,7 +148,46 @@ test_that("drop_singletons_linear matches legacy recursive peeling", {
   )
   g3 <- g3[g3$from != g3$to, , drop = FALSE]
   expect_singleton_peel_equiv(g3$from, g3$to, recursive = TRUE)
+  expect_singleton_peel_equiv(g3$from, g3$to, recursive = FALSE)
   expect_singleton_peel_equiv(g3$from, g3$to, keep.nodes = sample.int(80L, 5L), recursive = TRUE)
+  expect_singleton_peel_equiv(g3$from, g3$to, keep.nodes = sample.int(80L, 5L), recursive = FALSE)
+})
+
+test_that("drop_singletons_linear matches legacy on varied graph topologies", {
+  # Star graph: all edges are singleton incidents in one round.
+  star <- data.frame(
+    from = rep.int(1L, 12L),
+    to = 2L:13L
+  )
+  expect_singleton_peel_equiv(star$from, star$to, recursive = TRUE)
+  expect_singleton_peel_equiv(star$from, star$to, recursive = FALSE)
+  expect_singleton_peel_equiv(star$from, star$to, keep.nodes = 1L, recursive = TRUE)
+  expect_singleton_peel_equiv(star$from, star$to, keep.nodes = 1L, recursive = FALSE)
+
+  # Disconnected components with one stable cycle and one peelable path.
+  mixed <- data.frame(
+    from = c(1L, 2L, 3L, 4L, 10L, 11L, 12L, 12L),
+    to = c(2L, 3L, 4L, 5L, 11L, 12L, 10L, 13L)
+  )
+  expect_singleton_peel_equiv(mixed$from, mixed$to, recursive = TRUE)
+  expect_singleton_peel_equiv(mixed$from, mixed$to, recursive = FALSE)
+  expect_singleton_peel_equiv(mixed$from, mixed$to, keep.nodes = c(5L, 13L), recursive = TRUE)
+  expect_singleton_peel_equiv(mixed$from, mixed$to, keep.nodes = c(5L, 13L), recursive = FALSE)
+
+  # Dense-ish random graph with reproducible seeds, multiple replicates.
+  for (s in c(7L, 11L, 19L, 23L)) {
+    set.seed(s)
+    g <- data.frame(
+      from = sample.int(120L, 700L, replace = TRUE),
+      to = sample.int(120L, 700L, replace = TRUE)
+    )
+    g <- g[g$from != g$to, , drop = FALSE]
+    keep_nodes <- sample.int(120L, 8L)
+    expect_singleton_peel_equiv(g$from, g$to, recursive = TRUE)
+    expect_singleton_peel_equiv(g$from, g$to, recursive = FALSE)
+    expect_singleton_peel_equiv(g$from, g$to, keep.nodes = keep_nodes, recursive = TRUE)
+    expect_singleton_peel_equiv(g$from, g$to, keep.nodes = keep_nodes, recursive = FALSE)
+  }
 })
 
 # --- consolidate_graph() Tests ---
