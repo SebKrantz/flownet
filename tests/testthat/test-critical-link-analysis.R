@@ -107,4 +107,39 @@ test_that("critical_link_analysis validates inputs", {
   expect_error(critical_link_analysis(transform(graph, cost = c(1, 0))), "strictly positive")
   expect_error(critical_link_analysis(graph[, c("from", "cost")]), "from.*to")
   expect_error(critical_link_analysis(graph, directed = NA), "directed")
+  expect_error(critical_link_analysis(graph, nthreads = 0L), "nthreads")
+  expect_error(critical_link_analysis(graph, nthreads = c(1L, 2L)), "nthreads")
+})
+
+test_that("critical_link_analysis matches single-threaded result with nthreads > 1", {
+  set.seed(123)
+  n_nodes <- 20
+  graph <- data.frame(
+    from = sample.int(n_nodes, 60, replace = TRUE),
+    to = sample.int(n_nodes, 60, replace = TRUE),
+    cost = runif(60, 0.1, 5)
+  )
+  graph <- graph[graph$from != graph$to, ]
+
+  serial <- critical_link_analysis(graph, cost.column = "cost", nthreads = 1L)
+  parallel <- critical_link_analysis(graph, cost.column = "cost", nthreads = 4L)
+
+  expect_equal(parallel, serial)
+})
+
+test_that("critical_link_analysis only runs Dijkstra for unique from nodes", {
+  graph <- data.frame(
+    from = c(1, 1, 2, 2),
+    to = c(2, 3, 1, 3),
+    cost = c(1, 5, 1, 1)
+  )
+
+  # Node 3 is never a 'from' node, so it should not trigger a Dijkstra run.
+  # e1=1->2: remove e1 -> only outgoing from 1 left is e2 (1->3); 3 has no outgoing -> Inf
+  # e2=1->3: remove e2 -> 1->2 (1) + 2->3 (1) = 2
+  # e3=2->1: remove e3 -> only outgoing from 2 left is e4 (2->3); 3 has no outgoing -> Inf
+  # e4=2->3: remove e4 -> 2->1 (1) + 1->3 (5) = 6
+  result <- critical_link_analysis(graph, directed = TRUE, cost.column = "cost")
+
+  expect_equal(result$detour_cost, c(Inf, 2, Inf, 6))
 })

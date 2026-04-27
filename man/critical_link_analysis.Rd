@@ -4,7 +4,12 @@
 \alias{critical_link_analysis}
 \title{Critical Link Analysis}
 \usage{
-critical_link_analysis(graph_df, directed = FALSE, cost.column = "cost")
+critical_link_analysis(
+  graph_df,
+  directed = FALSE,
+  cost.column = "cost",
+  nthreads = 1L
+)
 }
 \arguments{
 \item{graph_df}{A data.frame with columns \code{from} and \code{to}, and optionally
@@ -17,6 +22,10 @@ result remains aligned with the original rows of \code{graph_df}.}
 \item{cost.column}{Character string (default: \code{"cost"}) or numeric vector. Name of
 the cost column in \code{graph_df}, or a numeric vector of edge costs with length equal
 to \code{nrow(graph_df)}.}
+
+\item{nthreads}{Integer (default: \code{1L}). Number of OpenMP threads used to
+parallelize the per-source Dijkstra computations. Has no effect when the package
+was compiled without OpenMP support.}
 }
 \value{
 A data.frame with one row per input edge and columns:
@@ -37,9 +46,11 @@ The detour cost for edge \code{e = (u, v)} is the shortest path cost from \code{
 to \code{v} after removing that physical edge row. Parallel edges are kept as distinct
 alternatives. If no detour exists, \code{detour_cost} and \code{detour_ratio} are \code{Inf}.
 
-The implementation uses a compiled multi-label Dijkstra routine per source node. For each
-target, it tracks the two best distances whose first physical edge differs, which gives the
-best endpoint detour for each outgoing edge without repeated graph deletion.
+The implementation uses a compiled multi-label Dijkstra routine, run once per unique
+\code{from} node. For each target node, it tracks the two best distances whose first
+physical edge differs, which yields the best endpoint detour for every outgoing edge of
+that source without repeated graph deletion. Per-source Dijkstras are independent and
+are parallelized across \code{nthreads} OpenMP threads.
 }
 \examples{
 library(flownet)

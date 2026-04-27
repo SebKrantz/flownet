@@ -9,6 +9,9 @@
 #' @param cost.column Character string (default: \code{"cost"}) or numeric vector. Name of
 #'   the cost column in \code{graph_df}, or a numeric vector of edge costs with length equal
 #'   to \code{nrow(graph_df)}.
+#' @param nthreads Integer (default: \code{1L}). Number of OpenMP threads used to
+#'   parallelize the per-source Dijkstra computations. Has no effect when the package
+#'   was compiled without OpenMP support.
 #'
 #' @return A data.frame with one row per input edge and columns:
 #' \itemize{
@@ -25,9 +28,11 @@
 #' to \code{v} after removing that physical edge row. Parallel edges are kept as distinct
 #' alternatives. If no detour exists, \code{detour_cost} and \code{detour_ratio} are \code{Inf}.
 #'
-#' The implementation uses a compiled multi-label Dijkstra routine per source node. For each
-#' target, it tracks the two best distances whose first physical edge differs, which gives the
-#' best endpoint detour for each outgoing edge without repeated graph deletion.
+#' The implementation uses a compiled multi-label Dijkstra routine, run once per unique
+#' \code{from} node. For each target node, it tracks the two best distances whose first
+#' physical edge differs, which yields the best endpoint detour for every outgoing edge of
+#' that source without repeated graph deletion. Per-source Dijkstras are independent and
+#' are parallelized across \code{nthreads} OpenMP threads.
 #'
 #' @seealso \link{distances_from_graph} \link{run_assignment} \link{flownet-package}
 #'
@@ -43,8 +48,8 @@
 #' critical_link_analysis(graph, cost.column = "cost")
 #'
 #' @export
-#' @importFrom collapse fmatch fnrow funique.default
-critical_link_analysis <- function(graph_df, directed = FALSE, cost.column = "cost") {
+#' @importFrom collapse fmatch fnrow funique.default GRP gsplit
+critical_link_analysis <- function(graph_df, directed = FALSE, cost.column = "cost", nthreads = 1L) {
   if(!is.data.frame(graph_df)) stop("graph_df must be a data.frame")
   if(!all(c("from", "to") %in% names(graph_df))) {
     stop("graph_df must have columns 'from' and 'to'. Missing: ",
@@ -73,9 +78,19 @@ critical_link_analysis <- function(graph_df, directed = FALSE, cost.column = "co
     stop("directed must be TRUE or FALSE")
   }
 
+  if(!is.numeric(nthreads) || length(nthreads) != 1L || !is.finite(nthreads) || nthreads < 1L) {
+    stop("nthreads must be a positive integer")
+  }
+  nthreads <- as.integer(nthreads)
+
   nodes <- funique.default(c(graph_df$from, graph_df$to), sort = TRUE)
   from_node <- fmatch(graph_df$from, nodes)
   to_node <- fmatch(graph_df$to, nodes)
+
+  # Group edges by source node to skip nodes that are not the origin of any edge
+  grp <- GRP(from_node, return.groups = TRUE, call = FALSE, sort = FALSE)
+  unique_from <- as.integer(grp$groups[[1L]])
+  edges_per_source <- gsplit(seq_len(n_edges), grp)
 
   detour_cost <- .Call(
     C_critical_link_detours, # nolint: object_usage_linter
@@ -83,7 +98,10 @@ critical_link_analysis <- function(graph_df, directed = FALSE, cost.column = "co
     to_node,
     cost,
     length(nodes),
-    directed
+    directed,
+    unique_from,
+    edges_per_source,
+    nthreads
   )
 
   data.frame(
