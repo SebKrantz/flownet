@@ -952,6 +952,8 @@ compute_degrees <- function(from_vec, to_vec) {
 #'   will be assigned to the nearest preserved node's cluster.
 #'   \code{cluster}: radius in kilometers for clustering remaining nodes using leaderCluster.
 #' @param verbose Logical (default: TRUE). Whether to print progress messages/bars.
+#' @param nthreads Integer (default: 1). Number of threads used with \code{method = "shortest-paths"}.
+#'   If greater than 1, shortest-path tasks are split across \code{mirai} daemons.
 #' @param \dots For \code{method = "cluster"}: additional arguments passed to
 #'   \code{\link[collapse]{collap}} for edge attribute aggregation.
 #'
@@ -1050,9 +1052,11 @@ compute_degrees <- function(from_vec, to_vec) {
 #' @importFrom igraph graph_from_data_frame delete_vertex_attr igraph_options shortest_paths
 #' @importFrom geodist geodist_vec geodist_min
 #' @importFrom leaderCluster leaderCluster
+#' @importFrom mirai mirai_map daemons
 simplify_network <- function(graph_df, nodes = NULL, method = c("shortest-paths", "cluster"),
                              directed = FALSE, cost.column = "cost", by = NULL,
-                             radius_km = list(nodes = 7, cluster = 20), verbose = TRUE, ...) {
+                             radius_km = list(nodes = 7, cluster = 20), verbose = TRUE,
+                             nthreads = 1L, ...) {
 
   method <- match.arg(method)
 
@@ -1095,8 +1099,6 @@ simplify_network <- function(graph_df, nodes = NULL, method = c("shortest-paths"
     iopt <- igraph_options(return.vs.es = FALSE)
     on.exit(igraph_options(iopt))
 
-    edges_traversed <- integer(fnrow(graph_df))
-
     # Pre-process nodes input ONCE (before any group loop)
     if(is.atomic(nodes)) {
       nodes_matched <- ckmatch(funique.default(nodes), all_nodes, e = "Unknown nodes:")
@@ -1111,49 +1113,127 @@ simplify_network <- function(graph_df, nodes = NULL, method = c("shortest-paths"
       nodes_matched <- NULL
     } else stop("nodes must be an atomic vector or a data.frame")
 
+    nthreads <- as.integer(nthreads)[1L]
+    if(!is.finite(nthreads) || nthreads < 1L)
+      stop("nthreads must be a positive integer")
+
+    if(length(nodes_matched)) {
+      N <- length(nodes_matched)
+      if(directed || N <= 1L) {
+        task_idx <- seq_along(nodes_matched)
+        total_tasks <- if(directed) N^2 else 0L
+        task_size <- rep.int(N, length(task_idx))
+        get_task <- function(j) list(from = nodes_matched[j], to = nodes_matched)
+      } else {
+        task_idx <- seq_len(N - 1L)
+        total_tasks <- N * (N - 1L) / 2L
+        task_size <- N - task_idx
+        get_task <- function(j) list(from = nodes_matched[j], to = nodes_matched[(j + 1L):N])
+      }
+    } else {
+      from_nodes <- as.integer(names(nodes_split))
+      task_idx <- seq_along(from_nodes)
+      task_size <- lengths(nodes_split)
+      total_tasks <- sum(task_size)
+      get_task <- function(j) list(from = from_nodes[j], to = nodes_split[[j]])
+    }
+
     # Helper to compute paths with given cost vector
     compute_paths <- function(cost_vec) {
-      if(length(nodes_matched)) {
-        N <- length(nodes_matched)
-        if(directed) {
-          if(verbose) {
-            pb <- progress_bar$new(format = "Processed :current/:total shortest paths (:percent) at :tick_rate/sec [Elapsed::elapsed | ETA::eta]",
-                                   total = N^2, clear = FALSE, width = 100)
-          }
-          for (i in nodes_matched) {
-            if(verbose) pb$tick(N)
-            pathsi <- shortest_paths(ig, from = i, to = nodes_matched,
-                                     weights = cost_vec, mode = "out", output = "epath")$epath
-            .Call(C_mark_edges_traversed, pathsi, edges_traversed)
-          }
-        } else {
-          if(verbose) {
-            pb <- progress_bar$new(format = "Processed :current/:total shortest paths (:percent) at :tick_rate/sec [Elapsed::elapsed | ETA::eta]",
-                                   total = N*(N-1)/2, clear = FALSE, width = 100)
-          }
-          for (i in 1:(N - 1L)) {
-            ind = nodes_matched[(i + 1L):N]
-            if(verbose) pb$tick(length(ind))
-            pathsi <- shortest_paths(ig, from = nodes_matched[i], to = ind,
-                                     weights = cost_vec, mode = "out", output = "epath")$epath
-            .Call(C_mark_edges_traversed, pathsi, edges_traversed)
+      if(!length(task_idx) || total_tasks <= 0L) return(integer(fnrow(graph_df)))
+
+      # progress::progress_bar has no public `current`; accumulate ticks for final correction
+      tick_state <- new.env(parent = emptyenv())
+      tick_state$n <- 0L
+
+      run_shortest_paths_chunk <- function(chunk, session = FALSE, progress_scale = 1) {
+        shortest_paths <- if(session) shortest_paths else igraph::shortest_paths
+        igraph_options <- if(session) igraph_options else igraph::igraph_options
+        C_mark_edges_traversed <- getNamespace("flownet")$C_mark_edges_traversed
+        iopt <- igraph_options(return.vs.es = FALSE)
+        on.exit(igraph_options(iopt), add = TRUE)
+        weights <- as.numeric(cost_vec)
+        edges_local <- integer(fnrow(graph_df))
+        ticked <- 0L
+        pacc <- 0
+        for(j in chunk) {
+          task <- get_task(j)
+          pathsi <- shortest_paths(ig, from = task$from, to = task$to,
+                                   weights = weights, mode = "out", output = "epath")$epath
+          .Call(C_mark_edges_traversed, pathsi, edges_local)
+          if(session && verbose) {
+            pacc <- pacc + task_size[j] * progress_scale
+            tick <- as.integer(pacc) - ticked
+            if(tick > 0L) {
+              pb$tick(tick)
+              ticked <- ticked + tick
+              tick_state$n <- tick_state$n + tick
+            }
           }
         }
-      } else {
-        from_nodes <- as.integer(names(nodes_split))
+        edges <- which(edges_local > 0L)
+        list(edges = edges, counts = edges_local[edges])
+      }
+
+      if(nthreads <= 1L || length(task_idx) <= 1L) {
         if(verbose) {
           pb <- progress_bar$new(format = "Processed :current/:total shortest paths (:percent) at :tick_rate/sec [Elapsed::elapsed | ETA::eta]",
-                                 total = fnrow(nodes), clear = FALSE, width = 100)
+                                 total = total_tasks, clear = FALSE, width = 100)
         }
-        for (i in seq_along(from_nodes)) {
-          ind = nodes_split[[i]]
-          if(verbose) pb$tick(length(ind))
-          pathsi <- shortest_paths(ig, from = from_nodes[i], to = ind,
+        edges_local <- integer(fnrow(graph_df))
+        for(j in task_idx) {
+          task <- get_task(j)
+          pathsi <- shortest_paths(ig, from = task$from, to = task$to,
                                    weights = cost_vec, mode = "out", output = "epath")$epath
-          .Call(C_mark_edges_traversed, pathsi, edges_traversed)
+          .Call(C_mark_edges_traversed, pathsi, edges_local)
+          if(verbose) pb$tick(task_size[j])
         }
+        return(edges_local)
       }
+
+      nworkers <- min(nthreads, length(task_idx))
+      ord <- order(task_size, decreasing = TRUE)
+      chunks <- vector("list", nworkers)
+      load <- numeric(nworkers)
+      for(j in ord) {
+        k <- which.min(load)
+        chunks[[k]] <- c(chunks[[k]], j)
+        load[k] <- load[k] + task_size[j]
+      }
+      dom <- which.max(load)
+      if(dom != 1L) {
+        tmp <- chunks[[1L]]
+        chunks[[1L]] <- chunks[[dom]]
+        chunks[[dom]] <- tmp
+        load[c(1L, dom)] <- load[c(dom, 1L)]
+      }
+
+      if(verbose) {
+        pb <- progress_bar$new(format = "Processed :current/:total shortest paths (:percent) at :tick_rate/sec [Elapsed::elapsed | ETA::eta]",
+                               total = total_tasks, clear = FALSE, width = 100)
+      }
+
+      daemons(n = nworkers - 1L)
+      on.exit(daemons(0), add = TRUE)
+      res_other <- mirai_map(chunks[-1L], run_shortest_paths_chunk)
+      pscale <- if(load[1L] > 0L) total_tasks / load[1L] else 1
+      res_main <- run_shortest_paths_chunk(chunks[[1L]], session = TRUE, progress_scale = pscale)
+      res_other <- res_other[.stop]
+      daemons(0)
+
+      edges_local <- integer(fnrow(graph_df))
+      edges_local[res_main$edges] <- res_main$counts
+      for(resi in res_other) {
+        edges_local[resi$edges] <- edges_local[resi$edges] + resi$counts
+      }
+      if(verbose) {
+        remain <- max(0L, as.integer(total_tasks - tick_state$n))
+        if(!pb$finished && remain > 0L) pb$tick(remain)
+      }
+      edges_local
     }
+
+    edges_traversed <- integer(fnrow(graph_df))
 
     if(length(by)) {
       # Multimodal: iterate over groups, penalizing edges not in the current group
@@ -1161,11 +1241,11 @@ simplify_network <- function(graph_df, nodes = NULL, method = c("shortest-paths"
 
       for(grp_idx in seq_len(by_grp$N.groups)) {
         cost_penalized <- iif(by_grp$group.id != grp_idx, cost * 100, cost)
-        compute_paths(cost_penalized)
+        edges_traversed %+=% compute_paths(cost_penalized)
       }
     } else {
       # Single mode: compute paths once
-      compute_paths(cost)
+      edges_traversed <- compute_paths(cost)
     }
 
     edges <- which(edges_traversed > 0L)

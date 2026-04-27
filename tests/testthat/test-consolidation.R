@@ -502,6 +502,34 @@ test_that("simplify_network shortest-paths with OD pairs data.frame", {
   expect_true(nrow(result) > 0)
 })
 
+test_that("simplify_network shortest-paths nthreads matches single-thread output", {
+  graph <- data.frame(
+    from = c(1, 1, 2, 2, 3, 4, 4, 5),
+    to = c(2, 3, 3, 4, 5, 5, 6, 6),
+    cost = c(1, 2, 1, 2, 1, 1, 3, 1),
+    mode = c("road", "rail", "road", "road", "rail", "road", "rail", "road")
+  )
+  od_pairs <- data.frame(
+    from = c(1, 1, 2, 3),
+    to = c(5, 6, 6, 6)
+  )
+
+  res_single <- simplify_network(graph, nodes = od_pairs,
+                                 method = "shortest-paths",
+                                 cost.column = "cost",
+                                 by = ~ mode,
+                                 nthreads = 1L, verbose = FALSE)
+  res_multi <- simplify_network(graph, nodes = od_pairs,
+                                method = "shortest-paths",
+                                cost.column = "cost",
+                                by = ~ mode,
+                                nthreads = 2L, verbose = FALSE)
+
+  expect_identical(res_multi, res_single)
+  expect_identical(attr(res_multi, "edges"), attr(res_single, "edges"))
+  expect_identical(attr(res_multi, "edge_counts"), attr(res_single, "edge_counts"))
+})
+
 test_that("simplify_network errors on missing columns", {
   graph <- data.frame(from = 1:3, cost = 1:3)
 
