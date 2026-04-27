@@ -13,6 +13,7 @@ simplify_network(
   by = NULL,
   radius_km = list(nodes = 7, cluster = 20),
   verbose = TRUE,
+  nthreads = 1L,
   ...
 )
 }
@@ -55,6 +56,9 @@ will be assigned to the nearest preserved node's cluster.
 \code{cluster}: radius in kilometers for clustering remaining nodes using leaderCluster.}
 
 \item{verbose}{Logical (default: TRUE). Whether to print progress messages/bars.}
+
+\item{nthreads}{Integer (default: 1). Number of threads used with \code{method = "shortest-paths"}.
+If greater than 1, shortest-path tasks are split across \code{mirai} daemons.}
 
 \item{\dots}{For \code{method = "cluster"}: additional arguments passed to
 \code{\link[collapse]{collap}} for edge attribute aggregation.}
