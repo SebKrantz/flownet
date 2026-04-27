@@ -1,7 +1,7 @@
 
 utils::globalVariables(c(
   "from", "to", "edge", "FX", "FY", "TX", "TY", "X", "Y", "cost", "flow", ".stop",
-  "C_contract_linear_nodes"
+  "C_contract_linear_nodes", "C_critical_link_detours"
   # Add any other variable names that appear in the notes
   # "." # Often needed if you use the data.table or magrittr pipe syntax
 ))

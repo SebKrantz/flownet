@@ -29,6 +29,7 @@ utilities for network processing/preparation.
  \code{\link[=nodes_from_graph]{nodes_from_graph()}} --- Extract unique nodes from graph\cr
  \code{\link[=linestrings_from_graph]{linestrings_from_graph()}} --- Convert graph to LINESTRING geometries\cr
  \code{\link[=distances_from_graph]{distances_from_graph()}} --- Compute distance matrix from graph\cr
+ \code{\link[=critical_link_analysis]{critical_link_analysis()}} --- Compute edge detour costs and vulnerability ratios\cr
 
 
 \strong{OD Matrix Utilities}
