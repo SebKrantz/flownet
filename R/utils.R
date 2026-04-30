@@ -682,8 +682,8 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
       keep <- keep[peel$keep]
       gft <- ss(gft, peel$keep, check = FALSE)
     }
+    timers["singleton"] <- timers["singleton"] + (now_s() - tic)
   }
-  timers["singleton"] <- timers["singleton"] + (now_s() - tic)
 
   if(!contract) {
     res <- ss(graph_df, keep, check = FALSE)
@@ -798,9 +798,9 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
   repeat {
     iter <- iter + 1L
 
-    tic <- now_s()
+    # tic <- now_s()
     degree_table <- compute_degrees(gft$from, gft$to)
-    timers["singleton"] <- timers["singleton"] + (now_s() - tic)
+    # timers["singleton"] <- timers["singleton"] + (now_s() - tic)
     if(!fnrow(degree_table)) break
 
     if(anyv(drop.edges, "single") && reci > 0L && anyv(degree_table$deg_total, 1L)) {
