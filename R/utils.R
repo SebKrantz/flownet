@@ -1328,7 +1328,7 @@ cluster_remaining_nodes <- function(mat, weights, cluster_radius_km, cluster.alg
     if(verbose) cat("Clustering the remaining nodes with the leaderCluster algorithm using a radius of ", cluster_radius_km, "km\n", sep = "")
     res <- leaderCluster(mat, cluster_radius_km, weights, max_iter = 250L, distance = "haversine")
     if(res$iter >= 250) warning("leaderCluster did not fully converge within 250 iterations")
-    else if(verbose) cat("leaderCluster algorithm converged in", res$iter, "iterations\n")
+    else if(verbose) cat("leaderCluster algorithm converged in", res$iter, "iterations and identified", res$num_clusters, "clusters\n")
     return(list(cluster_id = res$cluster_id,
                 num_clusters = res$num_clusters,
                 cluster_centroids = res$cluster_centroids[,2:1, drop = FALSE]))
