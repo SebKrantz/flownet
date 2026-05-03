@@ -239,6 +239,20 @@ test_that("consolidate_graph recursive='full' completes consolidation", {
   expect_equal(result$to, 6)
 })
 
+test_that("consolidate_graph handles topology-only graphs", {
+  graph <- data.frame(
+    from = c(1L, 2L, 3L),
+    to = c(2L, 3L, 4L)
+  )
+
+  result <- consolidate_graph(graph, keep.nodes = c(1L, 4L), verbose = FALSE)
+
+  expect_named(result, c("from", "to"))
+  expect_equal(nrow(result), 1L)
+  expect_equal(result$from, 1L)
+  expect_equal(result$to, 4L)
+})
+
 test_that("consolidate_graph removes loops", {
   graph <- data.frame(
     from = c(1, 2, 3),

@@ -873,9 +873,15 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
 
   # Aggregation
   tic <- now_s()
-  res <- ss(graph_df, keep, nam_keep, check = FALSE)
   if(verbose) cat("Aggregated", length(keep), "edges down to", g$N.groups, "edges\n")
-  res <- collap(res, g, keep.col.order = FALSE, ...)
+  res <- if(length(nam_keep)) {
+    collap(ss(graph_df, keep, nam_keep, check = FALSE), g, keep.col.order = FALSE, ...)
+  } else {
+    out <- g$groups
+    attr(out, "row.names") <- .set_row_names(g$N.groups)
+    class(out) <- "data.frame"
+    out
+  }
   timers["aggregate"] <- timers["aggregate"] + (now_s() - tic)
   if(length(norm_nodes)) {
     res$from <- norm_nodes[as.integer(res$from)]
