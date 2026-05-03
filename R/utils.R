@@ -956,7 +956,10 @@ compute_degrees <- function(from_vec, to_vec) {
 #'   Only used for \code{method = "cluster"}.
 #'   \code{nodes}: radius in kilometers around preserved nodes. Graph nodes within this radius
 #'   will be assigned to the nearest preserved node's cluster.
-#'   \code{cluster}: radius in kilometers for clustering remaining nodes using leaderCluster.
+#'   \code{cluster}: radius in kilometers for clustering remaining nodes.
+#' @param cluster.algo.dbscan Logical (default: FALSE). If TRUE, use \code{\link[dbscan]{dbscan}}
+#'   instead of \code{\link[leaderCluster]{leaderCluster}} for clustering remaining nodes.
+#'   This requires the \pkg{dbscan} package.
 #' @param verbose Logical (default: TRUE). Whether to print progress messages/bars.
 #' @param nthreads Integer (default: 1). Number of threads used with \code{method = "shortest-paths"}.
 #'   If greater than 1, shortest-path tasks are split across \code{mirai} daemons.
@@ -1001,7 +1004,8 @@ compute_degrees <- function(from_vec, to_vec) {
 #'   \item Requires the graph to have spatial coordinates (\code{FX}, \code{FY}, \code{TX}, \code{TY})
 #'   \item If \code{nodes} is provided, these nodes are preserved as cluster centroids
 #'   \item Nearby nodes (within \code{radius_km$nodes} km) are assigned to the nearest preserved node
-#'   \item Remaining nodes are clustered using \code{\link[leaderCluster]{leaderCluster}} with
+#'   \item Remaining nodes are clustered using \code{\link[leaderCluster]{leaderCluster}} by default,
+#'     or \code{\link[dbscan]{dbscan}} when \code{cluster.algo.dbscan = TRUE}, with
 #'     \code{radius_km$cluster} as the clustering radius
 #'   \item For each cluster, the node closest to the cluster centroid is selected as representative
 #'   \item The graph is contracted by mapping all nodes to their cluster representatives
@@ -1054,7 +1058,7 @@ compute_degrees <- function(from_vec, to_vec) {
 #' }
 #'
 #' @export
-#' @importFrom collapse fnrow ss ckmatch funique funique.default fmatch gsplit fmin dapply whichv %+=% GRP add_vars seq_row add_stub colorderv %!in% collap get_vars alloc
+#' @importFrom collapse fmean fnrow ss ckmatch funique funique.default fmatch gsplit fmin dapply whichv %+=% GRP add_vars seq_row add_stub colorderv %!in% collap get_vars alloc
 #' @importFrom kit iif
 #' @importFrom igraph graph_from_data_frame delete_vertex_attr igraph_options shortest_paths
 #' @importFrom geodist geodist_vec geodist_min
@@ -1063,7 +1067,7 @@ compute_degrees <- function(from_vec, to_vec) {
 simplify_network <- function(graph_df, nodes = NULL, method = c("shortest-paths", "cluster"),
                              directed = FALSE, cost.column = "cost", by = NULL,
                              radius_km = list(nodes = 7, cluster = 20), verbose = TRUE,
-                             nthreads = 1L, ...) {
+                             nthreads = 1L, cluster.algo.dbscan = FALSE, ...) {
 
   method <- match.arg(method)
 
@@ -1273,7 +1277,8 @@ simplify_network <- function(graph_df, nodes = NULL, method = c("shortest-paths"
     # Optional node weights
     if(is.numeric(cost.column) && length(cost.column) == fnrow(nodes_df)) nodes_df$weights <- cost.column
     # Cluster method
-    cl <- cluster_nodes(nodes_df, funique.default(nodes), radius_km$nodes, radius_km$cluster, verbose)
+    cl <- cluster_nodes(nodes_df, funique.default(nodes), radius_km$nodes, radius_km$cluster,
+                        verbose, cluster.algo.dbscan)
     # Graph Contraction to Clusters
     result <- contract_edges(graph_df, nodes = nodes_df, clusters = cl$clusters,
                              centroids = cl$centroids, directed = directed, by = by,
@@ -1318,9 +1323,40 @@ assign_nodes_to_keep <- function(nodes, keep, radius_km, max_dmat_size = 1e7, ve
   list(nodes = close_nodes[seq_len(n_close)], clusters = close_clusters[seq_len(n_close)])
 }
 
+cluster_remaining_nodes <- function(mat, weights, cluster_radius_km, cluster.algo.dbscan = FALSE, verbose = TRUE) {
+  if(!cluster.algo.dbscan) {
+    if(verbose) cat("Clustering the remaining nodes with the leaderCluster algorithm using a radius of ", cluster_radius_km, "km\n", sep = "")
+    res <- leaderCluster(mat, cluster_radius_km, weights, max_iter = 250L, distance = "haversine")
+    if(res$iter >= 250) warning("leaderCluster did not fully converge within 250 iterations")
+    else if(verbose) cat("leaderCluster algorithm converged in", res$iter, "iterations\n")
+    return(list(cluster_id = res$cluster_id,
+                num_clusters = res$num_clusters,
+                cluster_centroids = res$cluster_centroids[,2:1, drop = FALSE]))
+  }
+
+  if(!requireNamespace("dbscan", quietly = TRUE)) {
+    stop("cluster.algo.dbscan = TRUE requires the dbscan package. Install it with install.packages(\"dbscan\").")
+  }
+
+  if(verbose) cat("Clustering the remaining nodes with dbscan using a radius of ", cluster_radius_km, "km\n", sep = "")
+  lat_rad <- mat[, "Y"] * pi / 180
+  coords <- cbind(X = mat[, "X"] / cos(lat_rad), Y = mat[, "Y"]) * 111.32
+  cluster_id <- dbscan::dbscan(coords, eps = cluster_radius_km, minPts = 1L)$cluster
+  if(any(cluster_id == 0L)) stop("dbscan returned unassigned noise points despite minPts = 1")
+
+  num_clusters <- max(cluster_id)
+  g <- cluster_id
+  attr(g, "N.groups") <- num_clusters
+  class(g) <- c("qG", "na.included")
+  cluster_centroids <- fmean(mat, g, weights, drop = FALSE, use.g.names = FALSE)[, c("X", "Y"), drop = FALSE]
+  if(verbose) cat("dbscan identified", num_clusters, "clusters\n")
+  list(cluster_id = cluster_id, num_clusters = num_clusters, cluster_centroids = cluster_centroids)
+}
+
 cluster_nodes <- function(nodes, keep,
                           nodes_radius_km = 7,
-                          cluster_radius_km = 20, verbose = TRUE) {
+                          cluster_radius_km = 20, verbose = TRUE,
+                          cluster.algo.dbscan = FALSE) {
   # Nodes to preserve
   if(length(keep)) {
     clusters <- integer(fnrow(nodes))
@@ -1334,25 +1370,18 @@ cluster_nodes <- function(nodes, keep,
     if(length(ind)) {
       mat <- cbind(Y = nodes$Y[ind], X = nodes$X[ind])
       weights <- if(length(nodes$weights)) nodes$weights[ind] else alloc(1, nrow(mat))
-      if(verbose) cat("Clustering the remaining nodes with the leaderCluster algorithm using a radius of ", cluster_radius_km, "km\n", sep = "")
-      res <- leaderCluster(mat, cluster_radius_km, weights, max_iter = 250L, distance = "haversine")
-      if(res$iter >= 250) warning("leaderCluster did not fully converge within 250 iterations")
-      else if(verbose) cat("leaderCluster algorithm converged in", res$iter, "iterations\n")
+      res <- cluster_remaining_nodes(mat, weights, cluster_radius_km, cluster.algo.dbscan, verbose)
       clusters[ind] <- res$cluster_id %+=% length(keep)
       centroids <- integer(length(keep) + res$num_clusters)
       centroids[seq_along(keep)] <- keep
-      centroids[-seq_along(keep)] <- suppressMessages(ind[geodist_min(res$cluster_centroids[,2:1, drop = FALSE], mat[,2:1], measure = "haversine", quiet = TRUE)])
+      centroids[-seq_along(keep)] <- suppressMessages(ind[geodist_min(res$cluster_centroids, mat[,2:1], measure = "haversine", quiet = TRUE)])
     } else centroids <- keep
   } else {
     mat <- cbind(Y = nodes$Y, X = nodes$X)
     weights <- if(length(nodes$weights)) nodes$weights else alloc(1, nrow(mat))
-    res <- leaderCluster(mat, cluster_radius_km, weights, max_iter = 250L, distance = "haversine")
-    if(res$iter >= 250) warning("leaderCluster did not fully converge within 250 iterations")
-    else if(verbose) cat("leaderCluster algorithm converged in", res$iter, "iterations\n")
+    res <- cluster_remaining_nodes(mat, weights, cluster_radius_km, cluster.algo.dbscan, verbose)
     clusters <- res$cluster_id
-    centroids <- res$cluster_centroids[,2:1, drop = FALSE]
-    dimnames(centroids)[[2L]] <- c("X", "Y")
-    centroids <- suppressMessages(geodist_min(centroids, mat[,2:1], measure = "haversine", quiet = TRUE))
+    centroids <- suppressMessages(geodist_min(res$cluster_centroids, mat[,2:1], measure = "haversine", quiet = TRUE))
   }
   list(clusters = clusters, centroids = nodes$node[centroids])
 }

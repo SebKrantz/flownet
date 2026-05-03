@@ -14,6 +14,7 @@ simplify_network(
   radius_km = list(nodes = 7, cluster = 20),
   verbose = TRUE,
   nthreads = 1L,
+  cluster.algo.dbscan = FALSE,
   ...
 )
 }
@@ -53,12 +54,16 @@ For \code{method = "cluster"}: edges are grouped by \code{from}, \code{to}, AND
 Only used for \code{method = "cluster"}.
 \code{nodes}: radius in kilometers around preserved nodes. Graph nodes within this radius
 will be assigned to the nearest preserved node's cluster.
-\code{cluster}: radius in kilometers for clustering remaining nodes using leaderCluster.}
+\code{cluster}: radius in kilometers for clustering remaining nodes.}
 
 \item{verbose}{Logical (default: TRUE). Whether to print progress messages/bars.}
 
 \item{nthreads}{Integer (default: 1). Number of threads used with \code{method = "shortest-paths"}.
 If greater than 1, shortest-path tasks are split across \code{mirai} daemons.}
+
+\item{cluster.algo.dbscan}{Logical (default: FALSE). If TRUE, use \code{\link[dbscan]{dbscan}}
+instead of \code{\link[leaderCluster]{leaderCluster}} for clustering remaining nodes.
+This requires the \pkg{dbscan} package.}
 
 \item{\dots}{For \code{method = "cluster"}: additional arguments passed to
 \code{\link[collapse]{collap}} for edge attribute aggregation.}
@@ -105,7 +110,8 @@ Spatially simplify a network graph using shortest paths or node clustering metho
   \item Requires the graph to have spatial coordinates (\code{FX}, \code{FY}, \code{TX}, \code{TY})
   \item If \code{nodes} is provided, these nodes are preserved as cluster centroids
   \item Nearby nodes (within \code{radius_km$nodes} km) are assigned to the nearest preserved node
-  \item Remaining nodes are clustered using \code{\link[leaderCluster]{leaderCluster}} with
+  \item Remaining nodes are clustered using \code{\link[leaderCluster]{leaderCluster}} by default,
+    or \code{\link[dbscan]{dbscan}} when \code{cluster.algo.dbscan = TRUE}, with
     \code{radius_km$cluster} as the clustering radius
   \item For each cluster, the node closest to the cluster centroid is selected as representative
   \item The graph is contracted by mapping all nodes to their cluster representatives
