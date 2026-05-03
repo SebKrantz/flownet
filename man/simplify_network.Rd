@@ -110,6 +110,7 @@ Spatially simplify a network graph using shortest paths or node clustering metho
   \item For each cluster, the node closest to the cluster centroid is selected as representative
   \item The graph is contracted by mapping all nodes to their cluster representatives
   \item Self-loops (edges where both endpoints map to the same cluster) are dropped
+  \item This is a spatial simplification method and does not preserve intra-cluster topology
   \item For undirected graphs (\code{directed = FALSE}), edges are normalized so \code{from < to},
     merging opposite-direction edges; for directed graphs, A->B and B->A remain separate
   \item Edge attributes are aggregated using \code{\link[collapse]{collap}} (default: mean for

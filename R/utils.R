@@ -1006,6 +1006,7 @@ compute_degrees <- function(from_vec, to_vec) {
 #'   \item For each cluster, the node closest to the cluster centroid is selected as representative
 #'   \item The graph is contracted by mapping all nodes to their cluster representatives
 #'   \item Self-loops (edges where both endpoints map to the same cluster) are dropped
+#'   \item This is a spatial simplification method and does not preserve intra-cluster topology
 #'   \item For undirected graphs (\code{directed = FALSE}), edges are normalized so \code{from < to},
 #'     merging opposite-direction edges; for directed graphs, A->B and B->A remain separate
 #'   \item Edge attributes are aggregated using \code{\link[collapse]{collap}} (default: mean for
@@ -1312,16 +1313,16 @@ cluster_nodes <- function(nodes, keep,
       clusters[ind] <- res$cluster_id %+=% length(keep)
       centroids <- integer(length(keep) + res$num_clusters)
       centroids[seq_along(keep)] <- keep
-      centroids[-seq_along(keep)] <- suppressMessages(ind[geodist_min(res$cluster_centroids[,2:1], mat[,2:1], measure = "haversine", quiet = TRUE)])
+      centroids[-seq_along(keep)] <- suppressMessages(ind[geodist_min(res$cluster_centroids[,2:1, drop = FALSE], mat[,2:1], measure = "haversine", quiet = TRUE)])
     } else centroids <- keep
   } else {
     mat <- cbind(Y = nodes$Y, X = nodes$X)
-    weights <- if(length(nodes$weights)) nodes$weights[ind] else alloc(1, nrow(mat))
+    weights <- if(length(nodes$weights)) nodes$weights else alloc(1, nrow(mat))
     res <- leaderCluster(mat, cluster_radius_km, weights, max_iter = 250L, distance = "haversine")
     if(res$iter >= 250) warning("leaderCluster did not fully converge within 250 iterations")
     else if(verbose) cat("leaderCluster algorithm converged in", res$iter, "iterations\n")
     clusters <- res$cluster_id
-    centroids <- res$cluster_centroids[,2:1]
+    centroids <- res$cluster_centroids[,2:1, drop = FALSE]
     dimnames(centroids)[[2L]] <- c("X", "Y")
     centroids <- suppressMessages(geodist_min(centroids, mat[,2:1], measure = "haversine", quiet = TRUE))
   }
@@ -1338,6 +1339,12 @@ contract_edges <- function(graph, nodes, clusters, centroids, directed = FALSE, 
     if(any(self_loops)) {
       if(verbose) cat("Dropped", sum(self_loops), "self-loop edges (following clustering)\n")
       graph <- ss(graph, !self_loops, check = FALSE)
+    }
+    if(!fnrow(graph)) {
+      attr(graph, "group.id") <- integer(0)
+      attr(graph, "group.starts") <- integer(0)
+      attr(graph, "group.sizes") <- integer(0)
+      return(graph)
     }
 
     # For undirected graphs, normalize edge direction so from < to
