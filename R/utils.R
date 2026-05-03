@@ -1285,6 +1285,39 @@ simplify_network <- function(graph_df, nodes = NULL, method = c("shortest-paths"
 }
 
 # Helper functions for simplify_network() with method = "cluster"
+assign_nodes_to_keep <- function(nodes, keep, radius_km, max_dmat_size = 1e7, verbose = TRUE) {
+  n_keep <- length(keep)
+  ind <- seq_len(fnrow(nodes))[-keep]
+  if(!length(ind)) return(list(nodes = integer(0), clusters = integer(0)))
+
+  chunk_size <- max(1L, floor(max_dmat_size / n_keep))
+  radius_m <- radius_km * 1000
+  close_nodes <- close_clusters <- integer(length(ind))
+  n_close <- 0L
+
+  if(verbose && length(ind) > chunk_size) {
+    cat("Processing keep-node distances in", ceiling(length(ind) / chunk_size), "chunks\n")
+  }
+
+  for(i in seq.int(1L, length(ind), by = chunk_size)) {
+    idx <- ind[i:min(i + chunk_size - 1L, length(ind))]
+    dmat <- geodist_vec(nodes$X[keep], nodes$Y[keep],
+                        nodes$X[idx], nodes$Y[idx],
+                        measure = "haversine")
+    close <- fmin(dmat) < radius_m
+    if(any(close)) {
+      n <- sum(close)
+      rng <- seq.int(n_close + 1L, n_close + n)
+      close_nodes[rng] <- idx[close]
+      close_clusters[rng] <- seq_along(keep)[dapply(dmat[, close, drop = FALSE], which.min)]
+      n_close <- n_close + n
+    }
+  }
+
+  if(!n_close) return(list(nodes = integer(0), clusters = integer(0)))
+  list(nodes = close_nodes[seq_len(n_close)], clusters = close_clusters[seq_len(n_close)])
+}
+
 cluster_nodes <- function(nodes, keep,
                           nodes_radius_km = 7,
                           cluster_radius_km = 20, verbose = TRUE) {
@@ -1295,13 +1328,8 @@ cluster_nodes <- function(nodes, keep,
     clusters[keep] <- seq_along(keep)
     if(verbose) cat("Clustering nodes close to 'keep' nodes using a radius of ", nodes_radius_km, "km\n", sep = "")
     # Cluster nodes close to cities
-    dmat <- geodist_vec(nodes$X[keep], nodes$Y[keep],
-                        nodes$X[-keep], nodes$Y[-keep],
-                        measure = "haversine")
-    close <- fmin(dmat) < nodes_radius_km * 1000
-    if(any(close)) {
-      clusters[-keep][close] <- seq_along(keep)[dapply(dmat[, close, drop = FALSE], which.min)]
-    }
+    close <- assign_nodes_to_keep(nodes, keep, nodes_radius_km, verbose = verbose)
+    if(length(close$nodes)) clusters[close$nodes] <- close$clusters
     ind <- whichv(clusters, 0L)
     if(length(ind)) {
       mat <- cbind(Y = nodes$Y[ind], X = nodes$X[ind])
