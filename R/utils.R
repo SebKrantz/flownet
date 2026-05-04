@@ -1430,11 +1430,11 @@ cluster_remaining_nodes <- function(mat, weights, cluster_radius_km, cluster.alg
   }
 
   if(verbose) cat("Clustering the remaining nodes with dbscan using a radius of ", cluster_radius_km, "km\n", sep = "")
-  lat_rad <- mat[, "Y"] * pi / 180
-  coords <- cbind(X = mat[, "X"] / cos(lat_rad), Y = mat[, "Y"]) * 111.32
+  coords <- lonlat_to_xyz(mat[, "X"], mat[, "Y"])
+  eps <- chord_radius_km(cluster_radius_km)
   # Do not pass weights to dbscan: they affect density/noise classification.
   # Weights are only used below to compute representative cluster centroids.
-  cluster_id <- dbscan::dbscan(coords, eps = cluster_radius_km, minPts = 1L)$cluster
+  cluster_id <- dbscan::dbscan(coords, eps = eps, minPts = 1L)$cluster
   if(any(cluster_id == 0L)) stop("dbscan returned unassigned noise points despite minPts = 1")
 
   num_clusters <- max(cluster_id)
