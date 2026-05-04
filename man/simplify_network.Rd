@@ -14,6 +14,7 @@ simplify_network(
   radius_km = list(nodes = 7, cluster = 20),
   verbose = TRUE,
   nthreads = 1L,
+  nodes.algo.rann = FALSE,
   cluster.algo.dbscan = FALSE,
   ...
 )
@@ -60,6 +61,10 @@ will be assigned to the nearest preserved node's cluster.
 
 \item{nthreads}{Integer (default: 1). Number of threads used with \code{method = "shortest-paths"}.
 If greater than 1, shortest-path tasks are split across \code{mirai} daemons.}
+
+\item{nodes.algo.rann}{Logical (default: FALSE). If TRUE, use \pkg{RANN} for fast
+3D Cartesian nearest-neighbor preselection with exact geodesic validation when assigning
+nodes close to preserved nodes. This requires the \pkg{RANN} package.}
 
 \item{cluster.algo.dbscan}{Logical (default: FALSE). If TRUE, use \code{\link[dbscan]{dbscan}}
 instead of \code{\link[leaderCluster]{leaderCluster}} for clustering remaining nodes.
@@ -110,6 +115,8 @@ Spatially simplify a network graph using shortest paths or node clustering metho
   \item Requires the graph to have spatial coordinates (\code{FX}, \code{FY}, \code{TX}, \code{TY})
   \item If \code{nodes} is provided, these nodes are preserved as cluster centroids
   \item Nearby nodes (within \code{radius_km$nodes} km) are assigned to the nearest preserved node
+    using exact geodesic distances after optional RANN-based preselection when
+    \code{nodes.algo.rann = TRUE}
   \item Remaining nodes are clustered using \code{\link[leaderCluster]{leaderCluster}} by default,
     or \code{\link[dbscan]{dbscan}} when \code{cluster.algo.dbscan = TRUE}, with
     \code{radius_km$cluster} as the clustering radius

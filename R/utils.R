@@ -957,6 +957,9 @@ compute_degrees <- function(from_vec, to_vec) {
 #'   \code{nodes}: radius in kilometers around preserved nodes. Graph nodes within this radius
 #'   will be assigned to the nearest preserved node's cluster.
 #'   \code{cluster}: radius in kilometers for clustering remaining nodes.
+#' @param nodes.algo.rann Logical (default: FALSE). If TRUE, use \pkg{RANN} for fast
+#'   3D Cartesian nearest-neighbor preselection with exact geodesic validation when assigning
+#'   nodes close to preserved nodes. This requires the \pkg{RANN} package.
 #' @param cluster.algo.dbscan Logical (default: FALSE). If TRUE, use \code{\link[dbscan]{dbscan}}
 #'   instead of \code{\link[leaderCluster]{leaderCluster}} for clustering remaining nodes.
 #'   This requires the \pkg{dbscan} package.
@@ -1004,6 +1007,8 @@ compute_degrees <- function(from_vec, to_vec) {
 #'   \item Requires the graph to have spatial coordinates (\code{FX}, \code{FY}, \code{TX}, \code{TY})
 #'   \item If \code{nodes} is provided, these nodes are preserved as cluster centroids
 #'   \item Nearby nodes (within \code{radius_km$nodes} km) are assigned to the nearest preserved node
+#'     using exact geodesic distances after optional RANN-based preselection when
+#'     \code{nodes.algo.rann = TRUE}
 #'   \item Remaining nodes are clustered using \code{\link[leaderCluster]{leaderCluster}} by default,
 #'     or \code{\link[dbscan]{dbscan}} when \code{cluster.algo.dbscan = TRUE}, with
 #'     \code{radius_km$cluster} as the clustering radius
@@ -1067,7 +1072,8 @@ compute_degrees <- function(from_vec, to_vec) {
 simplify_network <- function(graph_df, nodes = NULL, method = c("shortest-paths", "cluster"),
                              directed = FALSE, cost.column = "cost", by = NULL,
                              radius_km = list(nodes = 7, cluster = 20), verbose = TRUE,
-                             nthreads = 1L, cluster.algo.dbscan = FALSE, ...) {
+                             nthreads = 1L, nodes.algo.rann = FALSE,
+                             cluster.algo.dbscan = FALSE, ...) {
 
   method <- match.arg(method)
 
@@ -1278,7 +1284,7 @@ simplify_network <- function(graph_df, nodes = NULL, method = c("shortest-paths"
     if(is.numeric(cost.column) && length(cost.column) == fnrow(nodes_df)) nodes_df$weights <- cost.column
     # Cluster method
     cl <- cluster_nodes(nodes_df, funique.default(nodes), radius_km$nodes, radius_km$cluster,
-                        verbose, cluster.algo.dbscan)
+                        verbose, cluster.algo.dbscan, nodes.algo.rann)
     # Graph Contraction to Clusters
     result <- contract_edges(graph_df, nodes = nodes_df, clusters = cl$clusters,
                              centroids = cl$centroids, directed = directed, by = by,
@@ -1290,6 +1296,91 @@ simplify_network <- function(graph_df, nodes = NULL, method = c("shortest-paths"
 }
 
 # Helper functions for simplify_network() with method = "cluster"
+lonlat_to_xyz <- function(x, y, radius_km = 6371.0088) {
+  lon <- x * pi / 180
+  lat <- y * pi / 180
+  clat <- cos(lat)
+  cbind(X = radius_km * clat * cos(lon),
+        Y = radius_km * clat * sin(lon),
+        Z = radius_km * sin(lat))
+}
+
+chord_radius_km <- function(radius_km, earth_radius_km = 6371.0088) {
+  2 * earth_radius_km * sin(radius_km / (2 * earth_radius_km))
+}
+
+estimate_radius_k <- function(keep_xyz, radius_km, radius_factor = 1.005,
+                              min_k = 16L, safety = 2) {
+  n_keep <- nrow(keep_xyz)
+  if(n_keep <= 1L) return(1L)
+
+  nn <- RANN::nn2(keep_xyz, k = min(2L, n_keep))
+  d <- nn$nn.dists[, min(2L, n_keep)]
+  d <- d[is.finite(d) & d > 0]
+  if(!length(d)) return(min(n_keep, max(min_k, 256L)))
+
+  resolution_km <- unname(stats::quantile(d, probs = 0.05, names = FALSE, type = 8))
+  k <- ceiling(safety * (2 * pi / sqrt(3)) * (radius_km * radius_factor / resolution_km + 0.5)^2)
+  min(n_keep, max(min_k, k))
+}
+
+assign_nodes_to_keep_rann <- function(nodes, keep, radius_km, radius_factor = 1.005,
+                                      max_query_size = 250000L, verbose = TRUE) {
+  n <- fnrow(nodes)
+  n_keep <- length(keep)
+  ind <- seq_len(n)[-keep]
+  if(!length(ind)) return(list(nodes = integer(0), clusters = integer(0)))
+
+  keep_xyz <- lonlat_to_xyz(nodes$X[keep], nodes$Y[keep])
+  nodes_xyz <- lonlat_to_xyz(nodes$X, nodes$Y)
+  pre_radius <- chord_radius_km(radius_km * radius_factor)
+  k0 <- estimate_radius_k(keep_xyz, radius_km, radius_factor)
+  radius_m <- radius_km * 1000
+  close_nodes <- close_clusters <- integer(length(ind))
+  n_close <- 0L
+
+  if(verbose) {
+    cat("Assigning nodes close to 'keep' nodes with RANN using k = ", k0,
+        " and a radius factor of ", radius_factor, "\n", sep = "")
+  }
+
+  for(i in seq.int(1L, length(ind), by = max_query_size)) {
+    idx <- ind[i:min(i + max_query_size - 1L, length(ind))]
+    k <- k0
+    repeat {
+      nn <- RANN::nn2(keep_xyz, nodes_xyz[idx, , drop = FALSE], k = k,
+                      treetype = "kd", searchtype = "radius", radius = pre_radius)
+      ok <- is.finite(nn$nn.dists) & nn$nn.idx > 0L
+      saturated <- k < n_keep && any(rowSums(ok) >= k)
+      if(!saturated) break
+      k <- min(n_keep, k * 2L)
+      if(verbose) cat("Increasing RANN candidate k to ", k, " for a dense keep-node chunk\n", sep = "")
+    }
+
+    if(any(ok)) {
+      dmat <- matrix(Inf, nrow = length(idx), ncol = k)
+      rows <- row(nn$nn.idx)[ok]
+      cand <- nn$nn.idx[ok]
+      dmat[ok] <- geodist_vec(nodes$X[idx[rows]], nodes$Y[idx[rows]],
+                              nodes$X[keep[cand]], nodes$Y[keep[cand]],
+                              paired = TRUE, measure = "geodesic")
+      best_col <- max.col(-dmat, ties.method = "first")
+      best_dist <- dmat[cbind(seq_along(idx), best_col)]
+      close <- best_dist < radius_m
+      if(any(close)) {
+        n_new <- sum(close)
+        rng <- seq.int(n_close + 1L, n_close + n_new)
+        close_nodes[rng] <- idx[close]
+        close_clusters[rng] <- nn$nn.idx[cbind(which(close), best_col[close])]
+        n_close <- n_close + n_new
+      }
+    }
+  }
+
+  if(!n_close) return(list(nodes = integer(0), clusters = integer(0)))
+  list(nodes = close_nodes[seq_len(n_close)], clusters = close_clusters[seq_len(n_close)])
+}
+
 assign_nodes_to_keep <- function(nodes, keep, radius_km, max_dmat_size = 1e7, verbose = TRUE) {
   n_keep <- length(keep)
   ind <- seq_len(fnrow(nodes))[-keep]
@@ -1358,7 +1449,8 @@ cluster_remaining_nodes <- function(mat, weights, cluster_radius_km, cluster.alg
 cluster_nodes <- function(nodes, keep,
                           nodes_radius_km = 7,
                           cluster_radius_km = 20, verbose = TRUE,
-                          cluster.algo.dbscan = FALSE) {
+                          cluster.algo.dbscan = FALSE,
+                          nodes.algo.rann = FALSE) {
   # Nodes to preserve
   if(length(keep)) {
     clusters <- integer(fnrow(nodes))
@@ -1366,7 +1458,14 @@ cluster_nodes <- function(nodes, keep,
     clusters[keep] <- seq_along(keep)
     if(verbose) cat("Clustering nodes close to 'keep' nodes using a radius of ", nodes_radius_km, "km\n", sep = "")
     # Cluster nodes close to cities
-    close <- assign_nodes_to_keep(nodes, keep, nodes_radius_km, verbose = verbose)
+    close <- if(nodes.algo.rann) {
+      if(!requireNamespace("RANN", quietly = TRUE)) {
+        stop("nodes.algo.rann = TRUE requires the RANN package. Install it with install.packages(\"RANN\").")
+      }
+      assign_nodes_to_keep_rann(nodes, keep, nodes_radius_km, verbose = verbose)
+    } else {
+      assign_nodes_to_keep(nodes, keep, nodes_radius_km, verbose = verbose)
+    }
     if(length(close$nodes)) clusters[close$nodes] <- close$clusters
     ind <- whichv(clusters, 0L)
     if(length(ind)) {

@@ -602,6 +602,7 @@ test_that("simplify_network cluster has no self-loops", {
 })
 
 test_that("simplify_network cluster adds group attributes", {
+  testthat::skip_if_not_installed("RANN")
   graph <- linestrings_from_graph(africa_segments[1:100, ]) |>
     linestrings_to_graph()
   nodes_df <- nodes_from_graph(graph)
@@ -610,10 +611,28 @@ test_that("simplify_network cluster adds group attributes", {
   result <- simplify_network(graph, nodes = keep_nodes,
                              method = "cluster",
                              cost.column = ".length",
-                             radius_km = list(nodes = 50, cluster = 100), verbose = FALSE)
+                             radius_km = list(nodes = 50, cluster = 100),
+                             nodes.algo.rann = TRUE, verbose = FALSE)
 
   expect_true(!is.null(attr(result, "group.id")))
   expect_true(!is.null(attr(result, "group.starts")))
+})
+
+test_that("RANN keep-node assignment matches dense assignment", {
+  testthat::skip_if_not_installed("RANN")
+  nodes <- data.frame(
+    node = seq_len(10),
+    X = c(0, 0.005, 0.02, 1, 1.004, 1.03, 10, 10.01, -20, -20.02),
+    Y = c(0, 0.004, 0.01, 1, 1.003, 1.02, 0, 0.02, 5, 5.01)
+  )
+  keep <- c(1L, 4L, 9L)
+
+  dense <- assign_nodes_to_keep(nodes, keep, radius_km = 3, verbose = FALSE)
+  rann <- assign_nodes_to_keep_rann(nodes, keep, radius_km = 3,
+                                    max_query_size = 3L, verbose = FALSE)
+
+  expect_identical(rann$nodes, dense$nodes)
+  expect_identical(rann$clusters, dense$clusters)
 })
 
 test_that("simplify_network cluster errors without coordinate columns", {
