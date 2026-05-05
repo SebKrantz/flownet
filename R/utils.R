@@ -1285,6 +1285,7 @@ simplify_network <- function(graph_df, nodes = NULL, method = c("shortest-paths"
     # Cluster method
     cl <- cluster_nodes(nodes_df, funique.default(nodes), radius_km$nodes, radius_km$cluster,
                         verbose, cluster.algo.dbscan, nodes.algo.rann)
+    if(verbose) cat("Clustering step completed. Identified", cl$num_clusters, "clusters\n")
     # Graph Contraction to Clusters
     result <- contract_edges(graph_df, nodes = nodes_df, clusters = cl$clusters,
                              centroids = cl$centroids, directed = directed, by = by,
@@ -1381,6 +1382,20 @@ assign_nodes_to_keep_rann <- function(nodes, keep, radius_km, radius_factor = 1.
   list(nodes = close_nodes[seq_len(n_close)], clusters = close_clusters[seq_len(n_close)])
 }
 
+nearest_lonlat <- function(query, data, use_rann = FALSE) {
+  if(use_rann) {
+    if(!requireNamespace("RANN", quietly = TRUE)) {
+      stop("nodes.algo.rann = TRUE requires the RANN package. Install it with install.packages(\"RANN\").")
+    }
+    nn <- RANN::nn2(lonlat_to_xyz(data[, "X"], data[, "Y"]),
+                    lonlat_to_xyz(query[, "X"], query[, "Y"]),
+                    k = 1L, treetype = "kd")
+    return(nn$nn.idx[, 1L])
+  }
+
+  suppressMessages(geodist_min(query, data, measure = "haversine", quiet = TRUE))
+}
+
 assign_nodes_to_keep <- function(nodes, keep, radius_km, max_dmat_size = 1e7, verbose = TRUE) {
   n_keep <- length(keep)
   ind <- seq_len(fnrow(nodes))[-keep]
@@ -1475,14 +1490,18 @@ cluster_nodes <- function(nodes, keep,
       clusters[ind] <- res$cluster_id %+=% length(keep)
       centroids <- integer(length(keep) + res$num_clusters)
       centroids[seq_along(keep)] <- keep
-      centroids[-seq_along(keep)] <- suppressMessages(ind[geodist_min(res$cluster_centroids, mat[,2:1], measure = "haversine", quiet = TRUE)])
+      candidates <- mat[,2:1, drop = FALSE]
+      colnames(candidates) <- colnames(res$cluster_centroids) <- c("X", "Y")
+      centroids[-seq_along(keep)] <- ind[nearest_lonlat(res$cluster_centroids, candidates, nodes.algo.rann)]
     } else centroids <- keep
   } else {
     mat <- cbind(Y = nodes$Y, X = nodes$X)
     weights <- if(length(nodes$weights)) nodes$weights else alloc(1, nrow(mat))
     res <- cluster_remaining_nodes(mat, weights, cluster_radius_km, cluster.algo.dbscan, verbose)
     clusters <- res$cluster_id
-    centroids <- suppressMessages(geodist_min(res$cluster_centroids, mat[,2:1], measure = "haversine", quiet = TRUE))
+    candidates <- mat[, 2:1, drop = FALSE]
+    colnames(candidates) <- colnames(res$cluster_centroids) <- c("X", "Y")
+    centroids <- nearest_lonlat(res$cluster_centroids, candidates, nodes.algo.rann)
   }
   list(clusters = clusters, centroids = nodes$node[centroids])
 }
