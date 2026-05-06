@@ -983,6 +983,7 @@ compute_degrees <- function(from_vec, to_vec) {
 #'         \item \code{from}, \code{to} - Cluster centroid node IDs
 #'         \item \code{FX}, \code{FY}, \code{TX}, \code{TY} - Coordinates of cluster centroid nodes
 #'         \item Aggregated edge attributes from the original graph
+#'         \item Attribute \code{"keep.edges"}: integer vector of edge indices from the original graph that were kept
 #'         \item Attribute \code{"group.id"}: mapping from original edges to simplified edges
 #'         \item Attribute \code{"group.starts"}: start indices of each group
 #'         \item Attribute \code{"group.sizes"}: number of original edges per simplified edge
@@ -1516,6 +1517,7 @@ contract_edges <- function(graph, nodes, clusters, centroids, directed = FALSE, 
     if(any(self_loops)) {
       if(verbose) cat("Dropped", sum(self_loops), "self-loop edges (following clustering)\n")
       graph <- ss(graph, !self_loops, check = FALSE)
+      attr(graph, "keep.edges") <- which(!self_loops)
     }
     if(!fnrow(graph)) {
       attr(graph, "group.id") <- integer(0)

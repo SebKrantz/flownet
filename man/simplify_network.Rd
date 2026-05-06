@@ -88,6 +88,7 @@ A data.frame containing the simplified graph with:
         \item \code{from}, \code{to} - Cluster centroid node IDs
         \item \code{FX}, \code{FY}, \code{TX}, \code{TY} - Coordinates of cluster centroid nodes
         \item Aggregated edge attributes from the original graph
+        \item Attribute \code{"keep.edges"}: integer vector of edge indices from the original graph that were kept
         \item Attribute \code{"group.id"}: mapping from original edges to simplified edges
         \item Attribute \code{"group.starts"}: start indices of each group
         \item Attribute \code{"group.sizes"}: number of original edges per simplified edge
