@@ -89,9 +89,9 @@ A data.frame containing the simplified graph with:
         \item \code{FX}, \code{FY}, \code{TX}, \code{TY} - Coordinates of cluster centroid nodes
         \item Aggregated edge attributes from the original graph
         \item Attribute \code{"keep.edges"}: integer vector of edge indices from the original graph that were kept
-        \item Attribute \code{"group.id"}: mapping from original edges to simplified edges
-        \item Attribute \code{"group.starts"}: start indices of each group
-        \item Attribute \code{"group.sizes"}: number of original edges per simplified edge
+        \item Attribute \code{"group.id"}: integer vector aligned with \code{"keep.edges"}, mapping each kept edge to its row in the result
+        \item Attribute \code{"group.starts"}: index of the first kept edge of each output group
+        \item Attribute \code{"group.sizes"}: number of original edges aggregated into each output edge
       }
   }
 }

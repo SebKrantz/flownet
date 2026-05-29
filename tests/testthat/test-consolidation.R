@@ -561,6 +561,42 @@ test_that("consolidate_graph leaves pure cycles intact (no crash/hang, C == R)",
   }
 })
 
+test_that("consolidate_graph result attributes match the documented contract", {
+  # Junction at node 3 so some edges survive consolidation.
+  g <- data.frame(from = c(1, 2, 3, 3, 6, 3, 8), to = c(2, 3, 4, 6, 7, 8, 9),
+                  cost = 1, edge = 1:7)
+
+  # none / partial: keep.edges and group.id are attached together and aligned.
+  for (rec in c("none", "partial")) {
+    r <- consolidate_graph(g, recursive = rec, verbose = FALSE)
+    ke <- attr(r, "keep.edges"); gid <- attr(r, "group.id")
+    expect_false(is.null(ke))
+    expect_false(is.null(gid))
+    expect_identical(length(ke), length(gid))
+    expect_true(all(gid >= 1L & gid <= nrow(r)))
+  }
+
+  # full (default): omitted by design (mapping would span multiple passes).
+  rf <- consolidate_graph(g, recursive = "full", verbose = FALSE)
+  expect_null(attr(rf, "keep.edges"))
+  expect_null(attr(rf, "group.id"))
+
+  # contract = FALSE (non-full) still exposes both, with identity group.id.
+  rc <- consolidate_graph(g, contract = FALSE, recursive = "none", verbose = FALSE)
+  expect_identical(attr(rc, "group.id"), seq_along(attr(rc, "keep.edges")))
+})
+
+test_that("create_undirected_graph attaches documented grouping attributes", {
+  g <- data.frame(from = c(1, 2, 2, 1), to = c(2, 3, 1, 2),
+                  edge = 1:4, FX = 0, FY = 0, TX = 1, TY = 1, cost = 1)
+  r <- create_undirected_graph(g)
+  expect_false(is.null(attr(r, "group.id")))
+  expect_false(is.null(attr(r, "group.starts")))
+  expect_false(is.null(attr(r, "group.sizes")))
+  expect_identical(length(attr(r, "group.id")), nrow(g))      # one entry per input edge
+  expect_identical(length(attr(r, "group.sizes")), nrow(r))   # one entry per output edge
+})
+
 test_that("simplify_network cluster method sets keep.edges (with and without self-loops)", {
   # Two distant clusters -> no self-loops after contraction.
   g_nosl <- data.frame(

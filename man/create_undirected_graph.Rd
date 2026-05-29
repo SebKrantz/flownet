@@ -26,6 +26,13 @@ A data frame representing an undirected graph with:
     \item \code{TY} - Ending node Y-coordinate (first value from duplicates)
     \item Aggregated columns
   }
+  The result also carries grouping attributes describing how the input (directed)
+  edges map onto the undirected output edges:
+  \itemize{
+    \item Attribute \code{"group.id"} - Integer vector (length \code{nrow(graph_df)}) mapping each input edge to its row in the result
+    \item Attribute \code{"group.starts"} - Index of the first input edge of each output group
+    \item Attribute \code{"group.sizes"} - Number of input edges aggregated into each output edge
+  }
 }
 \description{
 Convert a directed graph to an undirected graph by normalizing edges and aggregating duplicate connections.

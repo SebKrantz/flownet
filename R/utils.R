@@ -152,6 +152,13 @@ linestrings_from_graph <- function(graph_df, crs = 4326) {
 #'     \item \code{TY} - Ending node Y-coordinate (first value from duplicates)
 #'     \item Aggregated columns
 #'   }
+#'   The result also carries grouping attributes describing how the input (directed)
+#'   edges map onto the undirected output edges:
+#'   \itemize{
+#'     \item Attribute \code{"group.id"} - Integer vector (length \code{nrow(graph_df)}) mapping each input edge to its row in the result
+#'     \item Attribute \code{"group.starts"} - Index of the first input edge of each output group
+#'     \item Attribute \code{"group.sizes"} - Number of input edges aggregated into each output edge
+#'   }
 #'
 #' @details
 #' This function converts a directed graph to an undirected graph by:
@@ -196,7 +203,9 @@ create_undirected_graph <- function(graph_df, by = NULL, ...) {
   if(any(nam %!in% ord)) {
     add_vars(res) <- collap(get_vars(graph_df, nam[nam %!in% ord]), g, keep.by = FALSE, ...)
   }
+  attr(res, "group.id") <- g$group.id
   attr(res, "group.starts") <- g$group.starts
+  attr(res, "group.sizes") <- g$group.sizes
   res
 }
 
@@ -402,8 +411,14 @@ normalize_graph <- function(graph_df) {
 #'     \item \code{from}, \code{to}, \code{edge} - Node/edge IDs (updated after consolidation)
 #'     \item Coordinate columns (\code{FX}, \code{FY}, \code{TX}, \code{TY}) if present in original
 #'     \item Attribute \code{"keep.edges"} - Indices of original edges that were kept (before aggregation)
-#'     \item Attribute \code{"group.id"} - Integer mapping each kept edge to its row in the result (after aggregation)
+#'     \item Attribute \code{"group.id"} - Integer vector aligned with \code{"keep.edges"}, mapping each kept edge to its row in the result (after aggregation)
 #'   }
+#'   \code{"keep.edges"} and \code{"group.id"} are attached only for
+#'   \code{recursive = "none"} or \code{"partial"}. With the default
+#'   \code{recursive = "full"} they are omitted, because consolidation runs over
+#'   several passes and a single-pass mapping back to the original edges would be
+#'   ambiguous. Use \code{recursive = "partial"} (repeatedly, if needed) when you
+#'   need to trace edges through consolidation.
 #'
 #' @details
 #' This function consolidates/simplifies a graph by:
@@ -477,7 +492,10 @@ consolidate_graph <- function(graph_df, directed = FALSE,
     if(!is.character(by)) stop("by needs to be a character vector or a formula of column names")
   }
 
-  if(length(attr(graph_df, "group.starts"))) attr(graph_df, "group.starts") <- NULL
+  # Drop any stale grouping attributes carried in from an upstream operation
+  # (e.g. create_undirected_graph()); the result gets fresh ones below.
+  for(a in c("keep.edges", "group.id", "group.starts", "group.sizes"))
+    if(length(attr(graph_df, a))) attr(graph_df, a) <- NULL
 
   nam <- names(graph_df)
   nam_rm <- c("from", "to", "FX", "FY", "TX", "TY", "edge", by)
@@ -687,7 +705,10 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
 
   if(!contract) {
     res <- ss(graph_df, keep, check = FALSE)
-    if(reci < 2L) attr(res, "keep.edges") <- keep
+    if(reci < 2L) { # no aggregation here, so group.id is the identity map
+      attr(res, "keep.edges") <- keep
+      attr(res, "group.id") <- seq_along(keep)
+    }
     attr(res, ".early.return") <- TRUE
     if(verbose) cat(sprintf("Timing (s): singleton=%.2f\n", timers["singleton"]))
     return(res)
@@ -879,7 +900,10 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
   if(!contractd_any) {
     if(verbose) cat("No nodes to contract, returning graph\n")
     res <- ss(graph_df, keep, check = FALSE)
-    if(reci < 2L) attr(res, "keep.edges") <- keep
+    if(reci < 2L) { # no aggregation here, so group.id is the identity map
+      attr(res, "keep.edges") <- keep
+      attr(res, "group.id") <- seq_along(keep)
+    }
     attr(res, ".early.return") <- TRUE
     return(res)
   }
@@ -913,7 +937,7 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
                           timers["singleton"], timers["orient"], timers["contract"], timers["aggregate"]))
   if(reci < 2L) {
     attr(res, "keep.edges") <- keep
-    attr(res, "group.id") <- g$group.id
+    attr(res, "group.id") <- if(length(keep)) g$group.id else integer(0)
   }
   res
 }
@@ -1006,9 +1030,9 @@ compute_degrees <- function(from_vec, to_vec) {
 #'         \item \code{FX}, \code{FY}, \code{TX}, \code{TY} - Coordinates of cluster centroid nodes
 #'         \item Aggregated edge attributes from the original graph
 #'         \item Attribute \code{"keep.edges"}: integer vector of edge indices from the original graph that were kept
-#'         \item Attribute \code{"group.id"}: mapping from original edges to simplified edges
-#'         \item Attribute \code{"group.starts"}: start indices of each group
-#'         \item Attribute \code{"group.sizes"}: number of original edges per simplified edge
+#'         \item Attribute \code{"group.id"}: integer vector aligned with \code{"keep.edges"}, mapping each kept edge to its row in the result
+#'         \item Attribute \code{"group.starts"}: index of the first kept edge of each output group
+#'         \item Attribute \code{"group.sizes"}: number of original edges aggregated into each output edge
 #'       }
 #'   }
 #'
