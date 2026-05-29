@@ -12,6 +12,7 @@
 [![Codecov test coverage](https://codecov.io/gh/SebKrantz/flownet/graph/badge.svg)](https://app.codecov.io/gh/SebKrantz/flownet)
 [![minimal R version](https://img.shields.io/badge/R%3E%3D-3.5.0-6666ff.svg)](https://cran.r-project.org/)
 [![dependencies](https://tinyverse.netlify.app/badge/flownet)](https://CRAN.R-project.org/package=flownet)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/SebKrantz/flownet)
 <!-- badges: end -->
 
 **Transport Modeling: Network Processing, Route Enumeration, and Traffic Assignment**
