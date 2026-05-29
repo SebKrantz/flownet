@@ -1020,8 +1020,8 @@ compute_degrees <- function(from_vec, to_vec) {
 #'     \item For \code{method = "shortest-paths"}:
 #'       \itemize{
 #'         \item All columns from the input \code{graph_df} (for edges that were kept)
-#'         \item Attribute \code{"edges"}: integer vector of edge indices from the original graph
-#'         \item Attribute \code{"edge_counts"}: integer vector indicating how many times each edge was traversed
+#'         \item Attribute \code{"keep.edges"}: integer vector of edge indices from the original graph
+#'         \item Attribute \code{"edge.counts"}: integer vector indicating how many times each retained edge was traversed
 #'       }
 #'     \item For \code{method = "cluster"}:
 #'       \itemize{
@@ -1317,8 +1317,8 @@ simplify_network <- function(graph_df, nodes = NULL, method = c("shortest-paths"
     if(verbose) cat(sprintf("Retained %d/%d edges traversed by shortest paths (%.1f%%)\n",
                             length(edges), fnrow(graph_df),
                             100 * length(edges) / fnrow(graph_df)))
-    attr(result, "edges") <- edges
-    attr(result, "edge_counts") <- edges_traversed[edges]
+    attr(result, "keep.edges") <- edges
+    attr(result, "edge.counts") <- edges_traversed[edges]
 
   } else {
 

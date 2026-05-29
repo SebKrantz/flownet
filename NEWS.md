@@ -30,6 +30,13 @@
 
 - The simplified graph returned by `method = "cluster"` now carries a `keep.edges` attribute containing the integer indices of the edges retained from the original graph.
 
+## Result Attributes — Breaking Changes
+
+- **`simplify_network(method = "shortest-paths")`**: the two result attributes have been renamed for consistency with the cluster method and `consolidate_graph()`:
+  - `"edges"` → `"keep.edges"` (integer vector of retained edge indices)
+  - `"edge_counts"` → `"edge.counts"` (traversal counts for each retained edge)
+  Update any code that reads `attr(result, "edges")` or `attr(result, "edge_counts")`.
+
 ## Result Attributes
 
 - The grouping/edge-tracking attributes attached to results are now consistent and documented. `consolidate_graph()` attaches `keep.edges` and `group.id` together (aligned, same length) for `recursive = "none"` or `"partial"`; with the default `recursive = "full"` they are omitted (the mapping would span multiple passes), which is now stated in the documentation. `create_undirected_graph()` now also exposes `group.id` and `group.sizes` (previously only `group.starts`, and undocumented), and `consolidate_graph()` strips any stale grouping attributes carried in from upstream operations.

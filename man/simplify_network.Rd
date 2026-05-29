@@ -79,8 +79,8 @@ A data.frame containing the simplified graph with:
     \item For \code{method = "shortest-paths"}:
       \itemize{
         \item All columns from the input \code{graph_df} (for edges that were kept)
-        \item Attribute \code{"edges"}: integer vector of edge indices from the original graph
-        \item Attribute \code{"edge_counts"}: integer vector indicating how many times each edge was traversed
+        \item Attribute \code{"keep.edges"}: integer vector of edge indices from the original graph
+        \item Attribute \code{"edge.counts"}: integer vector indicating how many times each retained edge was traversed
       }
     \item For \code{method = "cluster"}:
       \itemize{

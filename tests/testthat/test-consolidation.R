@@ -464,8 +464,8 @@ test_that("simplify_network shortest-paths has edges attribute", {
                              method = "shortest-paths",
                              cost.column = "cost", verbose = FALSE)
 
-  expect_true(!is.null(attr(result, "edges")))
-  expect_true(all(attr(result, "edges") <= nrow(graph)))
+  expect_true(!is.null(attr(result, "keep.edges")))
+  expect_true(all(attr(result, "keep.edges") <= nrow(graph)))
 })
 
 test_that("simplify_network shortest-paths has edge_counts attribute", {
@@ -479,7 +479,7 @@ test_that("simplify_network shortest-paths has edge_counts attribute", {
                              method = "shortest-paths",
                              cost.column = "cost", verbose = FALSE)
 
-  edge_counts <- attr(result, "edge_counts")
+  edge_counts <- attr(result, "edge.counts")
   expect_true(!is.null(edge_counts))
   expect_true(all(edge_counts > 0))
 })
@@ -540,8 +540,8 @@ test_that("simplify_network shortest-paths nthreads matches single-thread output
                                 nthreads = 2L, verbose = FALSE)
 
   expect_identical(res_multi, res_single)
-  expect_identical(attr(res_multi, "edges"), attr(res_single, "edges"))
-  expect_identical(attr(res_multi, "edge_counts"), attr(res_single, "edge_counts"))
+  expect_identical(attr(res_multi, "keep.edges"), attr(res_single, "keep.edges"))
+  expect_identical(attr(res_multi, "edge.counts"), attr(res_single, "edge.counts"))
 })
 
 test_that("consolidate_graph leaves pure cycles intact (no crash/hang, C == R)", {
