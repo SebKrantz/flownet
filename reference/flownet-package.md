@@ -32,6 +32,8 @@ processing/preparation.
 — Convert graph to LINESTRING geometries  
 [`distances_from_graph()`](https://sebkrantz.github.io/flownet/reference/distances_from_graph.md)
 — Compute distance matrix from graph  
+[`critical_link_analysis()`](https://sebkrantz.github.io/flownet/reference/critical_link_analysis.md)
+— Compute edge detour costs and vulnerability ratios  
 
 **OD Matrix Utilities**
 

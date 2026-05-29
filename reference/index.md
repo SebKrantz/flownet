@@ -41,6 +41,8 @@ and extract information from them.
   : Convert Graph to Linestrings
 - [`distances_from_graph()`](https://sebkrantz.github.io/flownet/reference/distances_from_graph.md)
   : Compute Distance Matrix from Graph
+- [`critical_link_analysis()`](https://sebkrantz.github.io/flownet/reference/critical_link_analysis.md)
+  : Critical Link Analysis
 
 ## OD-Matrix Utilities
 

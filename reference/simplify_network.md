@@ -18,6 +18,9 @@ simplify_network(
   by = NULL,
   radius_km = list(nodes = 7, cluster = 20),
   verbose = TRUE,
+  nthreads = 1L,
+  nodes.algo.rann = FALSE,
+  cluster.algo.dbscan = FALSE,
   ...
 )
 ```
@@ -81,11 +84,31 @@ simplify_network(
   20). Only used for `method = "cluster"`. `nodes`: radius in kilometers
   around preserved nodes. Graph nodes within this radius will be
   assigned to the nearest preserved node's cluster. `cluster`: radius in
-  kilometers for clustering remaining nodes using leaderCluster.
+  kilometers for clustering remaining nodes.
 
 - verbose:
 
   Logical (default: TRUE). Whether to print progress messages/bars.
+
+- nthreads:
+
+  Integer (default: 1). Number of threads used with
+  `method = "shortest-paths"`. If greater than 1, shortest-path tasks
+  are split across `mirai` daemons.
+
+- nodes.algo.rann:
+
+  Logical (default: FALSE). If TRUE, use RANN for fast 3D Cartesian
+  nearest-neighbor preselection with exact geodesic validation when
+  assigning nodes close to preserved nodes. This requires the RANN
+  package.
+
+- cluster.algo.dbscan:
+
+  Logical (default: FALSE). If TRUE, use
+  [`dbscan`](https://rdrr.io/pkg/dbscan/man/dbscan.html) instead of
+  [`leaderCluster`](https://rdrr.io/pkg/leaderCluster/man/leaderCluster.html)
+  for clustering remaining nodes. This requires the dbscan package.
 
 - ...:
 
@@ -101,11 +124,11 @@ A data.frame containing the simplified graph with:
 
   - All columns from the input `graph_df` (for edges that were kept)
 
-  - Attribute `"edges"`: integer vector of edge indices from the
+  - Attribute `"keep.edges"`: integer vector of edge indices from the
     original graph
 
-  - Attribute `"edge_counts"`: integer vector indicating how many times
-    each edge was traversed
+  - Attribute `"edge.counts"`: integer vector indicating how many times
+    each retained edge was traversed
 
 - For `method = "cluster"`:
 
@@ -117,13 +140,17 @@ A data.frame containing the simplified graph with:
 
   - Aggregated edge attributes from the original graph
 
-  - Attribute `"group.id"`: mapping from original edges to simplified
-    edges
+  - Attribute `"keep.edges"`: integer vector of edge indices from the
+    original graph that were kept
 
-  - Attribute `"group.starts"`: start indices of each group
+  - Attribute `"group.id"`: integer vector aligned with `"keep.edges"`,
+    mapping each kept edge to its row in the result
 
-  - Attribute `"group.sizes"`: number of original edges per simplified
-    edge
+  - Attribute `"group.starts"`: index of the first kept edge of each
+    output group
+
+  - Attribute `"group.sizes"`: number of original edges aggregated into
+    each output edge
 
 ## Details
 
@@ -152,11 +179,14 @@ networks:
 - If `nodes` is provided, these nodes are preserved as cluster centroids
 
 - Nearby nodes (within `radius_km$nodes` km) are assigned to the nearest
-  preserved node
+  preserved node using exact geodesic distances after optional
+  RANN-based preselection when `nodes.algo.rann = TRUE`
 
 - Remaining nodes are clustered using
   [`leaderCluster`](https://rdrr.io/pkg/leaderCluster/man/leaderCluster.html)
-  with `radius_km$cluster` as the clustering radius
+  by default, or [`dbscan`](https://rdrr.io/pkg/dbscan/man/dbscan.html)
+  when `cluster.algo.dbscan = TRUE`, with `radius_km$cluster` as the
+  clustering radius
 
 - For each cluster, the node closest to the cluster centroid is selected
   as representative
@@ -166,6 +196,9 @@ networks:
 
 - Self-loops (edges where both endpoints map to the same cluster) are
   dropped
+
+- This is a spatial simplification method and does not preserve
+  intra-cluster topology
 
 - For undirected graphs (`directed = FALSE`), edges are normalized so
   `from < to`, merging opposite-direction edges; for directed graphs,
@@ -199,25 +232,29 @@ graph <- consolidate_graph(graph, keep = nearest_nodes, w = ~ passes)
 #>  125 5293 3240  395  102   31    4    2    1    1 
 #> 
 #> Dropped 44 loop edges
-#> Dropped 11 edges leading to singleton nodes
+#> Dropped 11 edges leading to singleton nodes in 11 peeling steps
 #> Oriented 3431 undirected intermediate edges
 #> Contracted 5079 intermediate nodes
 #> Oriented 10 undirected intermediate edges
 #> Contracted 10 intermediate nodes
 #> Aggregated 11330 edges down to 6597 edges
+#> Timing (s): singleton=0.00, orient=0.00, contract=0.00, aggregate=0.00
 #> Oriented 361 undirected intermediate edges
 #> Contracted 375 intermediate nodes
 #> Oriented 8 undirected intermediate edges
 #> Contracted 8 intermediate nodes
 #> Aggregated 6597 edges down to 6264 edges
+#> Timing (s): singleton=0.00, orient=0.00, contract=0.00, aggregate=0.00
 #> Oriented 41 undirected intermediate edges
 #> Contracted 43 intermediate nodes
 #> Oriented 1 undirected intermediate edges
 #> Contracted 1 intermediate nodes
 #> Aggregated 6264 edges down to 6224 edges
+#> Timing (s): singleton=0.00, orient=0.00, contract=0.00, aggregate=0.00
 #> Oriented 2 undirected intermediate edges
 #> Contracted 3 intermediate nodes
 #> Aggregated 6224 edges down to 6221 edges
+#> Timing (s): singleton=0.00, orient=0.00, contract=0.00, aggregate=0.00
 #> No nodes to contract, returning graph
 #> 
 #> Consolidated undirected graph graph from 11385 edges to 6221 edges (54.6%)
@@ -250,7 +287,8 @@ graph_cluster <- simplify_network(graph, nearest_nodes,
                                   w = ~ passes)
 #> Clustering nodes close to 'keep' nodes using a radius of 30km
 #> Clustering the remaining nodes with the leaderCluster algorithm using a radius of 27km
-#> leaderCluster algorithm converged in 7 iterations
+#> leaderCluster algorithm converged in 7 iterations and identified 996 clusters
+#> Clustering step completed. Identified clusters
 #> Dropped 3540 self-loop edges (following clustering)
 #> Oriented 637 undirected edges
 #> Contracting 2681 edges down to 2430 edges

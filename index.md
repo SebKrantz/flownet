@@ -26,6 +26,7 @@ processing/preparation.
 ## Installation
 
 ``` r
+
 # Install from CRAN
 install.packages("flownet")
 
@@ -55,6 +56,7 @@ for richer examples.
 ### Basic Usage
 
 ``` r
+
 library(flownet)
 
 # Create a small graph data frame
@@ -78,6 +80,7 @@ result$final_flows
 ### Working with Spatial Networks
 
 ``` r
+
 library(flownet)
 library(sf)
 
@@ -102,6 +105,7 @@ graph <- simplify_network(graph, nearest_nodes, cost.column = "cost", by = ~ mod
 ### Example Workflow
 
 ``` r
+
 library(fastverse)
 fastverse_extend(flownet, sf, mapview)
 
@@ -221,5 +225,6 @@ GPL-3
 If you use `flownet` in your research, please cite:
 
 ``` r
+
 citation("flownet")
 ```

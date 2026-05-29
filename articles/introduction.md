@@ -29,6 +29,7 @@ Let’s start by loading the required packages and exploring the example
 datasets included with `flownet`:
 
 ``` r
+
 library(fastverse)
 fastverse_extend(flownet, sf, tmap)
 tmap_mode("plot")
@@ -63,6 +64,7 @@ Working Paper 10893. World Bank. Replication materials are available at
 Let’s examine the data:
 
 ``` r
+
 # View network structure (existing links only)
 africa_net <- fsubset(africa_network, !add, -add)
 str(africa_net, max.level = 1)
@@ -180,6 +182,7 @@ matrix derived from city populations.
 First, let’s visualize the network to understand its structure:
 
 ``` r
+
 # Plot network colored by travel speed
 tm_basemap("CartoDB.Positron", zoom = 4) +
 tm_shape(africa_net) +
@@ -203,6 +206,7 @@ already provided, thus we only need to strip the geometry column and
 turn it into a normal data frame.
 
 ``` r
+
 # Convert to graph
 graph <- st_drop_geometry(africa_net)
 head(graph)
@@ -250,6 +254,7 @@ Next, we need to map the city/port locations to the nearest network
 nodes:
 
 ``` r
+
 # Extract nodes with spatial coordinates
 nodes <- nodes_from_graph(graph, sf = TRUE)
 
@@ -266,6 +271,7 @@ function converts the matrix to long format required by
 [`run_assignment()`](https://sebkrantz.github.io/flownet/reference/run_assignment.md):
 
 ``` r
+
 # Create gravity-based OD matrix (population product scaled down)
 od_mat <- outer(africa_cities_ports$population, africa_cities_ports$population) / 1e12
 dimnames(od_mat) <- list(nearest_nodes, nearest_nodes)
@@ -299,6 +305,7 @@ For large networks like this one, we’ll use the All-or-Nothing (AoN)
 method which is faster:
 
 ``` r
+
 # Run Traffic Assignment (All-or-Nothing method for speed)
 result <- run_assignment(graph, od_matrix_long, cost.column = "duration",
                          method = "AoN", return.extra = "all")
@@ -336,6 +343,7 @@ Key parameters:
 Finally, we can visualize the assigned flows on the network:
 
 ``` r
+
 # Add flows to network for visualization
 africa_net$final_flows_log10 <- log10(result$final_flows + 1)
 
@@ -361,6 +369,7 @@ population.
 ### Step 1: Compute City Population Shares
 
 ``` r
+
 # Compute each city's share of its country's population
 city_pop <- st_drop_geometry(africa_cities_ports) |>
   fcompute(node = nearest_nodes,
@@ -382,6 +391,7 @@ head(city_pop)
 ### Step 2: Disaggregate Trade Flows
 
 ``` r
+
 # Aggregate trade to country-country level (sum across HS sections)
 trade_agg <- africa_trade |> collap(quantity ~ iso3_o + iso3_d, fsum)
 
@@ -418,6 +428,7 @@ head(od_matrix_trade)
 ### Step 3: Run Assignment with Trade Flows
 
 ``` r
+
 # Run Traffic Assignment with trade-based OD matrix
 result_trade <- run_assignment(graph, od_matrix_trade, cost.column = "duration",
                                method = "AoN", return.extra = "all")
@@ -444,6 +455,7 @@ print(result_trade)
 ```
 
 ``` r
+
 # Add flows to network for visualization
 africa_net$final_flows_log10 <- log10(result_trade$final_flows + 1)
 
@@ -484,6 +496,7 @@ followed by clustering simplification and a final call to
 geometries for better visual appearance).
 
 ``` r
+
 # Convert segments to sf and then to graph
 graph_seg <- africa_segments |>
   linestrings_from_graph() |>
@@ -510,6 +523,7 @@ which, by default, uses the mean for numeric and the statistical mode
 for categorical attributes (columns), and supports weights.
 
 ``` r
+
 # Consolidate graph, preserving city nodes
 graph_cons <- consolidate_graph(graph_seg, keep = nearest_nodes_seg, w = ~ .length)
 #> Consolidating undirected graph graph_seg with 11385 edges using full recursion
@@ -518,25 +532,29 @@ graph_cons <- consolidate_graph(graph_seg, keep = nearest_nodes_seg, w = ~ .leng
 #>  125 5293 3240  395  102   31    4    2    1    1 
 #> 
 #> Dropped 44 loop edges
-#> Dropped 11 edges leading to singleton nodes
+#> Dropped 11 edges leading to singleton nodes in 11 peeling steps
 #> Oriented 3431 undirected intermediate edges
 #> Contracted 5079 intermediate nodes
 #> Oriented 10 undirected intermediate edges
 #> Contracted 10 intermediate nodes
 #> Aggregated 11330 edges down to 6597 edges
+#> Timing (s): singleton=0.00, orient=0.00, contract=0.00, aggregate=0.00
 #> Oriented 361 undirected intermediate edges
 #> Contracted 375 intermediate nodes
 #> Oriented 8 undirected intermediate edges
 #> Contracted 8 intermediate nodes
 #> Aggregated 6597 edges down to 6264 edges
+#> Timing (s): singleton=0.00, orient=0.00, contract=0.00, aggregate=0.00
 #> Oriented 41 undirected intermediate edges
 #> Contracted 43 intermediate nodes
 #> Oriented 1 undirected intermediate edges
 #> Contracted 1 intermediate nodes
 #> Aggregated 6264 edges down to 6224 edges
+#> Timing (s): singleton=0.00, orient=0.00, contract=0.00, aggregate=0.00
 #> Oriented 2 undirected intermediate edges
 #> Contracted 3 intermediate nodes
 #> Aggregated 6224 edges down to 6221 edges
+#> Timing (s): singleton=0.00, orient=0.00, contract=0.00, aggregate=0.00
 #> No nodes to contract, returning graph
 #> 
 #> Consolidated undirected graph graph_seg from 11385 edges to 6221 edges (54.6%)
@@ -554,6 +572,7 @@ nodes).
 ### Compare Original vs Consolidated Network
 
 ``` r
+
 tm_basemap("CartoDB.Positron", zoom = 4) +
 tm_shape(linestrings_from_graph(graph_seg)) +
   tm_lines(col = "passes",
@@ -572,6 +591,7 @@ generated by
 If all routes were traversed only once, it would indicate traffic flow.
 
 ``` r
+
 tm_basemap("CartoDB.Positron", zoom = 4) +
 tm_shape(linestrings_from_graph(graph_cons)) +
   tm_lines(col = "passes",
@@ -609,6 +629,7 @@ This method computes shortest paths between all specified nodes and
 retains only the traversed edges:
 
 ``` r
+
 # Simplify network using shortest paths
 graph_simple <- simplify_network(graph_cons, nearest_nodes_seg,
                                  method = "shortest-paths",
@@ -641,6 +662,7 @@ nearby nodes and contract the graph. This is useful for creating coarser
 network representations:
 
 ``` r
+
 # Compute node weights for clustering (sum of gravity at each node)
 node_weights <- rowbind(
   fselect(graph_cons, node = from, gravity_rd),
@@ -655,7 +677,8 @@ graph_cluster <- simplify_network(graph_cons, nearest_nodes_seg,
                                   w = ~ .length) 
 #> Clustering nodes close to 'keep' nodes using a radius of 30km
 #> Clustering the remaining nodes with the leaderCluster algorithm using a radius of 27km
-#> leaderCluster algorithm converged in 9 iterations
+#> leaderCluster algorithm converged in 9 iterations and identified 992 clusters
+#> Clustering step completed. Identified clusters
 #> Dropped 3544 self-loop edges (following clustering)
 #> Oriented 637 undirected edges
 #> Contracting 2677 edges down to 2426 edges
@@ -684,6 +707,7 @@ Key cluster parameters:
 Let’s see if we can assign to this network:
 
 ``` r
+
 dimnames(od_mat) <- list(nearest_nodes_seg, nearest_nodes_seg)
 od_matrix_long <- melt_od_matrix(od_mat)
 
@@ -740,13 +764,13 @@ PSL model, followed by a summary of the key functions of this package.
 
 ### Path-Sized Logit Model
 
-The **Path-Sized Logit (PSL)** model (Ben-Akiva and Bierlaire,
-1999)[¹](#fn1) is a discrete choice model used for traffic assignment
-that overcomes the independence of irrelevant alternatives (IIA)
-property of the standard Multinomial Logit (MNL) model. In transport
-networks, alternative routes often overlap significantly, sharing common
-edges. The MNL model treats these overlapping routes as independent,
-leading to an overestimation of flow on shared segments.
+The **Path-Sized Logit (PSL)** model (Ben-Akiva and Bierlaire, 1999)[^1]
+is a discrete choice model used for traffic assignment that overcomes
+the independence of irrelevant alternatives (IIA) property of the
+standard Multinomial Logit (MNL) model. In transport networks,
+alternative routes often overlap significantly, sharing common edges.
+The MNL model treats these overlapping routes as independent, leading to
+an overestimation of flow on shared segments.
 
 The PSL model introduces a **correction term** (path-size factor) to the
 utility function of each route, penalizing paths that share links with
@@ -935,6 +959,4 @@ research directions. *Journal of Choice Modelling, 2*(1), 65–100.
 AequilibiaE Python Documentation:
 <https://www.aequilibrae.com/develop/python/route_choice/path_size_logit.html>
 
-------------------------------------------------------------------------
-
-1.  See further theoretical and practical references at the end.
+[^1]: See further theoretical and practical references at the end.

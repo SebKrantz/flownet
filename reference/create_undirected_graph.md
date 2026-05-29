@@ -54,6 +54,18 @@ A data frame representing an undirected graph with:
 
 - Aggregated columns
 
+The result also carries grouping attributes describing how the input
+(directed) edges map onto the undirected output edges:
+
+- Attribute `"group.id"` - Integer vector (length `nrow(graph_df)`)
+  mapping each input edge to its row in the result
+
+- Attribute `"group.starts"` - Index of the first input edge of each
+  output group
+
+- Attribute `"group.sizes"` - Number of input edges aggregated into each
+  output edge
+
 ## Details
 
 This function converts a directed graph to an undirected graph by:

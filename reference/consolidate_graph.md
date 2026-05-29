@@ -101,8 +101,15 @@ A data frame representing the consolidated graph with:
 - Attribute `"keep.edges"` - Indices of original edges that were kept
   (before aggregation)
 
-- Attribute `"group.id"` - Integer mapping each kept edge to its row in
-  the result (after aggregation)
+- Attribute `"group.id"` - Integer vector aligned with `"keep.edges"`,
+  mapping each kept edge to its row in the result (after aggregation)
+
+`"keep.edges"` and `"group.id"` are attached only for
+`recursive = "none"` or `"partial"`. With the default
+`recursive = "full"` they are omitted, because consolidation runs over
+several passes and a single-pass mapping back to the original edges
+would be ambiguous. Use `recursive = "partial"` (repeatedly, if needed)
+when you need to trace edges through consolidation.
 
 ## Details
 
@@ -169,25 +176,29 @@ graph_cons <- consolidate_graph(graph, keep = nearest_nodes, w = ~ passes)
 #>  125 5293 3240  395  102   31    4    2    1    1 
 #> 
 #> Dropped 44 loop edges
-#> Dropped 11 edges leading to singleton nodes
+#> Dropped 11 edges leading to singleton nodes in 11 peeling steps
 #> Oriented 3431 undirected intermediate edges
 #> Contracted 5079 intermediate nodes
 #> Oriented 10 undirected intermediate edges
 #> Contracted 10 intermediate nodes
 #> Aggregated 11330 edges down to 6597 edges
+#> Timing (s): singleton=0.00, orient=0.00, contract=0.00, aggregate=0.00
 #> Oriented 361 undirected intermediate edges
 #> Contracted 375 intermediate nodes
 #> Oriented 8 undirected intermediate edges
 #> Contracted 8 intermediate nodes
 #> Aggregated 6597 edges down to 6264 edges
+#> Timing (s): singleton=0.00, orient=0.00, contract=0.00, aggregate=0.00
 #> Oriented 41 undirected intermediate edges
 #> Contracted 43 intermediate nodes
 #> Oriented 1 undirected intermediate edges
 #> Contracted 1 intermediate nodes
 #> Aggregated 6264 edges down to 6224 edges
+#> Timing (s): singleton=0.00, orient=0.00, contract=0.00, aggregate=0.00
 #> Oriented 2 undirected intermediate edges
 #> Contracted 3 intermediate nodes
 #> Aggregated 6224 edges down to 6221 edges
+#> Timing (s): singleton=0.00, orient=0.00, contract=0.00, aggregate=0.00
 #> No nodes to contract, returning graph
 #> 
 #> Consolidated undirected graph graph from 11385 edges to 6221 edges (54.6%)

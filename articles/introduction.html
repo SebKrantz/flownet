@@ -8,8 +8,8 @@
 <title>Introduction to flownet • flownet</title>
 <!-- katex math --><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script><script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous" onload="renderMathInElement(document.body);"></script><script src="../katex-auto.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><link href="../extra.css" rel="stylesheet">
 <meta property="og:title" content="Introduction to flownet">
@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">flownet</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.2.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -57,9 +57,9 @@
                         <h4 data-toc-skip class="author">Sebastian
 Krantz</h4>
             
-            <h4 data-toc-skip class="date">2026-03-22</h4>
+            <h4 data-toc-skip class="date">2026-05-29</h4>
       
-      <small class="dont-index">Source: <a href="https://github.com/SebKrantz/flownet/blob/v0.2.2/vignettes/introduction.Rmd" class="external-link"><code>vignettes/introduction.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/SebKrantz/flownet/blob/master/vignettes/introduction.Rmd" class="external-link"><code>vignettes/introduction.Rmd</code></a></small>
       <div class="d-none name"><code>introduction.Rmd</code></div>
     </div>
 
@@ -567,25 +567,29 @@ for categorical attributes (columns), and supports weights.</p>
 <span><span class="co">#&gt;  125 5293 3240  395  102   31    4    2    1    1 </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Dropped 44 loop edges</span></span>
-<span><span class="co">#&gt; Dropped 11 edges leading to singleton nodes</span></span>
+<span><span class="co">#&gt; Dropped 11 edges leading to singleton nodes in 11 peeling steps</span></span>
 <span><span class="co">#&gt; Oriented 3431 undirected intermediate edges</span></span>
 <span><span class="co">#&gt; Contracted 5079 intermediate nodes</span></span>
 <span><span class="co">#&gt; Oriented 10 undirected intermediate edges</span></span>
 <span><span class="co">#&gt; Contracted 10 intermediate nodes</span></span>
 <span><span class="co">#&gt; Aggregated 11330 edges down to 6597 edges</span></span>
+<span><span class="co">#&gt; Timing (s): singleton=0.00, orient=0.00, contract=0.00, aggregate=0.00</span></span>
 <span><span class="co">#&gt; Oriented 361 undirected intermediate edges</span></span>
 <span><span class="co">#&gt; Contracted 375 intermediate nodes</span></span>
 <span><span class="co">#&gt; Oriented 8 undirected intermediate edges</span></span>
 <span><span class="co">#&gt; Contracted 8 intermediate nodes</span></span>
 <span><span class="co">#&gt; Aggregated 6597 edges down to 6264 edges</span></span>
+<span><span class="co">#&gt; Timing (s): singleton=0.00, orient=0.00, contract=0.00, aggregate=0.00</span></span>
 <span><span class="co">#&gt; Oriented 41 undirected intermediate edges</span></span>
 <span><span class="co">#&gt; Contracted 43 intermediate nodes</span></span>
 <span><span class="co">#&gt; Oriented 1 undirected intermediate edges</span></span>
 <span><span class="co">#&gt; Contracted 1 intermediate nodes</span></span>
 <span><span class="co">#&gt; Aggregated 6264 edges down to 6224 edges</span></span>
+<span><span class="co">#&gt; Timing (s): singleton=0.00, orient=0.00, contract=0.00, aggregate=0.00</span></span>
 <span><span class="co">#&gt; Oriented 2 undirected intermediate edges</span></span>
 <span><span class="co">#&gt; Contracted 3 intermediate nodes</span></span>
 <span><span class="co">#&gt; Aggregated 6224 edges down to 6221 edges</span></span>
+<span><span class="co">#&gt; Timing (s): singleton=0.00, orient=0.00, contract=0.00, aggregate=0.00</span></span>
 <span><span class="co">#&gt; No nodes to contract, returning graph</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Consolidated undirected graph graph_seg from 11385 edges to 6221 edges (54.6%)</span></span>
@@ -696,7 +700,8 @@ creating coarser network representations:</p>
 <span>                                  w <span class="op">=</span> <span class="op">~</span> <span class="va">.length</span><span class="op">)</span> </span>
 <span><span class="co">#&gt; Clustering nodes close to 'keep' nodes using a radius of 30km</span></span>
 <span><span class="co">#&gt; Clustering the remaining nodes with the leaderCluster algorithm using a radius of 27km</span></span>
-<span><span class="co">#&gt; leaderCluster algorithm converged in 9 iterations</span></span>
+<span><span class="co">#&gt; leaderCluster algorithm converged in 9 iterations and identified 992 clusters</span></span>
+<span><span class="co">#&gt; Clustering step completed. Identified clusters</span></span>
 <span><span class="co">#&gt; Dropped 3544 self-loop edges (following clustering)</span></span>
 <span><span class="co">#&gt; Oriented 637 undirected edges</span></span>
 <span><span class="co">#&gt; Contracting 2677 edges down to 2426 edges</span></span>

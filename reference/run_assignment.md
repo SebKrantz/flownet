@@ -111,17 +111,17 @@ print(x, digits = 2, ...)
   Character vector specifying additional results to return. Use `"all"`
   to return all available extras for the selected method.
 
-  |              |         |         |                                                                                                                |
-  |--------------|---------|---------|----------------------------------------------------------------------------------------------------------------|
-  | **Option**   | **PSL** | **AoN** | **Description**                                                                                                |
-  | `"graph"`    | Yes     | Yes     | The igraph graph object                                                                                        |
-  | `"paths"`    | Yes     | Yes     | PSL: list of lists of edge indices (multiple routes per OD); AoN: list of edge index vectors (one path per OD) |
-  | `"costs"`    | Yes     | Yes     | PSL: list of path costs per OD; AoN: numeric vector of shortest path costs                                     |
-  | `"PSF"`      | Yes     | No      | List of path-size factors per OD                                                                               |
-  | `"weights"`  | Yes     | No      | List of path weights (probabilities) for each OD pair                                                          |
-  | `"edges"`    | Yes     | No      | List of edge indices used for each OD pair                                                                     |
-  | `"counts"`   | Yes     | Yes     | PSL: list of edge visit counts per OD; AoN: integer vector of global edge traversal counts                     |
-  | `"eweights"` | Yes     | No      | List of edge weight vectors (summed path probabilities per edge, same length as edges)                         |
+  |  |  |  |  |
+  |----|----|----|----|
+  | **Option** | **PSL** | **AoN** | **Description** |
+  | `"graph"` | Yes | Yes | The igraph graph object |
+  | `"paths"` | Yes | Yes | PSL: list of lists of edge indices (multiple routes per OD); AoN: list of edge index vectors (one path per OD) |
+  | `"costs"` | Yes | Yes | PSL: list of path costs per OD; AoN: numeric vector of shortest path costs |
+  | `"PSF"` | Yes | No | List of path-size factors per OD |
+  | `"weights"` | Yes | No | List of path weights (probabilities) for each OD pair |
+  | `"edges"` | Yes | No | List of edge indices used for each OD pair |
+  | `"counts"` | Yes | Yes | PSL: list of edge visit counts per OD; AoN: integer vector of global edge traversal counts |
+  | `"eweights"` | Yes | No | List of edge weight vectors (summed path probabilities per edge, same length as edges) |
 
 - verbose:
 
@@ -307,7 +307,7 @@ https://www.aequilibrae.com/develop/python/route_choice/path_size_logit.html
 ``` r
 library(flownet)
 library(collapse)
-#> collapse 2.1.6, see ?`collapse-package` or ?`collapse-documentation`
+#> collapse 2.1.7, see ?`collapse-package` or ?`collapse-documentation`
 #> 
 #> Attaching package: ‘collapse’
 #> The following object is masked from ‘package:stats’:

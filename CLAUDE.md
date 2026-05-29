@@ -16,6 +16,7 @@ and custom C implementations.
 ### Package Building and Testing
 
 ``` r
+
 # Build and install the package
 devtools::install()
 
@@ -45,6 +46,7 @@ operations - `init.c` - Registration of C functions
 After modifying C code:
 
 ``` r
+
 devtools::clean_dll()  # Clean compiled objects
 devtools::load_all()   # Recompile and reload
 ```
@@ -231,6 +233,7 @@ consolidation across different link characteristics.
 The package integrates with sf for spatial operations:
 
 ``` r
+
 # Typical pattern for mapping OD zones to network nodes
 nodes <- nodes_from_graph(graph, sf = TRUE)
 nearest_nodes <- nodes$node[st_nearest_feature(od_zones, nodes)]
