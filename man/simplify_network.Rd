@@ -13,6 +13,9 @@ simplify_network(
   by = NULL,
   radius_km = list(nodes = 7, cluster = 20),
   verbose = TRUE,
+  nthreads = 1L,
+  nodes.algo.rann = FALSE,
+  cluster.algo.dbscan = FALSE,
   ...
 )
 }
@@ -52,9 +55,20 @@ For \code{method = "cluster"}: edges are grouped by \code{from}, \code{to}, AND
 Only used for \code{method = "cluster"}.
 \code{nodes}: radius in kilometers around preserved nodes. Graph nodes within this radius
 will be assigned to the nearest preserved node's cluster.
-\code{cluster}: radius in kilometers for clustering remaining nodes using leaderCluster.}
+\code{cluster}: radius in kilometers for clustering remaining nodes.}
 
 \item{verbose}{Logical (default: TRUE). Whether to print progress messages/bars.}
+
+\item{nthreads}{Integer (default: 1). Number of threads used with \code{method = "shortest-paths"}.
+If greater than 1, shortest-path tasks are split across \code{mirai} daemons.}
+
+\item{nodes.algo.rann}{Logical (default: FALSE). If TRUE, use \pkg{RANN} for fast
+3D Cartesian nearest-neighbor preselection with exact geodesic validation when assigning
+nodes close to preserved nodes. This requires the \pkg{RANN} package.}
+
+\item{cluster.algo.dbscan}{Logical (default: FALSE). If TRUE, use \code{\link[dbscan]{dbscan}}
+instead of \code{\link[leaderCluster]{leaderCluster}} for clustering remaining nodes.
+This requires the \pkg{dbscan} package.}
 
 \item{\dots}{For \code{method = "cluster"}: additional arguments passed to
 \code{\link[collapse]{collap}} for edge attribute aggregation.}
@@ -74,6 +88,7 @@ A data.frame containing the simplified graph with:
         \item \code{from}, \code{to} - Cluster centroid node IDs
         \item \code{FX}, \code{FY}, \code{TX}, \code{TY} - Coordinates of cluster centroid nodes
         \item Aggregated edge attributes from the original graph
+        \item Attribute \code{"keep.edges"}: integer vector of edge indices from the original graph that were kept
         \item Attribute \code{"group.id"}: mapping from original edges to simplified edges
         \item Attribute \code{"group.starts"}: start indices of each group
         \item Attribute \code{"group.sizes"}: number of original edges per simplified edge
@@ -101,11 +116,15 @@ Spatially simplify a network graph using shortest paths or node clustering metho
   \item Requires the graph to have spatial coordinates (\code{FX}, \code{FY}, \code{TX}, \code{TY})
   \item If \code{nodes} is provided, these nodes are preserved as cluster centroids
   \item Nearby nodes (within \code{radius_km$nodes} km) are assigned to the nearest preserved node
-  \item Remaining nodes are clustered using \code{\link[leaderCluster]{leaderCluster}} with
+    using exact geodesic distances after optional RANN-based preselection when
+    \code{nodes.algo.rann = TRUE}
+  \item Remaining nodes are clustered using \code{\link[leaderCluster]{leaderCluster}} by default,
+    or \code{\link[dbscan]{dbscan}} when \code{cluster.algo.dbscan = TRUE}, with
     \code{radius_km$cluster} as the clustering radius
   \item For each cluster, the node closest to the cluster centroid is selected as representative
   \item The graph is contracted by mapping all nodes to their cluster representatives
   \item Self-loops (edges where both endpoints map to the same cluster) are dropped
+  \item This is a spatial simplification method and does not preserve intra-cluster topology
   \item For undirected graphs (\code{directed = FALSE}), edges are normalized so \code{from < to},
     merging opposite-direction edges; for directed graphs, A->B and B->A remain separate
   \item Edge attributes are aggregated using \code{\link[collapse]{collap}} (default: mean for

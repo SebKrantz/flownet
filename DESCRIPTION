@@ -1,7 +1,7 @@
 Package: flownet
 Type: Package
 Title: Transport Modeling: Network Processing, Route Enumeration, and Traffic Assignment
-Version: 0.2.2
+Version: 0.2.2.9000
 Authors@R: c(person("Sebastian", "Krantz", email = "sebastian.krantz@graduateinstitute.ch", role = c("aut", "cre")),
              person("Kamol", "Roy", role = "ctb"))
 Description: High-performance tools for transport modeling - network processing, route 
@@ -27,13 +27,15 @@ Imports:
     mirai (>= 2.5.2),
     progress (>= 1.2.3)
 Suggests:
+    dbscan,
     fastverse (>= 0.3.4),
     mapview (>= 2.11.2),
+    RANN,
     tmap (>= 4.0),
     testthat (>= 3.0.0),
     knitr,
     rmarkdown
 LazyData: true
 NeedsCompilation: yes
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3
 VignetteBuilder: knitr

@@ -1,3 +1,15 @@
+# flownet 0.2.2.9000
+
+- `consolidate_graph()` performance: singleton-edge removal now uses a linear-time peel (`drop_singletons_linear()`), avoiding repeated full-graph scans on large networks.
+
+- `consolidate_graph()`: optional C-level contraction of degree-2 chains (`C_contract_linear_nodes`). Use `options(flownet.use_c_contraction = TRUE)` (default) or `FALSE` to force the R-only loop. The C code walks each chain once using dense array indexing (no hash table).
+
+- `consolidate_graph_core()` remaps `from` / `to` to dense internal node indices (`funique.default()` + `fmatch()`, same idea as `simplify_network()`) before contraction, then maps aggregated endpoints back to original node ids so results and downstream joins are unchanged.
+
+- `consolidate_graph_core()`: when `verbose = TRUE`, reports phase timings (singleton peel, orientation, contraction, aggregation).
+
+- More `testthat` coverage for `consolidate_graph()` edge cases (recursion, `keep.nodes`, long chains, logging).
+
 # flownet 0.2.2
 
 - Fixed issue in `consolidate_graph()` which used to modify columns (`from` and `to` in-place). Users in older versions are advised to input a `data.table::copy()` of the graph to retain it. 

@@ -1,11 +1,15 @@
 
 utils::globalVariables(c(
-  "from", "to", "edge", "FX", "FY", "TX", "TY", "X", "Y", "cost", "flow", ".stop"
+  "from", "to", "edge", "FX", "FY", "TX", "TY", "X", "Y", "cost", "flow", ".stop",
+  "C_contract_linear_nodes", "C_critical_link_detours"
   # Add any other variable names that appear in the notes
   # "." # Often needed if you use the data.table or magrittr pipe syntax
 ))
 
 sve <- function(x, i, elt) .Call(C_set_vector_elt, x, i, elt)
+contract_linear_nodes_c <- function(from, to, gid, nodes) {
+  .Call(C_contract_linear_nodes, from, to, gid, as.integer(nodes)) # nolint: object_usage_linter
+}
 
 #' @title Convert Linestring to Graph
 #'
@@ -534,12 +538,120 @@ consolidate_graph <- function(graph_df, directed = FALSE,
 }
 
 
-# Corec function that can be called recursively
+# Linear-time helper for singleton edge peeling
+drop_singletons_linear <- function(from_vec, to_vec, keep.nodes = NULL, recursive = TRUE) {
+  n_edges <- length(from_vec)
+  if(!n_edges) return(list(keep = integer(0), dropped = 0L, rounds = 0L))
+
+  nodes <- funique.default(c(from_vec, to_vec))
+  n_nodes <- length(nodes)
+  from_id <- fmatch(from_vec, nodes)
+  to_id <- fmatch(to_vec, nodes)
+  deg <- tabulate(c(from_id, to_id), nbins = n_nodes)
+
+  keep_node <- rep(FALSE, n_nodes)
+  if(length(keep.nodes)) {
+    keep_idx <- fmatch(keep.nodes, nodes)
+    keep_idx <- keep_idx[whichNA(keep_idx, invert = TRUE)]
+    if(length(keep_idx)) keep_node[keep_idx] <- TRUE
+  }
+
+  active <- rep(TRUE, n_edges)
+
+  if(!recursive) {
+    singleton_nodes <- which((deg == 1L) & !keep_node)
+    if(!length(singleton_nodes)) return(list(keep = seq_len(n_edges), dropped = 0L, rounds = 0L))
+    drop_edge <- (from_id %in% singleton_nodes) | (to_id %in% singleton_nodes)
+    keep <- whichv(drop_edge, FALSE)
+    return(list(keep = keep, dropped = n_edges - length(keep), rounds = 1L))
+  }
+
+  counts_from <- tabulate(from_id, nbins = n_nodes)
+  counts_to <- tabulate(to_id, nbins = n_nodes)
+  ord_from <- radixorderv(from_id)
+  ord_to <- radixorderv(to_id)
+  start_from <- cumsum(c(1L, counts_from[-n_nodes]))
+  start_to <- cumsum(c(1L, counts_to[-n_nodes]))
+
+  find_active_incident_edge <- function(node_id) {
+    nf <- counts_from[node_id]
+    if(nf > 0L) {
+      seg <- ord_from[start_from[node_id]:(start_from[node_id] + nf - 1L)]
+      hit <- seg[active[seg]]
+      if(length(hit)) return(hit[1L])
+    }
+    nt <- counts_to[node_id]
+    if(nt > 0L) {
+      seg <- ord_to[start_to[node_id]:(start_to[node_id] + nt - 1L)]
+      hit <- seg[active[seg]]
+      if(length(hit)) return(hit[1L])
+    }
+    0L
+  }
+
+  queue <- integer(max(1L, min(n_nodes, 1024L)))
+  in_queue <- rep(FALSE, n_nodes)
+  qhead <- 1L
+  qtail <- 0L
+  rounds <- 0L
+
+  push_nodes <- function(node_ids) {
+    node_ids <- node_ids[whichNA(node_ids, invert = TRUE)]
+    if(!length(node_ids)) return(invisible(NULL))
+    node_ids <- node_ids[!keep_node[node_ids] & !in_queue[node_ids] & (deg[node_ids] == 1L)]
+    if(!length(node_ids)) return(invisible(NULL))
+    needed <- qtail + length(node_ids)
+    if(needed > length(queue)) {
+      queue <<- c(queue, integer(max(length(queue), needed - length(queue))))
+    }
+    rng <- (qtail + 1L):needed
+    queue[rng] <<- node_ids
+    in_queue[node_ids] <<- TRUE
+    qtail <<- needed
+    invisible(NULL)
+  }
+
+  push_nodes(which((deg == 1L) & !keep_node))
+  dropped <- 0L
+
+  while(qhead <= qtail) {
+    rounds <- rounds + 1L
+    node_id <- queue[qhead]
+    qhead <- qhead + 1L
+    in_queue[node_id] <- FALSE
+
+    if(deg[node_id] != 1L) next
+
+    edge_id <- find_active_incident_edge(node_id)
+    if(edge_id == 0L) {
+      deg[node_id] <- 0L
+      next
+    }
+
+    if(!active[edge_id]) next
+    active[edge_id] <- FALSE
+    dropped <- dropped + 1L
+
+    a <- from_id[edge_id]
+    b <- to_id[edge_id]
+    if(deg[a] > 0L) deg[a] <- deg[a] - 1L
+    if(deg[b] > 0L) deg[b] <- deg[b] - 1L
+
+    push_nodes(c(a, b))
+  }
+
+  list(keep = which(active), dropped = dropped, rounds = rounds)
+}
+
+# Core function that can be called recursively
 consolidate_graph_core <- function(graph_df, directed = FALSE,
                               drop.edges = c("loop", "duplicate", "single"),
                               contract = TRUE, by = NULL, keep.nodes = NULL, ...,
                               reci, nam_keep, verbose = TRUE) {
 
+  now_s <- function() proc.time()[["elapsed"]]
+  timers <- c(singleton = 0, orient = 0, contract = 0, aggregate = 0)
+  tic <- now_s()
   keep <- seq_row(graph_df) # Global variable tracking utilized edges
   gft <- get_vars(graph_df, c("from", "to", by)) |> unclass() |> copyv(NA, NA) # Local variable representing the current graph worked on
 
@@ -564,34 +676,58 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
   }
 
   if(anyv(drop.edges, "single") && fnrow(gft)) {
-    repeat {
-      nodes_rm <- unclass(countOccur(c(gft$from, gft$to)))
-      if(!anyv(nodes_rm$Count, 1L)) break
-      nodes_rm <- nodes_rm$Variable[nodes_rm$Count %==% 1L]
-      if(length(keep.nodes)) nodes_rm <- nodes_rm[nodes_rm %!iin% keep.nodes]
-      if(length(nodes_rm)) {
-        ind <- which(gft$from %!in% nodes_rm & gft$to %!in% nodes_rm)
-        if(verbose) cat(sprintf("Dropped %d edges leading to singleton nodes\n", fnrow(gft) - length(ind)))
-        keep <- keep[ind]
-        gft <- ss(gft, ind, check = FALSE)
-      } else break
-      if(reci == 0L) break
+    peel <- drop_singletons_linear(gft$from, gft$to, keep.nodes = keep.nodes, recursive = reci > 0L)
+    if(peel$dropped > 0L) {
+      if(verbose) cat(sprintf("Dropped %d edges leading to singleton nodes in %d peeling steps\n", peel$dropped, peel$rounds))
+      keep <- keep[peel$keep]
+      gft <- ss(gft, peel$keep, check = FALSE)
     }
+    timers["singleton"] <- timers["singleton"] + (now_s() - tic)
   }
 
   if(!contract) {
     res <- ss(graph_df, keep, check = FALSE)
     if(reci < 2L) attr(res, "keep.edges") <- keep
     attr(res, ".early.return") <- TRUE
+    if(verbose) cat(sprintf("Timing (s): singleton=%.2f\n", timers["singleton"]))
     return(res)
   }
   # TODO: How does not dropping loop or duplicate edges affect the algorithm?
 
+  # Dense 1..|V| node ids for contraction/orientation/C (same pattern as simplify_network).
+  # Inverse map applied to aggregated result so returned from/to stay original ids.
+  norm_nodes <- NULL
+  if(fnrow(gft)) {
+    nv_from <- as.integer(gft$from)
+    nv_to <- as.integer(gft$to)
+    norm_nodes <- funique.default(c(nv_from, nv_to), sort = TRUE)
+    if(length(norm_nodes)) {
+      gft$from <- fmatch(nv_from, norm_nodes)
+      gft$to <- fmatch(nv_to, norm_nodes)
+      if(length(keep.nodes))
+        keep.nodes <- fmatch(as.integer(keep.nodes), norm_nodes, nomatch = NA_integer_)
+    }
+  }
+
   gid <- seq_row(gft)  # Local variable mapping current edges to groups
   contractd_any <- FALSE
+  c_no_progress <- FALSE
 
   merge_linear_nodes <- function(nodes) {
     if(!length(nodes)) return(FALSE)
+    use_c_contraction <- isTRUE(getOption("flownet.use_c_contraction", TRUE))
+    if(use_c_contraction && is.integer(gft$from) && is.integer(gft$to) && is.integer(gid)) {
+      cres <- contract_linear_nodes_c(gft$from, gft$to, gid, nodes)
+      if(isTRUE(cres$ok)) {
+        gft$from <<- cres$from
+        gft$to <<- cres$to
+        gid <<- cres$gid
+        ffirst(gft$from, gid, "fill", set = TRUE)
+        return(TRUE)
+      }
+      c_no_progress <<- TRUE
+      return(NA)
+    }
     from_ind <- fmatch(nodes, gft$from)
     to_ind <- fmatch(nodes, gft$to)
     if(anyNA(from_ind) || anyNA(to_ind)) {
@@ -658,22 +794,27 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
     TRUE
   }
 
+  iter <- 0L
   repeat {
+    iter <- iter + 1L
 
+    # tic <- now_s()
     degree_table <- compute_degrees(gft$from, gft$to)
+    # timers["singleton"] <- timers["singleton"] + (now_s() - tic)
     if(!fnrow(degree_table)) break
 
     if(anyv(drop.edges, "single") && reci > 0L && anyv(degree_table$deg_total, 1L)) {
       nodes <- degree_table$node[degree_table$deg_total %==% 1L]
       if(length(keep.nodes)) nodes <- nodes[nodes %!iin% keep.nodes]
       if(length(nodes)) {
-        ind <- which(gft$from %!in% nodes & gft$to %!in% nodes)
-        dropped <- fnrow(gft) - length(ind)
-        if(dropped > 0L) {
-          if(verbose) cat(sprintf("Dropped %d edges leading to singleton nodes\n", dropped))
-          gft <- ss(gft, ind, check = FALSE)
-          gid <- gid[ind]
-          keep <- keep[ind]
+        tic <- now_s()
+        peel <- drop_singletons_linear(gft$from, gft$to, keep.nodes = keep.nodes, recursive = TRUE)
+        timers["singleton"] <- timers["singleton"] + (now_s() - tic)
+        if(peel$dropped > 0L) {
+          if(verbose) cat(sprintf("Dropped %d edges leading to singleton nodes in %d peeling steps\n", peel$dropped, peel$rounds))
+          gft <- ss(gft, peel$keep, check = FALSE)
+          gid <- gid[peel$keep]
+          keep <- keep[peel$keep]
           if(reci > 0L) next
         }
       }
@@ -692,13 +833,24 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
       idx <- fmatch(nodes, degree_table$node)
       need_orientation <- nodes[degree_table$deg_from[idx] == 2L | degree_table$deg_to[idx] == 2L]
       if(length(need_orientation)) {
+        tic <- now_s()
         if(!orient_undirected_nodes(need_orientation)) stop("Failed to orient undirected edges for consolidation; please verify the input graph.")
+        timers["orient"] <- timers["orient"] + (now_s() - tic)
         if(verbose) cat(sprintf("Oriented %d undirected intermediate edges\n", length(need_orientation)))
       }
     }
-    if(!merge_linear_nodes(nodes)) stop("Failed to contract oriented undirected edges; please verify the graph topology.")
+
+    n_candidates <- length(nodes)
+    tic <- now_s()
+    merge_ok <- merge_linear_nodes(nodes)
+    if(is.na(merge_ok) && c_no_progress) {
+      if(verbose) cat(sprintf("No further C contraction progress at %d candidates; breaking inner loop.\n", n_candidates))
+      break
+    }
+    if(!isTRUE(merge_ok)) stop("Failed to contract oriented undirected edges; please verify the graph topology.")
+    timers["contract"] <- timers["contract"] + (now_s() - tic)
     contractd_any <- TRUE
-    if(verbose) cat(sprintf("Contracted %d intermediate nodes\n", length(nodes)))
+    if(verbose) cat(sprintf("Contracted %d intermediate nodes\n", n_candidates))
     if(reci == 0L) break
   }
 
@@ -720,9 +872,23 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
   }
 
   # Aggregation
-  res <- ss(graph_df, keep, nam_keep, check = FALSE)
+  tic <- now_s()
   if(verbose) cat("Aggregated", length(keep), "edges down to", g$N.groups, "edges\n")
-  res <- collap(res, g, keep.col.order = FALSE, ...)
+  res <- if(length(nam_keep)) {
+    collap(ss(graph_df, keep, nam_keep, check = FALSE), g, keep.col.order = FALSE, ...)
+  } else {
+    out <- g$groups
+    attr(out, "row.names") <- .set_row_names(g$N.groups)
+    class(out) <- "data.frame"
+    out
+  }
+  timers["aggregate"] <- timers["aggregate"] + (now_s() - tic)
+  if(length(norm_nodes)) {
+    res$from <- norm_nodes[as.integer(res$from)]
+    res$to <- norm_nodes[as.integer(res$to)]
+  }
+  if(verbose) cat(sprintf("Timing (s): singleton=%.2f, orient=%.2f, contract=%.2f, aggregate=%.2f\n",
+                          timers["singleton"], timers["orient"], timers["contract"], timers["aggregate"]))
   if(reci < 2L) {
     attr(res, "keep.edges") <- keep
     attr(res, "group.id") <- g$group.id
@@ -790,8 +956,16 @@ compute_degrees <- function(from_vec, to_vec) {
 #'   Only used for \code{method = "cluster"}.
 #'   \code{nodes}: radius in kilometers around preserved nodes. Graph nodes within this radius
 #'   will be assigned to the nearest preserved node's cluster.
-#'   \code{cluster}: radius in kilometers for clustering remaining nodes using leaderCluster.
+#'   \code{cluster}: radius in kilometers for clustering remaining nodes.
+#' @param nodes.algo.rann Logical (default: FALSE). If TRUE, use \pkg{RANN} for fast
+#'   3D Cartesian nearest-neighbor preselection with exact geodesic validation when assigning
+#'   nodes close to preserved nodes. This requires the \pkg{RANN} package.
+#' @param cluster.algo.dbscan Logical (default: FALSE). If TRUE, use \code{\link[dbscan]{dbscan}}
+#'   instead of \code{\link[leaderCluster]{leaderCluster}} for clustering remaining nodes.
+#'   This requires the \pkg{dbscan} package.
 #' @param verbose Logical (default: TRUE). Whether to print progress messages/bars.
+#' @param nthreads Integer (default: 1). Number of threads used with \code{method = "shortest-paths"}.
+#'   If greater than 1, shortest-path tasks are split across \code{mirai} daemons.
 #' @param \dots For \code{method = "cluster"}: additional arguments passed to
 #'   \code{\link[collapse]{collap}} for edge attribute aggregation.
 #'
@@ -809,6 +983,7 @@ compute_degrees <- function(from_vec, to_vec) {
 #'         \item \code{from}, \code{to} - Cluster centroid node IDs
 #'         \item \code{FX}, \code{FY}, \code{TX}, \code{TY} - Coordinates of cluster centroid nodes
 #'         \item Aggregated edge attributes from the original graph
+#'         \item Attribute \code{"keep.edges"}: integer vector of edge indices from the original graph that were kept
 #'         \item Attribute \code{"group.id"}: mapping from original edges to simplified edges
 #'         \item Attribute \code{"group.starts"}: start indices of each group
 #'         \item Attribute \code{"group.sizes"}: number of original edges per simplified edge
@@ -833,11 +1008,15 @@ compute_degrees <- function(from_vec, to_vec) {
 #'   \item Requires the graph to have spatial coordinates (\code{FX}, \code{FY}, \code{TX}, \code{TY})
 #'   \item If \code{nodes} is provided, these nodes are preserved as cluster centroids
 #'   \item Nearby nodes (within \code{radius_km$nodes} km) are assigned to the nearest preserved node
-#'   \item Remaining nodes are clustered using \code{\link[leaderCluster]{leaderCluster}} with
+#'     using exact geodesic distances after optional RANN-based preselection when
+#'     \code{nodes.algo.rann = TRUE}
+#'   \item Remaining nodes are clustered using \code{\link[leaderCluster]{leaderCluster}} by default,
+#'     or \code{\link[dbscan]{dbscan}} when \code{cluster.algo.dbscan = TRUE}, with
 #'     \code{radius_km$cluster} as the clustering radius
 #'   \item For each cluster, the node closest to the cluster centroid is selected as representative
 #'   \item The graph is contracted by mapping all nodes to their cluster representatives
 #'   \item Self-loops (edges where both endpoints map to the same cluster) are dropped
+#'   \item This is a spatial simplification method and does not preserve intra-cluster topology
 #'   \item For undirected graphs (\code{directed = FALSE}), edges are normalized so \code{from < to},
 #'     merging opposite-direction edges; for directed graphs, A->B and B->A remain separate
 #'   \item Edge attributes are aggregated using \code{\link[collapse]{collap}} (default: mean for
@@ -885,14 +1064,17 @@ compute_degrees <- function(from_vec, to_vec) {
 #' }
 #'
 #' @export
-#' @importFrom collapse fnrow ss ckmatch funique funique.default fmatch gsplit fmin dapply whichv %+=% GRP add_vars seq_row add_stub colorderv %!in% collap get_vars alloc
+#' @importFrom collapse fmean fnrow ss ckmatch funique funique.default fmatch gsplit fmin dapply whichv %+=% GRP add_vars seq_row add_stub colorderv %!in% collap get_vars alloc
 #' @importFrom kit iif
 #' @importFrom igraph graph_from_data_frame delete_vertex_attr igraph_options shortest_paths
 #' @importFrom geodist geodist_vec geodist_min
 #' @importFrom leaderCluster leaderCluster
+#' @importFrom mirai mirai_map daemons
 simplify_network <- function(graph_df, nodes = NULL, method = c("shortest-paths", "cluster"),
                              directed = FALSE, cost.column = "cost", by = NULL,
-                             radius_km = list(nodes = 7, cluster = 20), verbose = TRUE, ...) {
+                             radius_km = list(nodes = 7, cluster = 20), verbose = TRUE,
+                             nthreads = 1L, nodes.algo.rann = FALSE,
+                             cluster.algo.dbscan = FALSE, ...) {
 
   method <- match.arg(method)
 
@@ -935,8 +1117,6 @@ simplify_network <- function(graph_df, nodes = NULL, method = c("shortest-paths"
     iopt <- igraph_options(return.vs.es = FALSE)
     on.exit(igraph_options(iopt))
 
-    edges_traversed <- integer(fnrow(graph_df))
-
     # Pre-process nodes input ONCE (before any group loop)
     if(is.atomic(nodes)) {
       nodes_matched <- ckmatch(funique.default(nodes), all_nodes, e = "Unknown nodes:")
@@ -951,49 +1131,127 @@ simplify_network <- function(graph_df, nodes = NULL, method = c("shortest-paths"
       nodes_matched <- NULL
     } else stop("nodes must be an atomic vector or a data.frame")
 
+    nthreads <- as.integer(nthreads)[1L]
+    if(!is.finite(nthreads) || nthreads < 1L)
+      stop("nthreads must be a positive integer")
+
+    if(length(nodes_matched)) {
+      N <- length(nodes_matched)
+      if(directed || N <= 1L) {
+        task_idx <- seq_along(nodes_matched)
+        total_tasks <- if(directed) N^2 else 0L
+        task_size <- rep.int(N, length(task_idx))
+        get_task <- function(j) list(from = nodes_matched[j], to = nodes_matched)
+      } else {
+        task_idx <- seq_len(N - 1L)
+        total_tasks <- N * (N - 1L) / 2L
+        task_size <- N - task_idx
+        get_task <- function(j) list(from = nodes_matched[j], to = nodes_matched[(j + 1L):N])
+      }
+    } else {
+      from_nodes <- as.integer(names(nodes_split))
+      task_idx <- seq_along(from_nodes)
+      task_size <- lengths(nodes_split)
+      total_tasks <- sum(task_size)
+      get_task <- function(j) list(from = from_nodes[j], to = nodes_split[[j]])
+    }
+
     # Helper to compute paths with given cost vector
     compute_paths <- function(cost_vec) {
-      if(length(nodes_matched)) {
-        N <- length(nodes_matched)
-        if(directed) {
-          if(verbose) {
-            pb <- progress_bar$new(format = "Processed :current/:total shortest paths (:percent) at :tick_rate/sec [Elapsed::elapsed | ETA::eta]",
-                                   total = N^2, clear = FALSE, width = 100)
-          }
-          for (i in nodes_matched) {
-            if(verbose) pb$tick(N)
-            pathsi <- shortest_paths(ig, from = i, to = nodes_matched,
-                                     weights = cost_vec, mode = "out", output = "epath")$epath
-            .Call(C_mark_edges_traversed, pathsi, edges_traversed)
-          }
-        } else {
-          if(verbose) {
-            pb <- progress_bar$new(format = "Processed :current/:total shortest paths (:percent) at :tick_rate/sec [Elapsed::elapsed | ETA::eta]",
-                                   total = N*(N-1)/2, clear = FALSE, width = 100)
-          }
-          for (i in 1:(N - 1L)) {
-            ind = nodes_matched[(i + 1L):N]
-            if(verbose) pb$tick(length(ind))
-            pathsi <- shortest_paths(ig, from = nodes_matched[i], to = ind,
-                                     weights = cost_vec, mode = "out", output = "epath")$epath
-            .Call(C_mark_edges_traversed, pathsi, edges_traversed)
+      if(!length(task_idx) || total_tasks <= 0L) return(integer(fnrow(graph_df)))
+
+      # progress::progress_bar has no public `current`; accumulate ticks for final correction
+      tick_state <- new.env(parent = emptyenv())
+      tick_state$n <- 0L
+
+      run_shortest_paths_chunk <- function(chunk, session = FALSE, progress_scale = 1) {
+        shortest_paths <- if(session) shortest_paths else igraph::shortest_paths
+        igraph_options <- if(session) igraph_options else igraph::igraph_options
+        C_mark_edges_traversed <- getNamespace("flownet")$C_mark_edges_traversed
+        iopt <- igraph_options(return.vs.es = FALSE)
+        on.exit(igraph_options(iopt), add = TRUE)
+        weights <- as.numeric(cost_vec)
+        edges_local <- integer(fnrow(graph_df))
+        ticked <- 0L
+        pacc <- 0
+        for(j in chunk) {
+          task <- get_task(j)
+          pathsi <- shortest_paths(ig, from = task$from, to = task$to,
+                                   weights = weights, mode = "out", output = "epath")$epath
+          .Call(C_mark_edges_traversed, pathsi, edges_local)
+          if(session && verbose) {
+            pacc <- pacc + task_size[j] * progress_scale
+            tick <- as.integer(pacc) - ticked
+            if(tick > 0L) {
+              pb$tick(tick)
+              ticked <- ticked + tick
+              tick_state$n <- tick_state$n + tick
+            }
           }
         }
-      } else {
-        from_nodes <- as.integer(names(nodes_split))
+        edges <- which(edges_local > 0L)
+        list(edges = edges, counts = edges_local[edges])
+      }
+
+      if(nthreads <= 1L || length(task_idx) <= 1L) {
         if(verbose) {
           pb <- progress_bar$new(format = "Processed :current/:total shortest paths (:percent) at :tick_rate/sec [Elapsed::elapsed | ETA::eta]",
-                                 total = fnrow(nodes), clear = FALSE, width = 100)
+                                 total = total_tasks, clear = FALSE, width = 100)
         }
-        for (i in seq_along(from_nodes)) {
-          ind = nodes_split[[i]]
-          if(verbose) pb$tick(length(ind))
-          pathsi <- shortest_paths(ig, from = from_nodes[i], to = ind,
+        edges_local <- integer(fnrow(graph_df))
+        for(j in task_idx) {
+          task <- get_task(j)
+          pathsi <- shortest_paths(ig, from = task$from, to = task$to,
                                    weights = cost_vec, mode = "out", output = "epath")$epath
-          .Call(C_mark_edges_traversed, pathsi, edges_traversed)
+          .Call(C_mark_edges_traversed, pathsi, edges_local)
+          if(verbose) pb$tick(task_size[j])
         }
+        return(edges_local)
       }
+
+      nworkers <- min(nthreads, length(task_idx))
+      ord <- order(task_size, decreasing = TRUE)
+      chunks <- vector("list", nworkers)
+      load <- numeric(nworkers)
+      for(j in ord) {
+        k <- which.min(load)
+        chunks[[k]] <- c(chunks[[k]], j)
+        load[k] <- load[k] + task_size[j]
+      }
+      dom <- which.max(load)
+      if(dom != 1L) {
+        tmp <- chunks[[1L]]
+        chunks[[1L]] <- chunks[[dom]]
+        chunks[[dom]] <- tmp
+        load[c(1L, dom)] <- load[c(dom, 1L)]
+      }
+
+      if(verbose) {
+        pb <- progress_bar$new(format = "Processed :current/:total shortest paths (:percent) at :tick_rate/sec [Elapsed::elapsed | ETA::eta]",
+                               total = total_tasks, clear = FALSE, width = 100)
+      }
+
+      daemons(n = nworkers - 1L)
+      on.exit(daemons(0), add = TRUE)
+      res_other <- mirai_map(chunks[-1L], run_shortest_paths_chunk)
+      pscale <- if(load[1L] > 0L) total_tasks / load[1L] else 1
+      res_main <- run_shortest_paths_chunk(chunks[[1L]], session = TRUE, progress_scale = pscale)
+      res_other <- res_other[.stop]
+      daemons(0)
+
+      edges_local <- integer(fnrow(graph_df))
+      edges_local[res_main$edges] <- res_main$counts
+      for(resi in res_other) {
+        edges_local[resi$edges] <- edges_local[resi$edges] + resi$counts
+      }
+      if(verbose) {
+        remain <- max(0L, as.integer(total_tasks - tick_state$n))
+        if(!pb$finished && remain > 0L) pb$tick(remain)
+      }
+      edges_local
     }
+
+    edges_traversed <- integer(fnrow(graph_df))
 
     if(length(by)) {
       # Multimodal: iterate over groups, penalizing edges not in the current group
@@ -1001,11 +1259,11 @@ simplify_network <- function(graph_df, nodes = NULL, method = c("shortest-paths"
 
       for(grp_idx in seq_len(by_grp$N.groups)) {
         cost_penalized <- iif(by_grp$group.id != grp_idx, cost * 100, cost)
-        compute_paths(cost_penalized)
+        edges_traversed %+=% compute_paths(cost_penalized)
       }
     } else {
       # Single mode: compute paths once
-      compute_paths(cost)
+      edges_traversed <- compute_paths(cost)
     }
 
     edges <- which(edges_traversed > 0L)
@@ -1026,7 +1284,9 @@ simplify_network <- function(graph_df, nodes = NULL, method = c("shortest-paths"
     # Optional node weights
     if(is.numeric(cost.column) && length(cost.column) == fnrow(nodes_df)) nodes_df$weights <- cost.column
     # Cluster method
-    cl <- cluster_nodes(nodes_df, funique.default(nodes), radius_km$nodes, radius_km$cluster, verbose)
+    cl <- cluster_nodes(nodes_df, funique.default(nodes), radius_km$nodes, radius_km$cluster,
+                        verbose, cluster.algo.dbscan, nodes.algo.rann)
+    if(verbose) cat("Clustering step completed. Identified", cl$num_clusters, "clusters\n")
     # Graph Contraction to Clusters
     result <- contract_edges(graph_df, nodes = nodes_df, clusters = cl$clusters,
                              centroids = cl$centroids, directed = directed, by = by,
@@ -1038,9 +1298,175 @@ simplify_network <- function(graph_df, nodes = NULL, method = c("shortest-paths"
 }
 
 # Helper functions for simplify_network() with method = "cluster"
+lonlat_to_xyz <- function(x, y, radius_km = 6371.0088) {
+  lon <- x * pi / 180
+  lat <- y * pi / 180
+  clat <- cos(lat)
+  cbind(X = radius_km * clat * cos(lon),
+        Y = radius_km * clat * sin(lon),
+        Z = radius_km * sin(lat))
+}
+
+chord_radius_km <- function(radius_km, earth_radius_km = 6371.0088) {
+  2 * earth_radius_km * sin(radius_km / (2 * earth_radius_km))
+}
+
+estimate_radius_k <- function(keep_xyz, radius_km, radius_factor = 1.005,
+                              min_k = 16L, safety = 2) {
+  n_keep <- nrow(keep_xyz)
+  if(n_keep <= 1L) return(1L)
+
+  nn <- RANN::nn2(keep_xyz, k = min(2L, n_keep))
+  d <- nn$nn.dists[, min(2L, n_keep)]
+  d <- d[is.finite(d) & d > 0]
+  if(!length(d)) return(min(n_keep, max(min_k, 256L)))
+
+  resolution_km <- unname(stats::quantile(d, probs = 0.05, names = FALSE, type = 8))
+  k <- ceiling(safety * (2 * pi / sqrt(3)) * (radius_km * radius_factor / resolution_km + 0.5)^2)
+  min(n_keep, max(min_k, k))
+}
+
+assign_nodes_to_keep_rann <- function(nodes, keep, radius_km, radius_factor = 1.005,
+                                      max_query_size = 250000L, verbose = TRUE) {
+  n <- fnrow(nodes)
+  n_keep <- length(keep)
+  ind <- seq_len(n)[-keep]
+  if(!length(ind)) return(list(nodes = integer(0), clusters = integer(0)))
+
+  keep_xyz <- lonlat_to_xyz(nodes$X[keep], nodes$Y[keep])
+  nodes_xyz <- lonlat_to_xyz(nodes$X, nodes$Y)
+  pre_radius <- chord_radius_km(radius_km * radius_factor)
+  k0 <- estimate_radius_k(keep_xyz, radius_km, radius_factor)
+  radius_m <- radius_km * 1000
+  close_nodes <- close_clusters <- integer(length(ind))
+  n_close <- 0L
+
+  if(verbose) {
+    cat("Assigning nodes close to 'keep' nodes with RANN using k = ", k0,
+        " and a radius factor of ", radius_factor, "\n", sep = "")
+  }
+
+  for(i in seq.int(1L, length(ind), by = max_query_size)) {
+    idx <- ind[i:min(i + max_query_size - 1L, length(ind))]
+    k <- k0
+    repeat {
+      nn <- RANN::nn2(keep_xyz, nodes_xyz[idx, , drop = FALSE], k = k,
+                      treetype = "kd", searchtype = "radius", radius = pre_radius)
+      ok <- is.finite(nn$nn.dists) & nn$nn.idx > 0L
+      saturated <- k < n_keep && any(rowSums(ok) >= k)
+      if(!saturated) break
+      k <- min(n_keep, k * 2L)
+      if(verbose) cat("Increasing RANN candidate k to ", k, " for a dense keep-node chunk\n", sep = "")
+    }
+
+    if(any(ok)) {
+      dmat <- matrix(Inf, nrow = length(idx), ncol = k)
+      rows <- row(nn$nn.idx)[ok]
+      cand <- nn$nn.idx[ok]
+      dmat[ok] <- geodist_vec(nodes$X[idx[rows]], nodes$Y[idx[rows]],
+                              nodes$X[keep[cand]], nodes$Y[keep[cand]],
+                              paired = TRUE, measure = "geodesic")
+      best_col <- max.col(-dmat, ties.method = "first")
+      best_dist <- dmat[cbind(seq_along(idx), best_col)]
+      close <- best_dist < radius_m
+      if(any(close)) {
+        n_new <- sum(close)
+        rng <- seq.int(n_close + 1L, n_close + n_new)
+        close_nodes[rng] <- idx[close]
+        close_clusters[rng] <- nn$nn.idx[cbind(which(close), best_col[close])]
+        n_close <- n_close + n_new
+      }
+    }
+  }
+
+  if(!n_close) return(list(nodes = integer(0), clusters = integer(0)))
+  list(nodes = close_nodes[seq_len(n_close)], clusters = close_clusters[seq_len(n_close)])
+}
+
+nearest_lonlat <- function(query, data, use_rann = FALSE) {
+  if(use_rann) {
+    if(!requireNamespace("RANN", quietly = TRUE)) {
+      stop("nodes.algo.rann = TRUE requires the RANN package. Install it with install.packages(\"RANN\").")
+    }
+    nn <- RANN::nn2(lonlat_to_xyz(data[, "X"], data[, "Y"]),
+                    lonlat_to_xyz(query[, "X"], query[, "Y"]),
+                    k = 1L, treetype = "kd")
+    return(nn$nn.idx[, 1L])
+  }
+
+  suppressMessages(geodist_min(query, data, measure = "haversine", quiet = TRUE))
+}
+
+assign_nodes_to_keep <- function(nodes, keep, radius_km, max_dmat_size = 1e7, verbose = TRUE) {
+  n_keep <- length(keep)
+  ind <- seq_len(fnrow(nodes))[-keep]
+  if(!length(ind)) return(list(nodes = integer(0), clusters = integer(0)))
+
+  chunk_size <- max(1L, floor(max_dmat_size / n_keep))
+  radius_m <- radius_km * 1000
+  close_nodes <- close_clusters <- integer(length(ind))
+  n_close <- 0L
+
+  if(verbose && length(ind) > chunk_size) {
+    cat("Processing keep-node distances in", ceiling(length(ind) / chunk_size), "chunks\n")
+  }
+
+  for(i in seq.int(1L, length(ind), by = chunk_size)) {
+    idx <- ind[i:min(i + chunk_size - 1L, length(ind))]
+    dmat <- geodist_vec(nodes$X[keep], nodes$Y[keep],
+                        nodes$X[idx], nodes$Y[idx],
+                        measure = "haversine")
+    close <- fmin(dmat) < radius_m
+    if(any(close)) {
+      n <- sum(close)
+      rng <- seq.int(n_close + 1L, n_close + n)
+      close_nodes[rng] <- idx[close]
+      close_clusters[rng] <- seq_along(keep)[dapply(dmat[, close, drop = FALSE], which.min)]
+      n_close <- n_close + n
+    }
+  }
+
+  if(!n_close) return(list(nodes = integer(0), clusters = integer(0)))
+  list(nodes = close_nodes[seq_len(n_close)], clusters = close_clusters[seq_len(n_close)])
+}
+
+cluster_remaining_nodes <- function(mat, weights, cluster_radius_km, cluster.algo.dbscan = FALSE, verbose = TRUE) {
+  if(!cluster.algo.dbscan) {
+    if(verbose) cat("Clustering the remaining nodes with the leaderCluster algorithm using a radius of ", cluster_radius_km, "km\n", sep = "")
+    res <- leaderCluster(mat, cluster_radius_km, weights, max_iter = 250L, distance = "haversine")
+    if(res$iter >= 250) warning("leaderCluster did not fully converge within 250 iterations")
+    else if(verbose) cat("leaderCluster algorithm converged in", res$iter, "iterations and identified", res$num_clusters, "clusters\n")
+    return(list(cluster_id = res$cluster_id,
+                num_clusters = res$num_clusters,
+                cluster_centroids = res$cluster_centroids[,2:1, drop = FALSE]))
+  }
+
+  if(!requireNamespace("dbscan", quietly = TRUE)) {
+    stop("cluster.algo.dbscan = TRUE requires the dbscan package. Install it with install.packages(\"dbscan\").")
+  }
+
+  if(verbose) cat("Clustering the remaining nodes with dbscan using a radius of ", cluster_radius_km, "km\n", sep = "")
+  coords <- lonlat_to_xyz(mat[, "X"], mat[, "Y"])
+  eps <- chord_radius_km(cluster_radius_km)
+  # Do not pass weights to dbscan: they affect density/noise classification.
+  # Weights are only used below to compute representative cluster centroids.
+  cluster_id <- dbscan::dbscan(coords, eps = eps, minPts = 1L)$cluster
+  if(any(cluster_id == 0L)) stop("dbscan returned unassigned noise points despite minPts = 1")
+
+  num_clusters <- max(cluster_id)
+  g <- cluster_id
+  attr(g, "N.groups") <- num_clusters
+  class(g) <- c("qG", "na.included")
+  cluster_centroids <- fmean(mat, g, weights, drop = FALSE, use.g.names = FALSE)[, c("X", "Y"), drop = FALSE]
+  if(verbose) cat("dbscan identified", num_clusters, "clusters\n")
+  list(cluster_id = cluster_id, num_clusters = num_clusters, cluster_centroids = cluster_centroids)
+}
+
 cluster_nodes <- function(nodes, keep,
                           nodes_radius_km = 7,
-                          cluster_radius_km = 20, verbose = TRUE) {
+                          cluster_radius_km = 20, verbose = TRUE,
+                          cluster.algo.dbscan = FALSE,
+                          nodes.algo.rann = FALSE) {
   # Nodes to preserve
   if(length(keep)) {
     clusters <- integer(fnrow(nodes))
@@ -1048,36 +1474,35 @@ cluster_nodes <- function(nodes, keep,
     clusters[keep] <- seq_along(keep)
     if(verbose) cat("Clustering nodes close to 'keep' nodes using a radius of ", nodes_radius_km, "km\n", sep = "")
     # Cluster nodes close to cities
-    dmat <- geodist_vec(nodes$X[keep], nodes$Y[keep],
-                        nodes$X[-keep], nodes$Y[-keep],
-                        measure = "haversine")
-    close <- fmin(dmat) < nodes_radius_km * 1000
-    if(any(close)) {
-      clusters[-keep][close] <- seq_along(keep)[dapply(dmat[, close, drop = FALSE], which.min)]
+    close <- if(nodes.algo.rann) {
+      if(!requireNamespace("RANN", quietly = TRUE)) {
+        stop("nodes.algo.rann = TRUE requires the RANN package. Install it with install.packages(\"RANN\").")
+      }
+      assign_nodes_to_keep_rann(nodes, keep, nodes_radius_km, verbose = verbose)
+    } else {
+      assign_nodes_to_keep(nodes, keep, nodes_radius_km, verbose = verbose)
     }
+    if(length(close$nodes)) clusters[close$nodes] <- close$clusters
     ind <- whichv(clusters, 0L)
     if(length(ind)) {
       mat <- cbind(Y = nodes$Y[ind], X = nodes$X[ind])
       weights <- if(length(nodes$weights)) nodes$weights[ind] else alloc(1, nrow(mat))
-      if(verbose) cat("Clustering the remaining nodes with the leaderCluster algorithm using a radius of ", cluster_radius_km, "km\n", sep = "")
-      res <- leaderCluster(mat, cluster_radius_km, weights, max_iter = 250L, distance = "haversine")
-      if(res$iter >= 250) warning("leaderCluster did not fully converge within 250 iterations")
-      else if(verbose) cat("leaderCluster algorithm converged in", res$iter, "iterations\n")
+      res <- cluster_remaining_nodes(mat, weights, cluster_radius_km, cluster.algo.dbscan, verbose)
       clusters[ind] <- res$cluster_id %+=% length(keep)
       centroids <- integer(length(keep) + res$num_clusters)
       centroids[seq_along(keep)] <- keep
-      centroids[-seq_along(keep)] <- suppressMessages(ind[geodist_min(res$cluster_centroids[,2:1], mat[,2:1], measure = "haversine", quiet = TRUE)])
+      candidates <- mat[,2:1, drop = FALSE]
+      colnames(candidates) <- colnames(res$cluster_centroids) <- c("X", "Y")
+      centroids[-seq_along(keep)] <- ind[nearest_lonlat(res$cluster_centroids, candidates, nodes.algo.rann)]
     } else centroids <- keep
   } else {
     mat <- cbind(Y = nodes$Y, X = nodes$X)
-    weights <- if(length(nodes$weights)) nodes$weights[ind] else alloc(1, nrow(mat))
-    res <- leaderCluster(mat, cluster_radius_km, weights, max_iter = 250L, distance = "haversine")
-    if(res$iter >= 250) warning("leaderCluster did not fully converge within 250 iterations")
-    else if(verbose) cat("leaderCluster algorithm converged in", res$iter, "iterations\n")
+    weights <- if(length(nodes$weights)) nodes$weights else alloc(1, nrow(mat))
+    res <- cluster_remaining_nodes(mat, weights, cluster_radius_km, cluster.algo.dbscan, verbose)
     clusters <- res$cluster_id
-    centroids <- res$cluster_centroids[,2:1]
-    dimnames(centroids)[[2L]] <- c("X", "Y")
-    centroids <- suppressMessages(geodist_min(centroids, mat[,2:1], measure = "haversine", quiet = TRUE))
+    candidates <- mat[, 2:1, drop = FALSE]
+    colnames(candidates) <- colnames(res$cluster_centroids) <- c("X", "Y")
+    centroids <- nearest_lonlat(res$cluster_centroids, candidates, nodes.algo.rann)
   }
   list(clusters = clusters, centroids = nodes$node[centroids])
 }
@@ -1092,6 +1517,13 @@ contract_edges <- function(graph, nodes, clusters, centroids, directed = FALSE, 
     if(any(self_loops)) {
       if(verbose) cat("Dropped", sum(self_loops), "self-loop edges (following clustering)\n")
       graph <- ss(graph, !self_loops, check = FALSE)
+      attr(graph, "keep.edges") <- which(!self_loops)
+    }
+    if(!fnrow(graph)) {
+      attr(graph, "group.id") <- integer(0)
+      attr(graph, "group.starts") <- integer(0)
+      attr(graph, "group.sizes") <- integer(0)
+      return(graph)
     }
 
     # For undirected graphs, normalize edge direction so from < to
