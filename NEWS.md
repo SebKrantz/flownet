@@ -1,14 +1,31 @@
-# flownet 0.2.2.9000
+# flownet 0.3.0
+## New Functions
 
-- `consolidate_graph()` performance: singleton-edge removal now uses a linear-time peel (`drop_singletons_linear()`), avoiding repeated full-graph scans on large networks.
+- **`critical_link_analysis()`**: New function that computes edge-level detour costs and vulnerability ratios for any graph. For each edge `(u, v)` it finds the shortest alternative path from `u` to `v` after removing that edge, without repeated graph deletion. The underlying C implementation runs a multi-label Dijkstra once per unique source node, tracking the two best distances that begin via different first edges. Parallel edges are handled as distinct alternatives; edges with no detour receive `Inf`. Supports directed and undirected graphs, and parallelises per-source Dijkstra runs across `nthreads` OpenMP threads.
 
-- `consolidate_graph()`: optional C-level contraction of degree-2 chains (`C_contract_linear_nodes`). Use `options(flownet.use_c_contraction = TRUE)` (default) or `FALSE` to force the R-only loop. The C code walks each chain once using dense array indexing (no hash table).
+## `consolidate_graph()` Improvements
 
-- `consolidate_graph_core()` remaps `from` / `to` to dense internal node indices (`funique.default()` + `fmatch()`, same idea as `simplify_network()`) before contraction, then maps aggregated endpoints back to original node ids so results and downstream joins are unchanged.
+- Singleton-edge removal now uses a linear-time peel (`drop_singletons_linear()`), avoiding repeated full-graph scans on large networks.
 
-- `consolidate_graph_core()`: when `verbose = TRUE`, reports phase timings (singleton peel, orientation, contraction, aggregation).
+- Degree-2 chain contraction is now performed at C level (`C_contract_linear_nodes`) by default. The C routine walks each chain once using dense array indexing with no hash table. Set `options(flownet.use_c_contraction = FALSE)` to force the R-only fallback.
 
-- More `testthat` coverage for `consolidate_graph()` edge cases (recursion, `keep.nodes`, long chains, logging).
+- `consolidate_graph_core()` remaps `from` / `to` to dense internal node indices (`funique.default()` + `fmatch()`) before contraction and maps aggregated endpoints back to original node IDs, so results and downstream joins are unchanged.
+
+- `consolidate_graph_core()` now handles topology-only graphs (no coordinate or attribute columns): when no nodes are kept for aggregation, it correctly returns a data frame of contracted groups.
+
+- When `verbose = TRUE`, phase timings are reported for singleton peel, orientation, contraction, and aggregation steps.
+
+- More `testthat` coverage for edge cases: recursion, `keep.nodes`, long chains, C vs. R contraction equivalence, and singleton-peel equivalence.
+
+## `simplify_network()` Improvements
+
+- New `nthreads` parameter (default `1`): parallelises the per-chunk shortest-path computations in `method = "shortest-paths"` using `mirai` daemons, matching the multithreading interface of `run_assignment()`.
+
+- New `cluster.algo.dbscan` parameter (default `FALSE`): when `TRUE`, spatial clustering of remaining nodes uses `dbscan::dbscan()` instead of `leaderCluster`. DBSCAN is substantially faster for larger datasets. Requires the **dbscan** package.
+
+- New `nodes.algo.rann` parameter (default `FALSE`): when `TRUE`, node-to-kept-node assignment uses **RANN**'s fast k-d tree nearest-neighbour search on 3-D Cartesian coordinates (converted from lon/lat via `lonlat_to_xyz()`). Requires the **RANN** package.
+
+- The simplified graph returned by `method = "cluster"` now carries a `keep.edges` attribute containing the integer indices of the edges retained from the original graph.
 
 # flownet 0.2.2
 
