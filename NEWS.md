@@ -1,4 +1,7 @@
 # flownet 0.3.0
+
+*flownet* 0.3.0 introduces one new function for critical link analysis and substantive performance improvements to `consolidate_graph()` and `simplify_network()`. 
+
 ## New Functions
 
 - **`critical_link_analysis()`**: New function that computes edge-level detour costs and vulnerability ratios for any graph. For each edge `(u, v)` it finds the shortest alternative path from `u` to `v` after removing that edge, without repeated graph deletion. The underlying C implementation runs a multi-label Dijkstra once per unique source node, tracking the two best distances that begin via different first edges. Parallel edges are handled as distinct alternatives; edges with no detour receive `Inf`. Supports directed and undirected graphs, and parallelises per-source Dijkstra runs across `nthreads` OpenMP threads.
