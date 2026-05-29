@@ -197,11 +197,14 @@ SEXP critical_link_detours(SEXP from, SEXP to, SEXP cost, SEXP n_nodes, SEXP dir
   int *first1_buf = (int *) R_alloc((size_t) nt * per_thread, sizeof(int));
   int *first2_buf = (int *) R_alloc((size_t) nt * per_thread, sizeof(int));
 
-  // Heap upper bound: each label update yields one push; with two labels per node
-  // and per-arc relaxations, the total number of live entries is bounded by
-  // 2 * n_arcs + n + 16. Sized once per thread so no allocation is needed inside
-  // the parallel region.
-  size_t heap_cap = (size_t) 2 * (size_t) n_arcs + (size_t) n + 16;
+  // Heap upper bound. Each node is "validly" popped at most twice (once per label
+  // slot, since labels only decrease and are popped in non-decreasing order), so
+  // the main loop pushes at most 2 * n_arcs entries. The initial source expansion
+  // pushes at most 2 per distinct neighbour, i.e. <= 2 * n. The maximum number of
+  // simultaneously live entries can never exceed the total number of pushes, so
+  // 2 * n_arcs + 2 * n + 16 is a provable upper bound. Sized once per thread so no
+  // allocation is needed inside the parallel region.
+  size_t heap_cap = (size_t) 2 * (size_t) n_arcs + (size_t) 2 * (size_t) n + 16;
   HeapItem *heap_buf = (HeapItem *) R_alloc((size_t) nt * heap_cap, sizeof(HeapItem));
 
   int overflow_flag = 0;

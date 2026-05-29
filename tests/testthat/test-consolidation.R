@@ -544,6 +544,48 @@ test_that("simplify_network shortest-paths nthreads matches single-thread output
   expect_identical(attr(res_multi, "edge_counts"), attr(res_single, "edge_counts"))
 })
 
+test_that("consolidate_graph leaves pure cycles intact (no crash/hang, C == R)", {
+  # All-degree-2 cycles have no contractible chain head: contracting would
+  # collapse to a self-loop. Both the C and R contraction paths must return the
+  # cycle unchanged rather than crashing collap() or looping forever.
+  triangle <- data.frame(from = c(1, 2, 3), to = c(2, 3, 1), cost = c(1, 1, 1))
+  cycle4   <- data.frame(from = c(1, 2, 3, 4), to = c(2, 3, 4, 1), cost = c(1, 2, 3, 4))
+  two_tri  <- data.frame(from = c(1, 2, 3, 4, 5, 6), to = c(2, 3, 1, 5, 6, 4), cost = 1:6)
+
+  for (g in list(triangle, cycle4, two_tri)) {
+    for (dir in c(TRUE, FALSE)) {
+      expect_consolidate_equiv_c_r(g, directed = dir)
+      res <- consolidate_graph(g, directed = dir, verbose = FALSE)
+      expect_equal(nrow(res), nrow(g))  # cycle preserved, nothing contracted
+    }
+  }
+})
+
+test_that("simplify_network cluster method sets keep.edges (with and without self-loops)", {
+  # Two distant clusters -> no self-loops after contraction.
+  g_nosl <- data.frame(
+    from = c(1, 2, 3, 4), to = c(2, 3, 4, 5),
+    FX = c(0, 0, 0, 0), FY = c(0, 1, 2, 3),
+    TX = c(0, 0, 0, 0), TY = c(1, 2, 3, 4), cost = 1
+  )
+  res <- simplify_network(g_nosl, nodes = 1:5, method = "cluster",
+                          radius_km = list(nodes = 1e-4, cluster = 1e-4), verbose = FALSE)
+  expect_false(is.null(attr(res, "keep.edges")))
+  expect_identical(attr(res, "keep.edges"), seq_len(nrow(g_nosl)))
+  expect_identical(length(attr(res, "keep.edges")), length(attr(res, "group.id")))
+
+  # Force a self-loop: nodes 1 and 2 collapse into one cluster.
+  g_sl <- data.frame(
+    from = c(1, 2, 3), to = c(2, 3, 1),
+    FX = c(0, 0, 5), FY = c(0, 0, 5),
+    TX = c(0, 5, 0), TY = c(0, 5, 0), cost = 1
+  )
+  res2 <- simplify_network(g_sl, nodes = c(1, 3), method = "cluster",
+                           radius_km = list(nodes = 1, cluster = 1), verbose = FALSE)
+  expect_false(is.null(attr(res2, "keep.edges")))
+  expect_identical(length(attr(res2, "keep.edges")), length(attr(res2, "group.id")))
+})
+
 test_that("simplify_network errors on missing columns", {
   graph <- data.frame(from = 1:3, cost = 1:3)
 

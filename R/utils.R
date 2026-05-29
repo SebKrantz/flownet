@@ -737,6 +737,28 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
       to_ind <- to_ind[valid]
       nodes <- nodes[valid]
     }
+    # Exclude pure cycles (chains of intermediate nodes with no head): contracting
+    # them would collapse to a self-loop and the redirection below would not
+    # converge. A node is a chain head if the 'from' endpoint of its in-edge is
+    # not itself a candidate. Peel from heads (Kahn-style); any node never reached
+    # belongs to a cycle. Mirrors the head detection in C_contract_linear_nodes.
+    pred_idx <- fmatch(gft$from[to_ind], nodes) # candidate index of predecessor (NA if external)
+    active <- rep(TRUE, length(nodes))          # TRUE until proven part of a path
+    repeat {
+      heads <- active & (is.na(pred_idx) | !active[pred_idx])
+      if(!any(heads)) break
+      active[heads] <- FALSE
+    }
+    if(any(active)) {
+      contractible <- whichv(active, FALSE)
+      if(!length(contractible)) { # entire candidate set is pure cycles
+        c_no_progress <<- TRUE
+        return(NA)
+      }
+      from_ind <- from_ind[contractible]
+      to_ind <- to_ind[contractible]
+      nodes <- nodes[contractible]
+    }
     setv(gft$from, from_ind, NA, vind1 = TRUE) # gft$from[from_ind] <<- NA
     to_ind_prev <- integer(0)
     repeat {
@@ -874,7 +896,7 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
   # Aggregation
   tic <- now_s()
   if(verbose) cat("Aggregated", length(keep), "edges down to", g$N.groups, "edges\n")
-  res <- if(length(nam_keep)) {
+  res <- if(length(nam_keep) && length(keep)) {
     collap(ss(graph_df, keep, nam_keep, check = FALSE), g, keep.col.order = FALSE, ...)
   } else {
     out <- g$groups
@@ -1512,14 +1534,17 @@ contract_edges <- function(graph, nodes, clusters, centroids, directed = FALSE, 
     graph$from <- node_centroids[ckmatch(graph$from, nodes$node)]
     graph$to <- node_centroids[ckmatch(graph$to, nodes$node)]
 
-    # Drop self-loops (edges where both endpoints map to same cluster)
+    # Drop self-loops (edges where both endpoints map to same cluster).
+    # keep.edges records which rows of the original graph survive into the
+    # contraction; combined with group.id it maps original edges -> simplified.
     self_loops <- graph$from == graph$to
+    keep_edges <- which(!self_loops)
     if(any(self_loops)) {
       if(verbose) cat("Dropped", sum(self_loops), "self-loop edges (following clustering)\n")
       graph <- ss(graph, !self_loops, check = FALSE)
-      attr(graph, "keep.edges") <- which(!self_loops)
     }
     if(!fnrow(graph)) {
+      attr(graph, "keep.edges") <- keep_edges
       attr(graph, "group.id") <- integer(0)
       attr(graph, "group.starts") <- integer(0)
       attr(graph, "group.sizes") <- integer(0)
@@ -1553,6 +1578,7 @@ contract_edges <- function(graph, nodes, clusters, centroids, directed = FALSE, 
     if(any(nam %!in% ord)) {
       add_vars(res) <- collap(get_vars(graph, nam[nam %!in% ord]), g, keep.by = FALSE, ...)
     }
+    attr(res, "keep.edges") <- keep_edges
     attr(res, "group.id") <- g$group.id
     attr(res, "group.starts") <- g$group.starts
     attr(res, "group.sizes") <- g$group.sizes
