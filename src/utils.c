@@ -332,12 +332,32 @@ SEXP contract_linear_nodes(SEXP from, SEXP to, SEXP gid, SEXP nodes) {
    *   out_edge[i] = smallest edge index where gft$from == nodes[i]
    * Matches collapse::fmatch semantics (first match) used by the R path.
    */
-  int *in_edge = (int *) R_alloc((size_t) n_nodes, sizeof(int));
-  int *out_edge = (int *) R_alloc((size_t) n_nodes, sizeof(int));
-  char *processed = (char *) R_alloc((size_t) n_nodes, sizeof(char));
-  memset(in_edge, 0, (size_t) n_nodes * sizeof(int));
-  memset(out_edge, 0, (size_t) n_nodes * sizeof(int));
-  memset(processed, 0, (size_t) n_nodes * sizeof(char));
+  /* n_nodes = XLENGTH(nodes) which is always >= 0; guard so the compiler knows
+   * the size_t cast below is safe and to avoid -Wstringop-overflow on GCC 14+. */
+  if (n_nodes == 0) {
+    SEXP ok = PROTECT(ScalarLogical(FALSE));
+    SEXP ans = PROTECT(allocVector(VECSXP, 4));
+    SET_VECTOR_ELT(ans, 0, out_from);
+    SET_VECTOR_ELT(ans, 1, out_to);
+    SET_VECTOR_ELT(ans, 2, out_gid);
+    SET_VECTOR_ELT(ans, 3, ok);
+    SEXP nms = PROTECT(allocVector(STRSXP, 4));
+    SET_STRING_ELT(nms, 0, mkChar("from"));
+    SET_STRING_ELT(nms, 1, mkChar("to"));
+    SET_STRING_ELT(nms, 2, mkChar("gid"));
+    SET_STRING_ELT(nms, 3, mkChar("ok"));
+    setAttrib(ans, R_NamesSymbol, nms);
+    UNPROTECT(6);
+    return ans;
+  }
+
+  size_t n_nodes_sz = (size_t) n_nodes;  /* safe: n_nodes > 0 after guard above */
+  int *in_edge = (int *) R_alloc(n_nodes_sz, sizeof(int));
+  int *out_edge = (int *) R_alloc(n_nodes_sz, sizeof(int));
+  char *processed = (char *) R_alloc(n_nodes_sz, 1);
+  memset(in_edge, 0, n_nodes_sz * sizeof(int));
+  memset(out_edge, 0, n_nodes_sz * sizeof(int));
+  memset(processed, 0, n_nodes_sz);
 
   for (R_xlen_t e = n_edges; e > 0; e--) {
     R_xlen_t idx = e - 1;
@@ -364,7 +384,7 @@ SEXP contract_linear_nodes(SEXP from, SEXP to, SEXP gid, SEXP nodes) {
    *     after ffirst()-fill, matching the R implementation's semantics.
    * Pure cycles of intermediates have no head and are safely skipped.
    */
-  int *chain_buf = (int *) R_alloc((size_t) n_nodes, sizeof(int));
+  int *chain_buf = (int *) R_alloc(n_nodes_sz, sizeof(int));
   int ok_flag = 0;
   for (R_xlen_t i = 0; i < n_nodes; i++) {
     if (processed[i]) continue;
