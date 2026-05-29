@@ -56,6 +56,7 @@ reference:
   - create_undirected_graph
   - consolidate_graph
   - simplify_network
+  - critical_link_analysis
 - title: "Route Choice and Traffic Assignment"
   desc: "Run traffic assignment using path-sized logit model, including efficient built-in route choice algorithm, or all-or-nothing assignment to the shortest path."
 - contents:
