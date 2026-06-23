@@ -2,6 +2,8 @@
 
 ## flownet 0.3.0
 
+CRAN release: 2026-05-29
+
 *flownet* 0.3.0 introduces one new function for critical link analysis
 and substantive performance improvements to
 [`consolidate_graph()`](https://sebkrantz.github.io/flownet/reference/consolidate_graph.md)
