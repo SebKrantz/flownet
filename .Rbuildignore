@@ -14,3 +14,5 @@ LICENSE
 ^pkgdown$
 ^codecov\.yml$
 ^man/figures
+^\.positai$
+^\.claude$

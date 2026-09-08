@@ -11,6 +11,9 @@ SEXP mark_edges_traversed(SEXP paths, SEXP edges_traversed);
 SEXP set_vector_elt(SEXP x, SEXP i, SEXP elt);
 SEXP assign_flows_to_paths(SEXP paths, SEXP flows, SEXP final_flows, SEXP indices, SEXP od_pairs);
 SEXP sum_path_costs(SEXP paths, SEXP cost, SEXP result, SEXP indices);
+SEXP contract_linear_nodes(SEXP from, SEXP to, SEXP gid, SEXP nodes);
+SEXP critical_link_detours(SEXP from, SEXP to, SEXP cost, SEXP n_nodes, SEXP directed,
+                           SEXP sources, SEXP source_edges, SEXP nthreads);
 
 static const R_CallMethodDef CallEntries[] = {
   {"C_check_path_duplicates", (DL_FUNC) &check_path_duplicates, 4},
@@ -20,6 +23,8 @@ static const R_CallMethodDef CallEntries[] = {
   {"C_set_vector_elt", (DL_FUNC) &set_vector_elt, 3},
   {"C_assign_flows_to_paths", (DL_FUNC) &assign_flows_to_paths, 5},
   {"C_sum_path_costs", (DL_FUNC) &sum_path_costs, 4},
+  {"C_contract_linear_nodes", (DL_FUNC) &contract_linear_nodes, 4},
+  {"C_critical_link_detours", (DL_FUNC) &critical_link_detours, 8},
   {NULL, NULL, 0}
 };
 

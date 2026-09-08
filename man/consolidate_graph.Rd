@@ -56,8 +56,14 @@ A data frame representing the consolidated graph with:
     \item \code{from}, \code{to}, \code{edge} - Node/edge IDs (updated after consolidation)
     \item Coordinate columns (\code{FX}, \code{FY}, \code{TX}, \code{TY}) if present in original
     \item Attribute \code{"keep.edges"} - Indices of original edges that were kept (before aggregation)
-    \item Attribute \code{"group.id"} - Integer mapping each kept edge to its row in the result (after aggregation)
+    \item Attribute \code{"group.id"} - Integer vector aligned with \code{"keep.edges"}, mapping each kept edge to its row in the result (after aggregation)
   }
+  \code{"keep.edges"} and \code{"group.id"} are attached only for
+  \code{recursive = "none"} or \code{"partial"}. With the default
+  \code{recursive = "full"} they are omitted, because consolidation runs over
+  several passes and a single-pass mapping back to the original edges would be
+  ambiguous. Use \code{recursive = "partial"} (repeatedly, if needed) when you
+  need to trace edges through consolidation.
 }
 \description{
 Consolidate a graph by contracting/removing intermediate nodes (nodes that occur exactly twice) and dropping loop, duplicate, and singleton edges (leading to dead ends). This simplifies the network topology while preserving connectivity.

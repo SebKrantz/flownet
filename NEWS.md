@@ -1,3 +1,46 @@
+# flownet 0.3.0
+
+*flownet* 0.3.0 introduces one new function for critical link analysis and substantive performance improvements to `consolidate_graph()` and `simplify_network()`. 
+
+## New Functions
+
+- **`critical_link_analysis()`**: New function that computes edge-level detour costs and vulnerability ratios for any graph. For each edge `(u, v)` it finds the shortest alternative path from `u` to `v` after removing that edge, without repeated graph deletion. The underlying C implementation runs a multi-label Dijkstra once per unique source node, tracking the two best distances that begin via different first edges. Parallel edges are handled as distinct alternatives; edges with no detour receive `Inf`. Supports directed and undirected graphs, and parallelises per-source Dijkstra runs across `nthreads` OpenMP threads.
+
+## `consolidate_graph()` Improvements
+
+- Singleton-edge removal now uses a linear-time peel (`drop_singletons_linear()`), avoiding repeated full-graph scans on large networks.
+
+- Degree-2 chain contraction is now performed at C level (`C_contract_linear_nodes`) by default. The C routine walks each chain once using dense array indexing with no hash table. Set `options(flownet.use_c_contraction = FALSE)` to force the R-only fallback.
+
+- `consolidate_graph_core()` remaps `from` / `to` to dense internal node indices (`funique.default()` + `fmatch()`) before contraction and maps aggregated endpoints back to original node IDs, so results and downstream joins are unchanged.
+
+- `consolidate_graph_core()` now handles topology-only graphs (no coordinate or attribute columns): when no nodes are kept for aggregation, it correctly returns a data frame of contracted groups.
+
+- When `verbose = TRUE`, phase timings are reported for singleton peel, orientation, contraction, and aggregation steps.
+
+- More `testthat` coverage for edge cases: recursion, `keep.nodes`, long chains, C vs. R contraction equivalence, and singleton-peel equivalence.
+
+## `simplify_network()` Improvements
+
+- New `nthreads` parameter (default `1`): parallelises the per-chunk shortest-path computations in `method = "shortest-paths"` using `mirai` daemons, matching the multithreading interface of `run_assignment()`.
+
+- New `cluster.algo.dbscan` parameter (default `FALSE`): when `TRUE`, spatial clustering of remaining nodes uses `dbscan::dbscan()` instead of `leaderCluster`. DBSCAN is substantially faster for larger datasets. Requires the **dbscan** package.
+
+- New `nodes.algo.rann` parameter (default `FALSE`): when `TRUE`, node-to-kept-node assignment uses **RANN**'s fast k-d tree nearest-neighbour search on 3-D Cartesian coordinates (converted from lon/lat via `lonlat_to_xyz()`). Requires the **RANN** package.
+
+- The simplified graph returned by `method = "cluster"` now carries a `keep.edges` attribute containing the integer indices of the edges retained from the original graph.
+
+## Result Attributes — Breaking Changes
+
+- **`simplify_network(method = "shortest-paths")`**: the two result attributes have been renamed for consistency with the cluster method and `consolidate_graph()`:
+  - `"edges"` → `"keep.edges"` (integer vector of retained edge indices)
+  - `"edge_counts"` → `"edge.counts"` (traversal counts for each retained edge)
+  Update any code that reads `attr(result, "edges")` or `attr(result, "edge_counts")`.
+
+## Result Attributes
+
+- The grouping/edge-tracking attributes attached to results are now consistent and documented. `consolidate_graph()` attaches `keep.edges` and `group.id` together (aligned, same length) for `recursive = "none"` or `"partial"`; with the default `recursive = "full"` they are omitted (the mapping would span multiple passes), which is now stated in the documentation. `create_undirected_graph()` now also exposes `group.id` and `group.sizes` (previously only `group.starts`, and undocumented), and `consolidate_graph()` strips any stale grouping attributes carried in from upstream operations.
+
 # flownet 0.2.2
 
 - Fixed issue in `consolidate_graph()` which used to modify columns (`from` and `to` in-place). Users in older versions are advised to input a `data.table::copy()` of the graph to retain it. 

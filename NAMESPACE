@@ -3,6 +3,7 @@
 S3method(print,flownet)
 export(consolidate_graph)
 export(create_undirected_graph)
+export(critical_link_analysis)
 export(distances_from_graph)
 export(linestrings_from_graph)
 export(linestrings_to_graph)
