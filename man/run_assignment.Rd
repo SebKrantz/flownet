@@ -56,7 +56,7 @@ The cost values are used to compute shortest paths and determine route probabili
 
 \item{npaths.max}{Integer (default: Inf). Maximum number of paths to compute per OD-pair. Only used for PSL method. If the number of paths exceeds this number, a random sample will be taken from all but the shortest path.}
 
-\item{dmat.max.size}{Integer (default: 1e4^2). Maximum size of distance matrices (both shortest paths and geodesic) to precompute. If smaller than \code{n_nodes^2}, then the full matrix is precomputed. Otherwise, it is computed in chunks as needed, where each chunk has \code{dmat.max.size} elements. Only used for PSL method.}
+\item{dmat.max.size}{Integer (default: 1e4^2). Maximum size of distance matrices (both shortest paths and geodesic) to precompute. If \code{dmat.max.size >= n_nodes^2} - i.e. the full matrix fits within the budget - it is precomputed once. Otherwise, it is computed in chunks as needed, where each chunk has approximately \code{dmat.max.size} elements. Only used for PSL method.}
 
 \item{return.extra}{Character vector specifying additional results to return.
   Use \code{"all"} to return all available extras for the selected method.
@@ -148,7 +148,7 @@ For more information about the PSL model consult some of the references below.
 \subsection{Route Enumeration Algorithm}{
 For each origin-destination pair, the algorithm identifies alternative routes as follows:
 \enumerate{
-  \item Compute the shortest path cost from origin to destination. If \code{sqrt(dmat.max.size) < N.nodes}, the entire shortest-path-distance matrix is precomputed.
+  \item Compute the shortest path cost from origin to destination. If \code{sqrt(dmat.max.size) >= N.nodes}, the entire shortest-path-distance matrix is precomputed.
   \item For each potential intermediate node, calculate the total cost of going
         origin -> intermediate -> destination (also using the distance matrix).
   \item Keep only routes where total cost is within \code{detour.max} times the

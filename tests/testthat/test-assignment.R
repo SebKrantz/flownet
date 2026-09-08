@@ -439,3 +439,36 @@ test_that("beta parameter affects PSF penalty correctly", {
  expected_b5 <- proportions(exp(-pcosts + 5 * log(psf)))
  expect_equal(result_b5$path_weights[[1]], expected_b5, tolerance = 1e-10)
 })
+
+test_that("PSL arguments passed as variables work with nthreads > 1", {
+  # Regression test: beta, detour.max, unique.cost and npaths.max are only
+  # referenced inside the parallel worker closure. Unless they are forced in
+  # run_assignment(), mirai serializes them as unevaluated promises and the
+  # daemons fail with "object '<name>' not found".
+  graph <- data.frame(
+    from = c(1, 1, 2, 2, 3, 4, 4, 5),
+    to = c(2, 3, 3, 4, 5, 5, 6, 6),
+    cost = c(1, 2, 1, 2, 1, 1, 3, 1)
+  )
+  od <- data.frame(from = c(1, 1, 2, 3), to = c(5, 6, 6, 6), flow = c(10, 20, 30, 40))
+
+  beta_var <- 2
+  detour_var <- 1.5
+  unique_var <- TRUE
+  npaths_var <- 50
+
+  expect_no_error(
+    res_multi <- run_assignment(graph, od, cost.column = "cost", method = "PSL",
+                                beta = beta_var, detour.max = detour_var,
+                                unique.cost = unique_var, npaths.max = npaths_var,
+                                angle.max = NA, nthreads = 2L, verbose = FALSE)
+  )
+
+  res_single <- run_assignment(graph, od, cost.column = "cost", method = "PSL",
+                               beta = 2, detour.max = 1.5,
+                               unique.cost = TRUE, npaths.max = 50,
+                               angle.max = NA, nthreads = 1L, verbose = FALSE)
+
+  expect_equal(res_multi$final_flows, res_single$final_flows, tolerance = 1e-10)
+  expect_identical(res_multi$od_pairs_used, res_single$od_pairs_used)
+})

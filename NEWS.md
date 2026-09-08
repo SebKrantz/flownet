@@ -1,3 +1,11 @@
+# flownet 0.3.0.9000 (development)
+
+## Bug Fixes
+
+- Fixed `run_assignment(method = "PSL")` failing with `object '<name>' not found` when `beta`, `detour.max`, `unique.cost` or `npaths.max` were passed as *variables* (rather than literals) together with `nthreads > 1`. These four arguments are only referenced inside the parallel worker closure, so they were still unevaluated promises when *mirai* serialized it to the daemons. They are now forced before the closure is created. Literal arguments, single-threaded runs, `angle.max` and `dmat.max.size` were unaffected. Added a regression test.
+
+- Corrected the documentation of `dmat.max.size` in `run_assignment()`, which stated the precompute condition backwards in two places. The full distance matrix is precomputed when `dmat.max.size >= n_nodes^2` (i.e. when the budget accommodates it), not when it is smaller.
+
 # flownet 0.3.0
 
 *flownet* 0.3.0 introduces one new function for critical link analysis and substantive performance improvements to `consolidate_graph()` and `simplify_network()`. 
