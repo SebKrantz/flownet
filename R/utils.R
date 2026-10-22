@@ -163,7 +163,8 @@ linestrings_from_graph <- function(graph_df, crs = 4326) {
 #' @details
 #' This function converts a directed graph to an undirected graph by:
 #' \itemize{
-#'   \item Normalizing edge directions so that \code{from < to} for all edges
+#'   \item Normalizing edge directions so that \code{from < to} for all edges, swapping
+#'     the node coordinates (\code{FX}, \code{FY} with \code{TX}, \code{TY}) along with the nodes
 #'   \item Collapsing duplicate edges (same \code{from} and \code{to} nodes)
 #'   \item For spatial/identifier columns (\code{edge}, \code{FX}, \code{FY}, \code{TX}, \code{TY}),
 #'     taking the first value from duplicates
@@ -183,16 +184,28 @@ linestrings_from_graph <- function(graph_df, crs = 4326) {
 #' c(directed = nrow(graph), undirected = nrow(graph_undir))
 #'
 #' @export
-#' @importFrom collapse ftransform GRP get_vars add_vars add_vars<- ffirst colorderv %!in% collap
+#' @importFrom collapse ftransform GRP get_vars add_vars add_vars<- ffirst colorderv %!in% collap copyv
 #' @importFrom kit fpmin fpmax
 create_undirected_graph <- function(graph_df, by = NULL, ...) {
   if(length(by)) {
     if(is.call(by)) by <- all.vars(by)
     if(!is.character(by)) stop("by needs to be a one-sided formula or a character vector of column names")
   }
+  nam <- names(graph_df)
+  # Node coordinates must be swapped along with the nodes on reversed edges,
+  # otherwise the edge carries the coordinates of the wrong endpoints.
+  flip <- which(graph_df$from > graph_df$to)
+  if(length(flip)) {
+    swap <- c(if(all(c("FX", "TX") %in% nam))
+                list(FX = copyv(graph_df$FX, flip, graph_df$TX, vind1 = TRUE),
+                     TX = copyv(graph_df$TX, flip, graph_df$FX, vind1 = TRUE)),
+              if(all(c("FY", "TY") %in% nam))
+                list(FY = copyv(graph_df$FY, flip, graph_df$TY, vind1 = TRUE),
+                     TY = copyv(graph_df$TY, flip, graph_df$FY, vind1 = TRUE)))
+    if(length(swap)) graph_df <- ftransform(graph_df, swap)
+  }
   graph_df <- ftransform(graph_df, from = fpmin(from, to), to = fpmax(from, to))
   g <- GRP(graph_df, c("from", "to", by), sort = FALSE)
-  nam <- names(graph_df)
   agg_first <- c("edge", "FX", "FY", "TX", "TY")
   ord <- c("edge", "from", "FX", "FY", "to", "TX", "TY", by)
   res <- g$groups
@@ -798,42 +811,53 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
   }
 
   orient_undirected_nodes <- function(nodes) {
+    # Orient the edges of every maximal chain of candidate (degree-2) nodes so
+    # the chain reads head -> ... -> tail: walk each chain once from a
+    # non-candidate end (or from any node of a pure cycle) and set (from, to)
+    # along the walk. The previous rule flipped one edge per node independently,
+    # which left two adjacent candidates that both needed flipping pointing
+    # into each other (1-2, 3-2, 3-4: both flips fire, giving 1-2, 2-3, 4-3),
+    # after which the contraction produced self-loops or never converged
+    # (2026-09-11). Node ids are dense 1..N here (see norm_nodes above).
     if(!length(nodes)) return(FALSE)
-    N <- length(gft$from)
-    Np <- N + 1L
-    Ninv <- N:1 # Not strictly necessary to take second match, but appears faster and catch more nodes...
-    idx_from <- Np - na_rm(fmatch(nodes, gft$from[Ninv]))
-    if(length(idx_from)) {
-      tmp_from <- gft$from[idx_from]
-      tmp_from_to <- gft$to[idx_from]
+    ef <- gft$from; et <- gft$to
+    N <- length(ef)
+    nn <- max(ef, et, na.rm = TRUE)
+    is_cand <- logical(nn); is_cand[nodes] <- TRUE
+    # incident edges per candidate node (a self-loop counts twice, as in the degree)
+    e_all <- c(seq_len(N)[is_cand[ef]], seq_len(N)[is_cand[et]])
+    n_all <- c(ef[is_cand[ef]], et[is_cand[et]])
+    inc <- gsplit(e_all, n_all, use.g.names = TRUE)
+    inc_key <- as.integer(names(inc)); inc_of <- integer(nn); inc_of[inc_key] <- seq_along(inc)
+    other_end <- function(e, node) if(ef[e] == node) et[e] else ef[e]
+    next_edge <- function(node, e) { ie <- inc[[inc_of[node]]]; if(length(ie) < 2L) NA_integer_ else if(ie[1L] == e) ie[2L] else ie[1L] }
+    visited <- logical(N)
+    for(start in nodes) {
+      ie <- inc[[inc_of[start]]]
+      if(length(ie) < 2L || visited[ie[1L]]) next
+      # walk backwards to the head: a non-candidate node, or `start` again (pure cycle)
+      cur <- start; e <- ie[1L]; steps <- 0L
+      repeat {
+        nxt <- other_end(e, cur)
+        if(!is_cand[nxt] || nxt == start) break
+        e2 <- next_edge(nxt, e); if(is.na(e2)) break
+        e <- e2; cur <- nxt
+        steps <- steps + 1L; if(steps > N) break
+      }
+      head <- nxt
+      # walk forward from the head, orienting every edge cur -> other
+      cur <- head; steps <- 0L
+      repeat {
+        oth <- other_end(e, cur)
+        if(ef[e] != cur) { ef[e] <- cur; et[e] <- oth }
+        visited[e] <- TRUE
+        if(!is_cand[oth] || oth == head) break
+        e2 <- next_edge(oth, e); if(is.na(e2) || visited[e2]) break
+        e <- e2; cur <- oth
+        steps <- steps + 1L; if(steps > N) break
+      }
     }
-    idx_to <- Np - na_rm(fmatch(nodes, gft$to[Ninv]))
-    if(length(idx_to)) {
-      tmp_to <- gft$to[idx_to]
-      tmp_to_from <- gft$from[idx_to]
-    }
-    if(length(idx_from)) {
-      setv(gft$from, idx_from, tmp_from_to, vind1 = TRUE) # gft$from[idx_from] <<- tmp_from_to
-      setv(gft$to, idx_from, tmp_from, vind1 = TRUE) # gft$to[idx_from] <<- tmp_from
-    }
-    if(length(idx_to)) {
-      setv(gft$to, idx_to, tmp_to_from, vind1 = TRUE) # gft$to[idx_to] <<- tmp_to_from
-      setv(gft$from, idx_to, tmp_to, vind1 = TRUE)  # gft$from[idx_to] <<- tmp_to
-    }
-    # # Old slow (iterative) version
-    # for(node in nodes) {
-    #   if(length(idx <- whichv(gft$from, node))) {
-    #     idx <- idx[2L]
-    #     tmp <- gft$from[idx]
-    #     gft$from[idx] <<- gft$to[idx]
-    #     gft$to[idx] <<- tmp
-    #   } else if(length(idx <- whichv(gft$to, node))) {
-    #     idx <- idx[2L]
-    #     tmp <- gft$to[idx]
-    #     gft$to[idx] <<- gft$from[idx]
-    #     gft$from[idx] <<- tmp
-    #   }
-    # }
+    gft$from <<- ef; gft$to <<- et
     TRUE
   }
 
@@ -842,7 +866,17 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
     iter <- iter + 1L
 
     # tic <- now_s()
-    degree_table <- compute_degrees(gft$from, gft$to)
+    # After a contraction pass the rows of a merged chain all carry the chain's
+    # (from, to) but remain separate rows; counting every row inflates the degree
+    # of the chain's end nodes by the number of merged rows, so the dead-end node
+    # of a 2-edge chain looked like a degree-2 node and the next pass contracted
+    # it into a self-loop (1-2, 2-3, 3-4, 3-5 -> 3-3 instead of 1-3; found
+    # 2026-09-11 on the CPCS freight network: 1,262 waterway spurs, 467 road and
+    # 47 rail spurs turned into self-loops). Count each edge group once.
+    if(contractd_any) {
+      ur <- whichv(fduplicated(list(gft$from, gft$to, gid)), FALSE)
+      degree_table <- compute_degrees(gft$from[ur], gft$to[ur])
+    } else degree_table <- compute_degrees(gft$from, gft$to)
     # timers["singleton"] <- timers["singleton"] + (now_s() - tic)
     if(!fnrow(degree_table)) break
 
@@ -877,7 +911,10 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
       need_orientation <- nodes[degree_table$deg_from[idx] == 2L | degree_table$deg_to[idx] == 2L]
       if(length(need_orientation)) {
         tic <- now_s()
-        if(!orient_undirected_nodes(need_orientation)) stop("Failed to orient undirected edges for consolidation; please verify the input graph.")
+        # walk ALL candidates: orienting only the chains of the nodes that need a
+        # flip can flip the edge shared with a consistently oriented neighbour
+        # and make that neighbour inconsistent instead (2026-09-11)
+        if(!orient_undirected_nodes(nodes)) stop("Failed to orient undirected edges for consolidation; please verify the input graph.")
         timers["orient"] <- timers["orient"] + (now_s() - tic)
         if(verbose) cat(sprintf("Oriented %d undirected intermediate edges\n", length(need_orientation)))
       }
