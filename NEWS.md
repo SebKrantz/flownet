@@ -1,5 +1,9 @@
 # flownet 0.3.0.9000 (development)
 
+## Performance
+
+- `run_assignment(method = "AoN")` computes its shortest paths in C (`src/aon.c`), one Dijkstra search per origin node, in parallel over `nthreads` OpenMP threads instead of *mirai* daemons. The search mirrors igraph's `igraph_get_shortest_paths_dijkstra()` step for step (the same two-way indexed heap, relaxation rule, incident-edge order and early stop), so it returns the same paths as `igraph::shortest_paths()`, including where several paths tie on cost. Flows, path costs and edge counts are summed in a fixed order, so the results no longer depend on `nthreads` (with daemons, OD pairs were dealt to workers at random). On a 115,000-node network the searches run 3-4 times faster on one thread and 20-30 times faster on 8; no igraph graph is built for AoN unless `return.extra` asks for it. Added a test against `igraph::shortest_paths()` on tie-heavy random multigraphs.
+
 ## Bug Fixes
 
 - Fixed `create_undirected_graph()` corrupting node coordinates. Edges are normalized to `from < to`, but the coordinate columns were not swapped along with the nodes, so every reversed edge ended up carrying the coordinates of the wrong endpoints. Nodes then had two conflicting sets of coordinates, and whichever `nodes_from_graph()` picked up propagated into `consolidate_graph()`, node-to-zone snapping and any geometry rebuilt from the graph - visible as straight "V" spikes towards displaced nodes. Coordinates are now swapped together with the nodes. Graphs without coordinate columns, and graphs whose edges are all already ordered, are unaffected.

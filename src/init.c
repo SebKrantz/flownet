@@ -14,6 +14,8 @@ SEXP sum_path_costs(SEXP paths, SEXP cost, SEXP result, SEXP indices);
 SEXP contract_linear_nodes(SEXP from, SEXP to, SEXP gid, SEXP nodes);
 SEXP critical_link_detours(SEXP from, SEXP to, SEXP cost, SEXP n_nodes, SEXP directed,
                            SEXP sources, SEXP source_edges, SEXP nthreads);
+SEXP aon_assign(SEXP from, SEXP to, SEXP cost, SEXP n_nodes, SEXP directed,
+                SEXP od_from, SEXP od_to, SEXP flow, SEXP retflags, SEXP nthreads);
 
 static const R_CallMethodDef CallEntries[] = {
   {"C_check_path_duplicates", (DL_FUNC) &check_path_duplicates, 4},
@@ -25,6 +27,7 @@ static const R_CallMethodDef CallEntries[] = {
   {"C_sum_path_costs", (DL_FUNC) &sum_path_costs, 4},
   {"C_contract_linear_nodes", (DL_FUNC) &contract_linear_nodes, 4},
   {"C_critical_link_detours", (DL_FUNC) &critical_link_detours, 8},
+  {"C_aon_assign", (DL_FUNC) &aon_assign, 10},
   {NULL, NULL, 0}
 };
 

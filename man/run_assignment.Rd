@@ -75,7 +75,7 @@ The cost values are used to compute shortest paths and determine route probabili
 
 \item{verbose}{Logical (default: TRUE). Show progress bar and intermediate steps completion status?}
 
-\item{nthreads}{Integer (default: 1L). Number of threads (daemons) to use for parallel processing with \code{\link[mirai]{mirai}}. Should not exceed the number of logical processors.}
+\item{nthreads}{Integer (default: 1L). Number of threads to use for parallel processing. For AoN these are OpenMP threads over origin nodes, and the results do not depend on their number; for PSL, daemons of \code{\link[mirai]{mirai}}. Should not exceed the number of logical processors.}
 
 \item{x}{An object of class \code{flownet}, typically returned by \code{\link{run_assignment}}.}
 
@@ -113,6 +113,9 @@ more realistic flow distribution.
 \subsection{All-or-Nothing (AoN) Method}{
 A simple assignment method that assigns all flow from each OD pair to the single shortest path.
 This is much faster than PSL but does not consider route alternatives or overlaps.
+The shortest paths are computed in C, one Dijkstra search per origin node, in parallel with
+OpenMP. The search mirrors the one of \code{\link[igraph]{shortest_paths}()}, so ties between
+equal-cost paths are resolved in the same way.
 Parameters \code{detour.max}, \code{angle.max}, \code{unique.cost}, \code{npaths.max},
 \code{beta}, and \code{dmat.max.size} are ignored for AoN.
 }

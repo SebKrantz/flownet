@@ -38,7 +38,7 @@
 #'     \code{"eweights"} \tab Yes \tab No \tab List of edge weight vectors (summed path probabilities per edge, same length as edges) \cr
 #'   }
 #' @param verbose Logical (default: TRUE). Show progress bar and intermediate steps completion status?
-#' @param nthreads Integer (default: 1L). Number of threads (daemons) to use for parallel processing with \code{\link[mirai]{mirai}}. Should not exceed the number of logical processors.
+#' @param nthreads Integer (default: 1L). Number of threads to use for parallel processing. For AoN these are OpenMP threads over origin nodes, and the results do not depend on their number; for PSL, daemons of \code{\link[mirai]{mirai}}. Should not exceed the number of logical processors.
 #'
 #'
 #' @return A list of class \code{"flownet"} containing:
@@ -68,6 +68,9 @@
 #' \subsection{All-or-Nothing (AoN) Method}{
 #' A simple assignment method that assigns all flow from each OD pair to the single shortest path.
 #' This is much faster than PSL but does not consider route alternatives or overlaps.
+#' The shortest paths are computed in C, one Dijkstra search per origin node, in parallel with
+#' OpenMP. The search mirrors the one of \code{\link[igraph]{shortest_paths}()}, so ties between
+#' equal-cost paths are resolved in the same way.
 #' Parameters \code{detour.max}, \code{angle.max}, \code{unique.cost}, \code{npaths.max},
 #' \code{beta}, and \code{dmat.max.size} are ignored for AoN.
 #' }
@@ -285,12 +288,14 @@ run_assignment <- function(graph_df, od_matrix_long,
   # Internally use normalized graph node indices
   from_node <- fmatch(from_node, nodes)
   to_node <- fmatch(to_node, nodes)
-  g <- data.frame(from = from_node, to = to_node) |>
-    graph_from_data_frame(directed = directed,
-                          vertices = data.frame(name = seq_along(nodes))) |>
-    delete_vertex_attr("name")
+  if(!is_aon) { # AoN runs on the edge list, in C (src/aon.c)
+    g <- data.frame(from = from_node, to = to_node) |>
+      graph_from_data_frame(directed = directed,
+                            vertices = data.frame(name = seq_along(nodes))) |>
+      delete_vertex_attr("name")
+  }
 
-  if(verbose) cat("Created graph with", vcount(g), "nodes and", ecount(g), "edges...\n")
+  if(verbose) cat("Created graph with", length(nodes), "nodes and", length(from_node), "edges...\n")
 
   if(!is_aon) {
     # Geolocation and distance matrix are only used for PSL
@@ -374,79 +379,6 @@ run_assignment <- function(graph_df, od_matrix_long,
     retvals_PSL <- c(edgesl, countsl, eweightsl, PSFl)
   } else retvals_PSL <- c(FALSE, FALSE, FALSE, FALSE)
 
-
-  # AoN Core Function - Batched by origin node for efficiency
-  run_assignment_core_aon <- function(indices, verbose = FALSE, session = FALSE) {
-
-    if(!session) {
-      if(verbose) progress_bar <- progress::progress_bar
-      shortest_paths <- igraph::shortest_paths
-      igraph_options <- igraph::igraph_options
-      GRP <- collapse::GRP
-      gsplit <- collapse::gsplit
-      flownet <- getNamespace("flownet")
-      C_assign_flows_to_paths <- flownet$C_assign_flows_to_paths
-      if(retvals) {
-        sve <- flownet$sve
-        if(countsl) C_mark_edges_traversed <- flownet$C_mark_edges_traversed
-        if(costsl) C_sum_path_costs <- flownet$C_sum_path_costs
-      }
-    }
-
-    iopt <- igraph_options(return.vs.es = FALSE)
-    on.exit(igraph_options(iopt))
-
-    final_flows <- numeric(length(cost))
-
-    # Group OD pairs by origin node for batched shortest path computation
-    grp <- GRP(from[indices], return.groups = TRUE, call = FALSE, sort = FALSE)
-    fromi <- grp$groups[[1L]]  # Unique origin nodes
-    toi_idx <- gsplit(indices, grp)  # Indices grouped by origin
-
-    if(verbose) {
-      pb <- progress_bar$new(
-        format = "Processed :current/:total OD-pairs (:percent) at :tick_rate/sec [Elapsed::elapsed | ETA::eta]",
-        total = N, clear = FALSE
-      )
-      divp <- max(as.integer(nthreads), 1L)
-      if(nthreads > 1L && length(indices) * divp > N)
-         divp <- as.integer(N / length(indices))
-    }
-
-    for (i in seq_along(fromi)) {
-      idx = toi_idx[[i]]  # OD pair indices for this origin
-
-      # Compute all shortest paths from this origin to all its destinations
-      sp = shortest_paths(g, from = fromi[i], to = to[idx], weights = cost,
-                           mode = "out", output = "epath", algorithm = "automatic")$epath
-
-      # Assign flows to paths (batch operation) + Check missing paths
-      .Call(C_assign_flows_to_paths, sp, flow, final_flows, idx, od_pairs)
-
-      # Handle return.extra for AoN
-      if(retvals) {
-        if(pathsl) for(k in seq_along(idx)) sve(paths, idx[k], as.integer(sp[[k]]))
-        if(costsl) .Call(C_sum_path_costs, sp, cost, costs, idx)
-        if(countsl) .Call(C_mark_edges_traversed, sp, counts)
-      }
-
-      if(verbose) pb$tick(divp * length(idx))
-    }
-
-    if(verbose && !pb$finished) pb$tick(N - divp*length(indices))
-
-    if(!session) {
-      res <- list(final_flows = final_flows, od_pairs = od_pairs)
-      if(retvals) {
-        if(pathsl) res$paths <- paths
-        if(costsl) res$costs <- costs
-        if(countsl) res$counts <- counts
-      }
-      return(res)
-    }
-
-    return(final_flows)
-  }
 
   # PSL Core Function for parallel setup with mirai
   run_assignment_core_psl <- function(indices, verbose = FALSE, session = FALSE) {
@@ -662,20 +594,32 @@ run_assignment <- function(graph_df, od_matrix_long,
     return(final_flows)
   }
 
-  # Select core function based on method
-  run_assignment_core <- if(is_aon) run_assignment_core_aon else run_assignment_core_psl
-
-  if(!is.finite(nthreads) || nthreads <= 1L) {
-    res$final_flows <- run_assignment_core(seq_len(N), verbose, TRUE)
+  if(is_aon) {
+    # Shortest paths in C, parallel over origins (src/aon.c); flows, costs and counts are summed
+    # in a fixed order, so the results do not depend on nthreads
+    nt <- if(is.finite(nthreads) && nthreads > 1L) as.integer(nthreads) else 1L
+    if(verbose) cat("Computing shortest paths for", N, "OD-pairs on", nt, if(nt > 1L) "threads...\n" else "thread...\n")
+    r <- .Call(C_aon_assign, from_node, to_node, cost, length(nodes), directed, from, to, flow,
+               c("paths", "costs", "counts") %in% return.extra, nt)
+    res$final_flows <- r[[1L]]
+    od_pairs[!r[[2L]]] <- NA_integer_
+    if(retvals) {
+      if(pathsl) paths <- r[[3L]]
+      if(costsl) costs <- r[[4L]]
+      if(countsl) counts <- r[[5L]]
+    }
+    rm(r)
+  } else if(!is.finite(nthreads) || nthreads <= 1L) {
+    res$final_flows <- run_assignment_core_psl(seq_len(N), verbose, TRUE)
   } else {
     # Split OD matrix in equal parts
     ind <- sample.int(as.integer(nthreads), N, replace = TRUE)
-    ind_list <- gsplit(g = if(is_aon) sort(ind) else ind) # Since AoN should reduce calls to shortest_paths()
+    ind_list <- gsplit(g = ind)
     daemons(n = nthreads - 1L)
     # Now run the map in the background
-    res_other <- mirai_map(ind_list[-1L], run_assignment_core)
+    res_other <- mirai_map(ind_list[-1L], run_assignment_core_psl)
     # Runs the first instance in the current session
-    final_flows <- run_assignment_core(ind_list[[1L]], verbose, TRUE)
+    final_flows <- run_assignment_core_psl(ind_list[[1L]], verbose, TRUE)
     # Collect other mirai's results
     res_other <- res_other[.stop] # [.stop, .progress] # collect_mirai()
     # Deactivate Daemons
@@ -694,10 +638,7 @@ run_assignment <- function(graph_df, od_matrix_long,
         if(PSFl) PSF[ind] <- resi$PSF[ind]
         if(weightsl) weights[ind] <- resi$weights[ind]
         if(eweightsl) eweights[ind] <- resi$eweights[ind]
-        if(countsl) {
-          if(is_aon) counts %+=% resi$counts
-          else counts[ind] <- resi$counts[ind]
-        }
+        if(countsl) counts[ind] <- resi$counts[ind]
       }
     }
     res$final_flows <- final_flows
