@@ -398,7 +398,8 @@ normalize_graph <- function(graph_df) {
 #'   \code{from} and \code{to} (node IDs), and optionally other columns to preserve.
 #'   If coordinate columns (\code{FX}, \code{FY}, \code{TX}, \code{TY}) are present, they will be
 #'   preserved and updated based on the consolidated node coordinates.
-#' @param directed Logical (default: FALSE). Whether the graph is directed.
+#' @param directed Logical (default: FALSE). Whether the graph is directed. Two-way links in a directed graph
+#'   may be given as reciprocal arcs (\code{a -> b} and \code{b -> a}); they are contracted per direction (see Details).
 #' @param drop.edges Character vector (default: \code{c("loop", "duplicate", "single")}). Types of edges to drop:
 #'   \code{"loop"} removes self-loops (edges where from == to),
 #'   \code{"duplicate"} removes duplicate edges (same from-to pair),
@@ -454,6 +455,14 @@ normalize_graph <- function(graph_df) {
 #' For undirected graphs, the algorithm also handles cases where a node appears twice
 #' as either origin or destination (circular cases).
 #'
+#' For directed graphs, a node is contracted if it has one incoming and one outgoing arc
+#' (a one-way through node), or two incoming arcs from and two outgoing arcs to the same two
+#' neighbours (a two-way link given as reciprocal arcs). Each direction is contracted separately:
+#' the chain A<->B<->C becomes the arcs A->C and C->A, each aggregating the arcs of its own
+#' direction. A node whose only arcs lead to and from the same neighbour (A->B->A, the end of a
+#' two-way dead end) is not contracted; with \code{"single"} in \code{drop.edges}, such dead ends
+#' are dropped like singleton edges.
+#'
 #' If coordinate columns (\code{FX}, \code{FY}, \code{TX}, \code{TY}) are present in the input,
 #' they are preserved and updated based on the consolidated node coordinates from the original graph.
 #'
@@ -480,8 +489,8 @@ normalize_graph <- function(graph_df) {
 #' c(original = nrow(graph), consolidated = nrow(graph_cons))
 #'
 #' @export
-#' @importFrom collapse fnrow get_vars anyv setv copyv ss seq_row fduplicated fmatch whichv whichNA allNA ffirst GRP collap %iin% %!in% %!iin% join colorderv funique.default %!=% %==% missing_cases qtab varying radixorderv groupv na_rm
-#' @importFrom kit countOccur
+#' @importFrom collapse fnrow get_vars anyv setv copyv ss seq_row fduplicated fmatch whichv whichNA allNA ffirst GRP collap %iin% %!in% %!iin% join colorderv funique.default %!=% %==% missing_cases qtab varying radixorderv groupv na_rm group
+#' @importFrom kit countOccur fpmin fpmax
 #' @importFrom stats setNames
 consolidate_graph <- function(graph_df, directed = FALSE,
                               drop.edges = c("loop", "duplicate", "single"),
@@ -570,9 +579,22 @@ consolidate_graph <- function(graph_df, directed = FALSE,
 
 
 # Linear-time helper for singleton edge peeling
-drop_singletons_linear <- function(from_vec, to_vec, keep.nodes = NULL, recursive = TRUE) {
+drop_singletons_linear <- function(from_vec, to_vec, keep.nodes = NULL, recursive = TRUE, directed = FALSE) {
   n_edges <- length(from_vec)
   if(!n_edges) return(list(keep = integer(0), dropped = 0L, rounds = 0L))
+
+  # In a directed graph a two-way link to a dead end is given as two arcs (a -> v, v -> a),
+  # so dead ends are found on the undirected projection and all arcs of a dropped link are dropped.
+  if(directed) {
+    link <- group(fpmin(from_vec, to_vec), fpmax(from_vec, to_vec))
+    first <- whichv(fduplicated(link), FALSE)
+    res <- drop_singletons_linear(from_vec[first], to_vec[first], keep.nodes, recursive)
+    if(res$dropped > 0L) {
+      res$keep <- link %iin% res$keep
+      res$dropped <- n_edges - length(res$keep)
+    }
+    return(res)
+  }
 
   nodes <- funique.default(c(from_vec, to_vec))
   n_nodes <- length(nodes)
@@ -707,7 +729,7 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
   }
 
   if(anyv(drop.edges, "single") && fnrow(gft)) {
-    peel <- drop_singletons_linear(gft$from, gft$to, keep.nodes = keep.nodes, recursive = reci > 0L)
+    peel <- drop_singletons_linear(gft$from, gft$to, keep.nodes = keep.nodes, recursive = reci > 0L, directed = directed)
     if(peel$dropped > 0L) {
       if(verbose) cat(sprintf("Dropped %d edges leading to singleton nodes in %d peeling steps\n", peel$dropped, peel$rounds))
       keep <- keep[peel$keep]
@@ -742,6 +764,7 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
         keep.nodes <- fmatch(as.integer(keep.nodes), norm_nodes, nomatch = NA_integer_)
     }
   }
+  n_ids <- length(norm_nodes)
 
   gid <- seq_row(gft)  # Local variable mapping current edges to groups
   contractd_any <- FALSE
@@ -885,7 +908,7 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
       if(length(keep.nodes)) nodes <- nodes[nodes %!iin% keep.nodes]
       if(length(nodes)) {
         tic <- now_s()
-        peel <- drop_singletons_linear(gft$from, gft$to, keep.nodes = keep.nodes, recursive = TRUE)
+        peel <- drop_singletons_linear(gft$from, gft$to, keep.nodes = keep.nodes, recursive = TRUE, directed = directed)
         timers["singleton"] <- timers["singleton"] + (now_s() - tic)
         if(peel$dropped > 0L) {
           if(verbose) cat(sprintf("Dropped %d edges leading to singleton nodes in %d peeling steps\n", peel$dropped, peel$rounds))
@@ -897,11 +920,47 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
       }
     }
 
-    if(!anyv(degree_table$deg_total, 2L)) break
+    # (directed: one-way through nodes have degree 2, two-way through nodes degree 4)
+    if(!anyv(degree_table$deg_total, 2L) && !(directed && anyv(degree_table$deg_total, 4L))) break
 
+    n_copies <- 0L
     if(directed) {
+      # One-way through nodes: one arc in, one arc out. A node whose two arcs lead to and from
+      # the same neighbour (a -> v -> a) is the end of a two-way dead end: contracting it would
+      # create a loop a -> a, so it is kept (or dropped as a dead end if drop.edges includes "single").
       nodes <- degree_table$node[degree_table$deg_from == 1L & degree_table$deg_to == 1L]
-      if(length(keep.nodes)) nodes <- nodes[nodes %!iin% keep.nodes]
+      nodes <- nodes[gft$from[fmatch(nodes, gft$to)] != gft$to[fmatch(nodes, gft$from)]]
+      # Two-way through nodes: two arcs in from and two arcs out to the same two neighbours a and b
+      # (a two-way link given as reciprocal arcs). Each such node v is split into two one-way copies,
+      # a -> v -> b and b -> v' -> a, which are contracted like one-way nodes and mapped back below.
+      tw <- degree_table$node[degree_table$deg_from == 2L & degree_table$deg_to == 2L]
+      if(length(keep.nodes)) {
+        nodes <- nodes[nodes %!iin% keep.nodes]
+        tw <- tw[tw %!iin% keep.nodes]
+      }
+      if(length(tw)) {
+        ef <- gft$from; et <- gft$to
+        if(contractd_any) { ef <- ef[ur]; et <- et[ur] }
+        is_tw <- logical(n_ids); is_tw[tw] <- TRUE
+        ia <- which(is_tw[et]); ia <- ia[radixorderv(list(et[ia], ef[ia]))] # in-arcs, 2 per node, by tail
+        oa <- which(is_tw[ef]); oa <- oa[radixorderv(list(ef[oa], et[oa]))] # out-arcs, 2 per node, by head
+        i1 <- seq.int(1L, length(ia), 2L); i2 <- i1 + 1L
+        tw <- et[ia[i1]]; lo <- ef[ia[i1]]; hi <- ef[ia[i2]]
+        rc <- which(lo != hi & lo == et[oa[i1]] & hi == et[oa[i2]] & lo != tw & hi != tw)
+        if(length(rc)) {
+          tw <- tw[rc]
+          n_copies <- length(tw)
+          lo_of <- hi_of <- copy_of <- integer(n_ids)
+          lo_of[tw] <- lo[rc]; hi_of[tw] <- hi[rc]
+          copy_of[tw] <- copies <- n_ids + seq_len(n_copies)
+          # v keeps lo -> v -> hi, the copy takes hi -> v' -> lo (all rows, as merged rows share endpoints)
+          it <- which(hi_of[gft$to] == gft$from)
+          ift <- which(lo_of[gft$from] == gft$to)
+          gft$to[it] <- copy_of[gft$to[it]]
+          gft$from[ift] <- copy_of[gft$from[ift]]
+          nodes <- c(nodes, tw, copies)
+        }
+      }
       if(!length(nodes)) break
     } else {
       nodes <- degree_table$node[degree_table$deg_total %==% 2L]
@@ -920,9 +979,22 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
       }
     }
 
-    n_candidates <- length(nodes)
+    n_candidates <- length(nodes) - n_copies
     tic <- now_s()
-    merge_ok <- merge_linear_nodes(nodes)
+    # Directed: contracting one-way chains can create new two-way through nodes (e.g. where the two
+    # carriageways of a dual road meet), whose arcs are chains merged in an earlier iteration. The
+    # contraction rewrites only one row per arc, so contract one row per chain and copy it to the others.
+    if(directed && contractd_any) {
+      rep_row <- fmatch(gid, gid[ur])
+      gft$from <- gft$from[ur]; gft$to <- gft$to[ur]; gid <- gid[ur]
+      merge_ok <- merge_linear_nodes(nodes)
+      gft$from <- gft$from[rep_row]; gft$to <- gft$to[rep_row]; gid <- gid[rep_row]
+    } else merge_ok <- merge_linear_nodes(nodes)
+    if(n_copies) { # copies that were not contracted (e.g. on a two-way ring) revert to their node
+      back <- c(seq_len(n_ids), tw)
+      gft$from <- back[gft$from]
+      gft$to <- back[gft$to]
+    }
     if(is.na(merge_ok) && c_no_progress) {
       if(verbose) cat(sprintf("No further C contraction progress at %d candidates; breaking inner loop.\n", n_candidates))
       break

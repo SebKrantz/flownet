@@ -22,7 +22,8 @@ consolidate_graph(
 If coordinate columns (\code{FX}, \code{FY}, \code{TX}, \code{TY}) are present, they will be
 preserved and updated based on the consolidated node coordinates.}
 
-\item{directed}{Logical (default: FALSE). Whether the graph is directed.}
+\item{directed}{Logical (default: FALSE). Whether the graph is directed. Two-way links in a directed graph
+may be given as reciprocal arcs (\code{a -> b} and \code{b -> a}); they are contracted per direction (see Details).}
 
 \item{drop.edges}{Character vector (default: \code{c("loop", "duplicate", "single")}). Types of edges to drop:
 \code{"loop"} removes self-loops (edges where from == to),
@@ -88,6 +89,14 @@ a single call.
 
 For undirected graphs, the algorithm also handles cases where a node appears twice
 as either origin or destination (circular cases).
+
+For directed graphs, a node is contracted if it has one incoming and one outgoing arc
+(a one-way through node), or two incoming arcs from and two outgoing arcs to the same two
+neighbours (a two-way link given as reciprocal arcs). Each direction is contracted separately:
+the chain A<->B<->C becomes the arcs A->C and C->A, each aggregating the arcs of its own
+direction. A node whose only arcs lead to and from the same neighbour (A->B->A, the end of a
+two-way dead end) is not contracted; with \code{"single"} in \code{drop.edges}, such dead ends
+are dropped like singleton edges.
 
 If coordinate columns (\code{FX}, \code{FY}, \code{TX}, \code{TY}) are present in the input,
 they are preserved and updated based on the consolidated node coordinates from the original graph.
