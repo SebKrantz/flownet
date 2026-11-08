@@ -1,7 +1,3 @@
-# flownet 0.3.1.9000 (development)
-
-- `run_assignment(verbose = TRUE)` reported skipped OD pairs incorrectly. The message claimed that pairs "have zero or non-finite flow values and will be skipped", but it was printed after the assignment and actually counted the pairs for which no path was found (destination unreachable, or origin equal to destination), while pairs with zero or non-finite flow were dropped beforehand and never counted. It now reads e.g. `Skipped 4 OD-pairs: 2 with zero or non-finite flow and 2 with no path found (destination unreachable or equal to origin)`, and is also printed when only zero-flow pairs were skipped. Applies to both `"PSL"` and `"AoN"`.
-
 # flownet 0.3.1
 
 *flownet* 0.3.1 makes all-or-nothing assignment much faster and multithreaded, extends directed graph consolidation to two-way links given as reciprocal arcs, and fixes several bugs in network processing and parallel PSL assignment.
@@ -27,6 +23,8 @@
 - Fixed `simplify_network(method = "cluster")` returning every `by` column twice. The grouping columns were taken from the contraction groups and aggregated again with the other edge attributes, so the result had duplicated column names (identical values), which made e.g. `create_undirected_graph()` fail on it. Each `by` column is now returned once, after the coordinate columns.
 
 - Fixed `run_assignment(method = "PSL")` failing with `object '<name>' not found` when `beta`, `detour.max`, `unique.cost` or `npaths.max` were passed as *variables* (rather than literals) together with `nthreads > 1`. These four arguments are only referenced inside the parallel worker closure, so they were still unevaluated promises when *mirai* serialized it to the daemons. They are now forced before the closure is created. Literal arguments, single-threaded runs, `angle.max` and `dmat.max.size` were unaffected. Added a regression test.
+
+- Fixed `run_assignment(verbose = TRUE)` reporting skipped OD pairs incorrectly. The message claimed that pairs "have zero or non-finite flow values and will be skipped", but it was printed after the assignment and actually counted the pairs for which no path was found (destination unreachable, or origin equal to destination), while pairs with zero or non-finite flow were dropped beforehand and never counted. It now reads e.g. `Skipped 4 OD-pairs: 2 with zero or non-finite flow and 2 with no path found (destination unreachable or equal to origin)`, and is also printed when only zero-flow pairs were skipped. Applies to both `"PSL"` and `"AoN"`.
 
 ## Documentation
 
