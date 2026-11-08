@@ -40,7 +40,8 @@ Convert a directed graph to an undirected graph by normalizing edges and aggrega
 \details{
 This function converts a directed graph to an undirected graph by:
 \itemize{
-  \item Normalizing edge directions so that \code{from < to} for all edges
+  \item Normalizing edge directions so that \code{from < to} for all edges, swapping
+    the node coordinates (\code{FX}, \code{FY} with \code{TX}, \code{TY}) along with the nodes
   \item Collapsing duplicate edges (same \code{from} and \code{to} nodes)
   \item For spatial/identifier columns (\code{edge}, \code{FX}, \code{FY}, \code{TX}, \code{TY}),
     taking the first value from duplicates

@@ -216,6 +216,53 @@ test_that("create_undirected_graph preserves coordinate columns", {
   expect_true(all(c("FX", "FY", "TX", "TY") %in% names(result)))
 })
 
+test_that("create_undirected_graph swaps coordinates on reversed edges", {
+  # Node 1 = (0, 0), node 2 = (1, 1), node 3 = (10, 10).
+  # The second edge (3 -> 2) is reversed by the normalization to from < to,
+  # so its coordinates have to be swapped along with the nodes.
+  graph <- data.frame(
+    from = c(1L, 3L),
+    to = c(2L, 2L),
+    FX = c(0, 10),
+    FY = c(0, 10),
+    TX = c(1, 1),
+    TY = c(1, 1),
+    cost = c(1, 1)
+  )
+
+  result <- create_undirected_graph(graph)
+
+  expect_equal(result$from, c(1L, 2L))
+  expect_equal(result$to, c(2L, 3L))
+  expect_equal(result$FX, c(0, 1))
+  expect_equal(result$FY, c(0, 1))
+  expect_equal(result$TX, c(1, 10))
+  expect_equal(result$TY, c(1, 10))
+
+  # Each node must have one unambiguous pair of coordinates
+  nodes <- nodes_from_graph(result)
+  expect_equal(nodes$node, 1:3)
+  expect_equal(nodes$X, c(0, 1, 10))
+  expect_equal(nodes$Y, c(0, 1, 10))
+})
+
+test_that("create_undirected_graph leaves forward edges' coordinates intact", {
+  graph <- data.frame(
+    from = c(1L, 2L),
+    to = c(3L, 4L),
+    FX = c(0, 1), FY = c(0, 1),
+    TX = c(2, 3), TY = c(2, 3),
+    cost = c(1, 1)
+  )
+
+  result <- create_undirected_graph(graph)
+
+  expect_equal(result$FX, graph$FX)
+  expect_equal(result$FY, graph$FY)
+  expect_equal(result$TX, graph$TX)
+  expect_equal(result$TY, graph$TY)
+})
+
 test_that("create_undirected_graph with by preserves groups", {
   graph <- data.frame(
     from = c(1, 2, 1, 2),

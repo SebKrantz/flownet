@@ -2,6 +2,8 @@
 
 ## Bug Fixes
 
+- Fixed `create_undirected_graph()` corrupting node coordinates. Edges are normalized to `from < to`, but the coordinate columns were not swapped along with the nodes, so every reversed edge ended up carrying the coordinates of the wrong endpoints. Nodes then had two conflicting sets of coordinates, and whichever `nodes_from_graph()` picked up propagated into `consolidate_graph()`, node-to-zone snapping and any geometry rebuilt from the graph - visible as straight "V" spikes towards displaced nodes. Coordinates are now swapped together with the nodes. Graphs without coordinate columns, and graphs whose edges are all already ordered, are unaffected.
+
 - Fixed `run_assignment(method = "PSL")` failing with `object '<name>' not found` when `beta`, `detour.max`, `unique.cost` or `npaths.max` were passed as *variables* (rather than literals) together with `nthreads > 1`. These four arguments are only referenced inside the parallel worker closure, so they were still unevaluated promises when *mirai* serialized it to the daemons. They are now forced before the closure is created. Literal arguments, single-threaded runs, `angle.max` and `dmat.max.size` were unaffected. Added a regression test.
 
 - Corrected the documentation of `dmat.max.size` in `run_assignment()`, which stated the precompute condition backwards in two places. The full distance matrix is precomputed when `dmat.max.size >= n_nodes^2` (i.e. when the budget accommodates it), not when it is smaller.

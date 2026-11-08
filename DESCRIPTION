@@ -37,5 +37,5 @@ Suggests:
     rmarkdown
 LazyData: true
 NeedsCompilation: yes
-RoxygenNote: 7.3.3
 VignetteBuilder: knitr
+Config/roxygen2/version: 8.0.0
