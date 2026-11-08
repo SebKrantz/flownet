@@ -175,6 +175,22 @@ test_that("run_assignment errors on unknown nodes in OD matrix", {
  )
 })
 
+test_that("run_assignment verbose output reports skipped OD pairs by cause", {
+ g <- data.frame(from = c(1, 2, 3), to = c(2, 3, 4), cost = c(1, 2, 3))
+ # Directed: pair 2 is unreachable, pair 4 has origin == destination, pairs 5-6 have zero/NA flow
+ od <- data.frame(from = c(1, 4, 1, 2, 3, 2), to = c(4, 1, 3, 2, 4, 4), flow = c(10, 5, 2, 1, 0, NA))
+
+ for (method in c("AoN", "PSL")) {
+   expect_output(
+     suppressWarnings(run_assignment(g, od, directed = TRUE, method = method, angle.max = NA)),
+     "Skipped 4 OD-pairs: 2 with zero or non-finite flow and 2 with no path found", fixed = TRUE
+   )
+ }
+ # Nothing skipped: no message
+ out <- capture.output(invisible(run_assignment(g, od[c(1, 3), ], directed = TRUE, method = "AoN")))
+ expect_false(any(grepl("Skipped", out, fixed = TRUE)))
+})
+
 # --- print.flownet Tests ---
 
 test_that("print.flownet works without error", {

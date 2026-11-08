@@ -1,3 +1,7 @@
+# flownet 0.3.1.9000 (development)
+
+- `run_assignment(verbose = TRUE)` reported skipped OD pairs incorrectly. The message claimed that pairs "have zero or non-finite flow values and will be skipped", but it was printed after the assignment and actually counted the pairs for which no path was found (destination unreachable, or origin equal to destination), while pairs with zero or non-finite flow were dropped beforehand and never counted. It now reads e.g. `Skipped 4 OD-pairs: 2 with zero or non-finite flow and 2 with no path found (destination unreachable or equal to origin)`, and is also printed when only zero-flow pairs were skipped. Applies to both `"PSL"` and `"AoN"`.
+
 # flownet 0.3.1
 
 *flownet* 0.3.1 makes all-or-nothing assignment much faster and multithreaded, extends directed graph consolidation to two-way links given as reciprocal arcs, and fixes several bugs in network processing and parallel PSL assignment.

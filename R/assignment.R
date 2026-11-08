@@ -233,7 +233,7 @@
 #' }
 #'
 #' @export
-#' @importFrom collapse funique.default ss fnrow seq_row ckmatch anyv whichv setDimnames fmatch %+=% gsplit setv any_duplicated fduplicated GRP group unattrib
+#' @importFrom collapse funique.default ss fnrow seq_row ckmatch anyv whichv setDimnames fmatch %+=% gsplit setv any_duplicated fduplicated GRP group unattrib fnobs
 #' @importFrom kit fpmin fpmax
 #' @importFrom igraph V graph_from_data_frame delete_vertex_attr igraph_options distances shortest_paths vcount ecount
 #' @importFrom geodist geodist_vec
@@ -341,7 +341,8 @@ run_assignment <- function(graph_df, od_matrix_long,
   if(!all(c("from", "to", "flow") %in% names(od_matrix_long))) stop("od_matrix_long must have columns 'from', 'to', 'flow'. Missing: ", paste(setdiff(c("from", "to", "flow"), names(od_matrix_long)), collapse = ", "))
   od_pairs <- which(is.finite(od_matrix_long$flow) & od_matrix_long$flow > 0)
   res$od_pairs_used <- numeric(0) # Just for placement
-  if(length(od_pairs) != fnrow(od_matrix_long)) od_matrix_long <- ss(od_matrix_long, od_pairs, check = FALSE)
+  nzero_od <- fnrow(od_matrix_long) - length(od_pairs) # Skipped: zero or non-finite flow
+  if(nzero_od) od_matrix_long <- ss(od_matrix_long, od_pairs, check = FALSE)
   from <- ckmatch(od_matrix_long$from, nodes, e = "Unknown origin nodes in od_matrix:")
   to <- ckmatch(od_matrix_long$to, nodes, e = "Unknown destination nodes in od_matrix:")
   flow <- as.numeric(od_matrix_long[["flow"]])
@@ -647,9 +648,14 @@ run_assignment <- function(graph_df, od_matrix_long,
     rm(res_other, ind_list, final_flows)
   }
 
+  if(verbose) {
+    nnopath_od <- length(od_pairs) - fnobs(od_pairs) # Skipped: no path found (NA)
+    if(nzero_od || nnopath_od) cat("Skipped", nzero_od + nnopath_od, "OD-pairs:", nzero_od, "with zero or non-finite flow and",
+                                   nnopath_od, "with no path found (destination unreachable or equal to origin)\n")
+  }
+
   if(anyNA(od_pairs)) {
     nmiss_od <- whichNA(od_pairs, invert = TRUE)
-    if(verbose) cat(length(od_pairs) - length(nmiss_od), "OD-pairs have zero or non-finite flow values and will be skipped...\n")
     res$od_pairs_used <- od_pairs[nmiss_od]
     if(retvals) {
       if(pathsl) res$paths <- paths[nmiss_od]
