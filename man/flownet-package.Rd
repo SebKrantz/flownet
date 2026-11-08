@@ -20,7 +20,7 @@ utilities for network processing/preparation.
 
 \strong{Traffic Assignment}
 
- \code{\link[=run_assignment]{run_assignment()}} --- Run traffic assignment using path-sized logit model\cr
+ \code{\link[=run_assignment]{run_assignment()}} --- Run traffic assignment using the path-sized logit (PSL) or all-or-nothing (AoN) method\cr
 
 
 \strong{Graph Utilities}
@@ -47,12 +47,14 @@ utilities for network processing/preparation.
  Replication materials: \url{https://github.com/SebKrantz/OptimalAfricanRoads}
 }
 \details{
-The package uses efficient C implementations for critical path operations and leverages:
+The package uses efficient C implementations for critical path operations (multithreaded with
+OpenMP for all-or-nothing assignment and critical link analysis) and leverages:
 \itemize{
   \item \code{collapse} - Fast data transformations
   \item \code{geodist} - Fast geodesic distance computations
   \item \code{igraph} - Graph operations and shortest path algorithms
   \item \code{leaderCluster} - Fast spatial clustering for network simplification
+  \item \code{mirai} - Asynchronous parallelism for path-sized logit assignment and network simplification
 }
 }
 \references{
@@ -72,7 +74,7 @@ dissertation). Massachusetts Institute of Technology.
 Prato, C. G. (2009). Route choice modeling: Past, present and future research
 directions. \emph{Journal of Choice Modelling, 2}(1), 65-100. \doi{10.1016/S1755-5345(13)70005-8}
 
-AequilibiaE Python Documentation: https://www.aequilibrae.com/develop/python/route_choice/path_size_logit.html
+AequilibraE Python Documentation: \url{https://www.aequilibrae.com/develop/python/route_choice/path_size_logit.html}
 }
 \author{
 Sebastian Krantz \email{sebastian.krantz@graduateinstitute.ch} and Kamol Roy \email{kamol.roy08@gmail.com}

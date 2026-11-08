@@ -146,7 +146,7 @@ nodes_df <- nodes_from_graph(graph, sf = TRUE)
 nearest_nodes <- nodes_df$node[st_nearest_feature(africa_cities_ports, nodes_df)]
 
 # Initial consolidation
-graph <- consolidate_graph(graph, keep = nearest_nodes, w = ~ passes)
+graph <- consolidate_graph(graph, keep.nodes = nearest_nodes, w = ~ passes)
 
 # Method 1: Shortest-paths simplification (keeps only traversed edges)
 graph_simple <- simplify_network(graph, nearest_nodes,

@@ -1,3 +1,39 @@
+# flownet 0.3.1
+
+*flownet* 0.3.1 makes all-or-nothing assignment much faster and multithreaded, extends directed graph consolidation to two-way links given as reciprocal arcs, and fixes several bugs in network processing and parallel PSL assignment.
+
+## Performance
+
+- `run_assignment(method = "AoN")` computes its shortest paths in C (`src/aon.c`), one Dijkstra search per origin node, in parallel over `nthreads` OpenMP threads instead of *mirai* daemons. The search mirrors igraph's `igraph_get_shortest_paths_dijkstra()` step for step (the same two-way indexed heap, relaxation rule, incident-edge order and early stop), so it returns the same paths as `igraph::shortest_paths()`, including where several paths tie on cost. Flows, path costs and edge counts are summed in a fixed order, so the results no longer depend on `nthreads` (with daemons, OD pairs were dealt to workers at random). On a 115,000-node network the searches run 3-4 times faster on one thread and 20-30 times faster on 8; no igraph graph is built for AoN unless `return.extra` asks for it. Added a test against `igraph::shortest_paths()` on tie-heavy random multigraphs.
+
+## `consolidate_graph()` Improvements
+
+- `consolidate_graph(directed = TRUE)` now contracts two-way links given as reciprocal arcs (`a -> b` and `b -> a`), per direction. Previously only nodes with one incoming and one outgoing arc were contracted, so on a road network where two-way roads are given as two arcs every interior node of a two-way road (two arcs in, two out) was kept. A node with two arcs in from and two arcs out to the same two neighbours is now contracted as well: the chain `a <-> v <-> b` becomes the arcs `a -> b` and `b -> a`, each aggregating the arcs of its own direction, so directed shortest-path costs between the remaining nodes are unchanged. Such nodes also arise where the two one-way carriageways of a dual road meet, once the carriageways are contracted. `by` and `keep.nodes` apply as before. On a 207,000-edge road network of northern Germany (366,362 arcs, 24 protected nodes), the directed graph now contracts to 51,044 arcs instead of 342,025, and directed PSL assignment between the protected nodes takes 6 s / 1 GB instead of 131 s / 3.8 GB.
+
+## Bug Fixes
+
+- `consolidate_graph(directed = TRUE)` contracted the end of a two-way dead end (`a -> v` and `v -> a`, a node with one arc in and one out) into a self-loop `a -> a`, which `"loop"` in `drop.edges` then removed even when `"single"` was not requested. Such nodes are no longer contracted. With `"single"` in `drop.edges`, directed dead ends are now found on the undirected projection of the graph, so two-way dead ends given as reciprocal arcs are peeled recursively, as in undirected graphs; without it, they are kept.
+
+- Fixed `create_undirected_graph()` corrupting node coordinates. Edges are normalized to `from < to`, but the coordinate columns were not swapped along with the nodes, so every reversed edge ended up carrying the coordinates of the wrong endpoints. Nodes then had two conflicting sets of coordinates, and whichever `nodes_from_graph()` picked up propagated into `consolidate_graph()`, node-to-zone snapping and any geometry rebuilt from the graph - visible as straight "V" spikes towards displaced nodes. Coordinates are now swapped together with the nodes. Graphs without coordinate columns, and graphs whose edges are all already ordered, are unaffected.
+
+- Fixed `consolidate_graph()` (undirected) orienting chains of intermediate nodes inconsistently. The edges of a chain were flipped node by node, so two adjacent degree-2 nodes that both needed a flip could end up pointing into each other (`1-2, 3-2, 3-4` became `1-2, 2-3, 4-3`), after which contraction produced self-loops or did not converge. Each chain is now walked once from one end and oriented along the walk.
+
+- Fixed `consolidate_graph(recursive = "partial")` (and the inner passes of `"full"`) contracting the dead end of a short chain into a self-loop. After a contraction pass, the rows of a merged chain were each counted when recomputing node degrees, so the end node of a two-edge dead-end chain looked like an intermediate node (`1-2, 2-3, 3-4, 3-5` gave the loop `3-3` instead of `1-3`). Each merged chain is now counted once. On the CPCS global freight network this had turned 1,262 waterway, 467 road and 47 rail spurs into self-loops.
+
+- Fixed `simplify_network(method = "cluster")` returning every `by` column twice. The grouping columns were taken from the contraction groups and aggregated again with the other edge attributes, so the result had duplicated column names (identical values), which made e.g. `create_undirected_graph()` fail on it. Each `by` column is now returned once, after the coordinate columns.
+
+- Fixed `run_assignment(method = "PSL")` failing with `object '<name>' not found` when `beta`, `detour.max`, `unique.cost` or `npaths.max` were passed as *variables* (rather than literals) together with `nthreads > 1`. These four arguments are only referenced inside the parallel worker closure, so they were still unevaluated promises when *mirai* serialized it to the daemons. They are now forced before the closure is created. Literal arguments, single-threaded runs, `angle.max` and `dmat.max.size` were unaffected. Added a regression test.
+
+## Documentation
+
+- Corrected the documentation of `dmat.max.size` in `run_assignment()`, which stated the precompute condition backwards in two places. The full distance matrix is precomputed when `dmat.max.size >= n_nodes^2` (i.e. when the budget accommodates it), not when it is smaller. The same condition, also stated backwards, applies to the geodesic distance matrix used by `angle.max`.
+
+- `run_assignment()`: the description of the angle filter now distinguishes `angle.max >= 90` (nodes closer to the origin than the destination, within `angle.max` seen from the origin) from `angle.max < 90` (within `angle.max` seen from both the origin and the destination). `od_pairs_used` now documents which OD pairs are skipped (zero or non-finite flow, no path, origin equal to destination) and that the per-OD-pair results are aligned with it.
+
+- `distances_from_graph()` no longer claims to contract the graph or to use a selectable algorithm; it computes `igraph::distances()` on the graph as given. `linestrings_to_graph()` gained a description and documents `keep.cols` (anything `collapse::get_vars()` accepts) and the `.length` column. `nodes_from_graph()` documents that a node's coordinates are taken from its first occurrence. `melt_od_matrix(sort = )` no longer claims a benefit for multithreaded AoN, which now groups OD pairs by origin itself.
+
+- The vignette has a new section on directed networks, and examples use the full argument name `keep.nodes` instead of relying on partial matching of `keep`.
+
 # flownet 0.3.0
 
 *flownet* 0.3.0 introduces one new function for critical link analysis and substantive performance improvements to `consolidate_graph()` and `simplify_network()`. 

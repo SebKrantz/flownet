@@ -19,7 +19,7 @@ If omitted, row and column names (if present) will be used as node IDs, coerced 
 if possible. If names are not available or cannot be coerced to integer, sequential integers
 will be used.}
 
-\item{sort}{Sort long OD-matrix in ascending order of from and to columns. This can have computational benefits, e.g., when multithreading with \code{method = "AoN"}.}
+\item{sort}{Logical (default: TRUE). Sort the long OD-matrix in ascending order of the \code{from} and \code{to} columns.}
 }
 \value{
 A data frame with columns:

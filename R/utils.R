@@ -1,7 +1,7 @@
 
 utils::globalVariables(c(
   "from", "to", "edge", "FX", "FY", "TX", "TY", "X", "Y", "cost", "flow", ".stop",
-  "C_contract_linear_nodes", "C_critical_link_detours"
+  "C_contract_linear_nodes", "C_critical_link_detours", "C_aon_assign"
   # Add any other variable names that appear in the notes
   # "." # Often needed if you use the data.table or magrittr pipe syntax
 ))
@@ -12,11 +12,14 @@ contract_linear_nodes_c <- function(from, to, gid, nodes) {
 }
 
 #' @title Convert Linestring to Graph
+#' @description Convert an sf data frame of LINESTRING geometries to a graph data frame. The first and last
+#'   point of each linestring become its from- and to-node, and points with identical (rounded) coordinates
+#'   become the same node.
 #'
 #' @param lines An sf data frame of LINESTRING geometries.
 #' @param digits Numeric rounding applied to coordinates (to ensure that matching points across different linestrings is not impaired by numeric precision issues). Set to \code{NA/Inf/FALSE} to disable.
-#' @param keep.cols Character vector of column names to keep from the input data frame.
-#' @param compute.length Applies \code{st_length()} to and saves it as an additional column named \code{".length"}.
+#' @param keep.cols Columns of \code{lines} to keep: anything \code{\link[collapse]{get_vars}()} accepts, i.e. column names, indices, or a function selecting columns. The default \code{is.atomic} keeps all non-geometry columns. \code{NULL} keeps none.
+#' @param compute.length Logical (default: TRUE). Compute the length of each linestring with \code{\link[sf]{st_length}()} and add it as a column named \code{".length"}.
 #'
 #' @return A data.frame representing the graph with columns:
 #' \itemize{
@@ -27,6 +30,8 @@ contract_linear_nodes_c <- function(from, to, gid, nodes) {
 #'  \item \code{to} - Ending node ID
 #'  \item \code{TX} - Ending node X-coordinate (longitude)
 #'  \item \code{TY} - Ending node Y-coordinate (latitude)
+#'  \item \code{.length} - Length of the linestring (if \code{compute.length = TRUE})
+#'  \item The columns selected by \code{keep.cols}
 #' }
 #'
 #' @seealso \link{simplify_network} \link{flownet-package}
@@ -139,7 +144,7 @@ linestrings_from_graph <- function(graph_df, crs = 4326) {
 #' @param graph_df A data frame representing a directed graph including columns:
 #'   \code{from}, \code{to}, and (optionally) \code{edge}, \code{FX}, \code{FY}, \code{TX}, \code{TY}.
 #' @param by Link characteristics to preserve/not aggregate across, passed as a one-sided formula or character vector of column names. Typically this includes attributes like \emph{mode}, \emph{type}, or \emph{capacity} to ensure that only edges with the same characteristics are aggregated.
-#' @param \dots Arguments passed to \code{\link[collapse]{collap}()} for aggregation across duplicated (diretional) edges. The defaults are \code{FUN = fmean} for numeric columns and \code{catFUN = fmode} for categorical columns. Select columns using \code{cols} or use argument \code{custom = list(fmean = cols1, fsum = cols2, fmode = cols3)} to map different columns to specific aggregation functions. You can weight the aggregation (using \code{w = ~ weight_col}).
+#' @param \dots Arguments passed to \code{\link[collapse]{collap}()} for aggregation across duplicated (directional) edges. The defaults are \code{FUN = fmean} for numeric columns and \code{catFUN = fmode} for categorical columns. Select columns using \code{cols} or use argument \code{custom = list(fmean = cols1, fsum = cols2, fmode = cols3)} to map different columns to specific aggregation functions. You can weight the aggregation (using \code{w = ~ weight_col}).
 #'
 #' @return A data frame representing an undirected graph with:
 #'   \itemize{
@@ -163,7 +168,8 @@ linestrings_from_graph <- function(graph_df, crs = 4326) {
 #' @details
 #' This function converts a directed graph to an undirected graph by:
 #' \itemize{
-#'   \item Normalizing edge directions so that \code{from < to} for all edges
+#'   \item Normalizing edge directions so that \code{from < to} for all edges, swapping
+#'     the node coordinates (\code{FX}, \code{FY} with \code{TX}, \code{TY}) along with the nodes
 #'   \item Collapsing duplicate edges (same \code{from} and \code{to} nodes)
 #'   \item For spatial/identifier columns (\code{edge}, \code{FX}, \code{FY}, \code{TX}, \code{TY}),
 #'     taking the first value from duplicates
@@ -183,16 +189,28 @@ linestrings_from_graph <- function(graph_df, crs = 4326) {
 #' c(directed = nrow(graph), undirected = nrow(graph_undir))
 #'
 #' @export
-#' @importFrom collapse ftransform GRP get_vars add_vars add_vars<- ffirst colorderv %!in% collap
+#' @importFrom collapse ftransform GRP get_vars add_vars add_vars<- ffirst colorderv %!in% collap copyv
 #' @importFrom kit fpmin fpmax
 create_undirected_graph <- function(graph_df, by = NULL, ...) {
   if(length(by)) {
     if(is.call(by)) by <- all.vars(by)
     if(!is.character(by)) stop("by needs to be a one-sided formula or a character vector of column names")
   }
+  nam <- names(graph_df)
+  # Node coordinates must be swapped along with the nodes on reversed edges,
+  # otherwise the edge carries the coordinates of the wrong endpoints.
+  flip <- which(graph_df$from > graph_df$to)
+  if(length(flip)) {
+    swap <- c(if(all(c("FX", "TX") %in% nam))
+                list(FX = copyv(graph_df$FX, flip, graph_df$TX, vind1 = TRUE),
+                     TX = copyv(graph_df$TX, flip, graph_df$FX, vind1 = TRUE)),
+              if(all(c("FY", "TY") %in% nam))
+                list(FY = copyv(graph_df$FY, flip, graph_df$TY, vind1 = TRUE),
+                     TY = copyv(graph_df$TY, flip, graph_df$FY, vind1 = TRUE)))
+    if(length(swap)) graph_df <- ftransform(graph_df, swap)
+  }
   graph_df <- ftransform(graph_df, from = fpmin(from, to), to = fpmax(from, to))
   g <- GRP(graph_df, c("from", "to", by), sort = FALSE)
-  nam <- names(graph_df)
   agg_first <- c("edge", "FX", "FY", "TX", "TY")
   ord <- c("edge", "from", "FX", "FY", "to", "TX", "TY", by)
   res <- g$groups
@@ -228,7 +246,9 @@ create_undirected_graph <- function(graph_df, by = NULL, ...) {
 #' @details
 #' This function extracts all unique nodes from both the \code{from} and \code{to}
 #' columns of the graph, along with their corresponding coordinates. Duplicate nodes
-#' are removed, keeping only unique node IDs with their coordinates.
+#' are removed, keeping only unique node IDs with their coordinates. A node's coordinates
+#' are taken from its first occurrence (searching \code{from} before \code{to}); conflicting
+#' coordinates for the same node ID elsewhere in the graph are not checked.
 #'
 #' @examples
 #' library(flownet)
@@ -267,23 +287,23 @@ nodes_from_graph <- function(graph_df, sf = FALSE, crs = 4326) {
 #' @description Compute a distance matrix for all node pairs in a graph using \emph{igraph}.
 #'
 #' @param graph_df A data frame representing a graph with columns:
-#'   \code{from}, \code{to}, and \code{cost}.
+#'   \code{from}, \code{to}, and a cost column (see \code{cost.column}).
 #' @param directed Logical (default: FALSE). If TRUE, treats the graph as directed;
 #'   if FALSE, treats it as undirected.
 #' @param cost.column Character string (optional). Name of the cost column in \code{graph_df}.
 #'   Alternatively, a numeric vector of edge costs with length equal to \code{nrow(graph_df)}.
 #' @param \dots Additional arguments passed to \code{\link[igraph]{distances}()}, such as \code{v} (from) and \code{to} to compute paths between specific nodes.
 #'
-#' @return A matrix of distances between all node pairs, where rows and columns
-#'   correspond to node IDs. The matrix contains the shortest path distances
-#'   (based on the \code{cost} column) between all pairs of nodes.
+#' @return A matrix of shortest path distances (based on the edge costs) between
+#'   node pairs. Rows and columns are named by node ID, in ascending order of node ID.
 #'
 #' @details
 #' This function:
 #' \itemize{
-#'   \item Converts the graph data frame to a \emph{igraph} graph object
-#'   \item Contracts the graph for efficient distance computation
-#'   \item Computes the distance matrix for all node pairs using the specified algorithm
+#'   \item Converts the graph data frame to an \emph{igraph} graph object, with the sorted unique
+#'     node IDs as vertex names
+#'   \item Computes the shortest path distances with \code{\link[igraph]{distances}(mode = "out")},
+#'     by default for all node pairs
 #' }
 #'
 #' @examples
@@ -385,11 +405,13 @@ normalize_graph <- function(graph_df) {
 #'   \code{from} and \code{to} (node IDs), and optionally other columns to preserve.
 #'   If coordinate columns (\code{FX}, \code{FY}, \code{TX}, \code{TY}) are present, they will be
 #'   preserved and updated based on the consolidated node coordinates.
-#' @param directed Logical (default: FALSE). Whether the graph is directed.
+#' @param directed Logical (default: FALSE). Whether the graph is directed. Two-way links in a directed graph
+#'   may be given as reciprocal arcs (\code{a -> b} and \code{b -> a}); they are contracted per direction (see Details).
 #' @param drop.edges Character vector (default: \code{c("loop", "duplicate", "single")}). Types of edges to drop:
 #'   \code{"loop"} removes self-loops (edges where from == to),
 #'   \code{"duplicate"} removes duplicate edges (same from-to pair),
-#'   \code{"single"} removes edges leading to singleton nodes (nodes that occur only once).
+#'   \code{"single"} removes edges leading to singleton nodes (nodes that occur only once;
+#'   in directed graphs, nodes linked to a single neighbour, e.g. by a pair of reciprocal arcs).
 #'   Set to \code{NULL} to keep all edges.
 #' @param contract Logical (default: TRUE). If TRUE, contracts the graph by removing
 #'   intermediate nodes (nodes that occur exactly twice) and merging connecting edges.
@@ -441,6 +463,14 @@ normalize_graph <- function(graph_df) {
 #' For undirected graphs, the algorithm also handles cases where a node appears twice
 #' as either origin or destination (circular cases).
 #'
+#' For directed graphs, a node is contracted if it has one incoming and one outgoing arc
+#' (a one-way through node), or two incoming arcs from and two outgoing arcs to the same two
+#' neighbours (a two-way link given as reciprocal arcs). Each direction is contracted separately:
+#' the chain A<->B<->C becomes the arcs A->C and C->A, each aggregating the arcs of its own
+#' direction. A node whose only arcs lead to and from the same neighbour (A->B->A, the end of a
+#' two-way dead end) is not contracted; with \code{"single"} in \code{drop.edges}, such dead ends
+#' are dropped like singleton edges.
+#'
 #' If coordinate columns (\code{FX}, \code{FY}, \code{TX}, \code{TY}) are present in the input,
 #' they are preserved and updated based on the consolidated node coordinates from the original graph.
 #'
@@ -461,14 +491,14 @@ normalize_graph <- function(graph_df) {
 #' nearest_nodes <- nodes$node[st_nearest_feature(africa_cities_ports, nodes)]
 #'
 #' # Consolidate graph, preserving city nodes
-#' graph_cons <- consolidate_graph(graph, keep = nearest_nodes, w = ~ passes)
+#' graph_cons <- consolidate_graph(graph, keep.nodes = nearest_nodes, w = ~ passes)
 #'
 #' # Consolidated graph has fewer edges
 #' c(original = nrow(graph), consolidated = nrow(graph_cons))
 #'
 #' @export
-#' @importFrom collapse fnrow get_vars anyv setv copyv ss seq_row fduplicated fmatch whichv whichNA allNA ffirst GRP collap %iin% %!in% %!iin% join colorderv funique.default %!=% %==% missing_cases qtab varying radixorderv groupv na_rm
-#' @importFrom kit countOccur
+#' @importFrom collapse fnrow get_vars anyv setv copyv ss seq_row fduplicated fmatch whichv whichNA allNA ffirst GRP collap %iin% %!in% %!iin% join colorderv funique.default %!=% %==% missing_cases qtab varying radixorderv groupv na_rm group
+#' @importFrom kit countOccur fpmin fpmax
 #' @importFrom stats setNames
 consolidate_graph <- function(graph_df, directed = FALSE,
                               drop.edges = c("loop", "duplicate", "single"),
@@ -557,9 +587,22 @@ consolidate_graph <- function(graph_df, directed = FALSE,
 
 
 # Linear-time helper for singleton edge peeling
-drop_singletons_linear <- function(from_vec, to_vec, keep.nodes = NULL, recursive = TRUE) {
+drop_singletons_linear <- function(from_vec, to_vec, keep.nodes = NULL, recursive = TRUE, directed = FALSE) {
   n_edges <- length(from_vec)
   if(!n_edges) return(list(keep = integer(0), dropped = 0L, rounds = 0L))
+
+  # In a directed graph a two-way link to a dead end is given as two arcs (a -> v, v -> a),
+  # so dead ends are found on the undirected projection and all arcs of a dropped link are dropped.
+  if(directed) {
+    link <- group(fpmin(from_vec, to_vec), fpmax(from_vec, to_vec))
+    first <- whichv(fduplicated(link), FALSE)
+    res <- drop_singletons_linear(from_vec[first], to_vec[first], keep.nodes, recursive)
+    if(res$dropped > 0L) {
+      res$keep <- link %iin% res$keep
+      res$dropped <- n_edges - length(res$keep)
+    }
+    return(res)
+  }
 
   nodes <- funique.default(c(from_vec, to_vec))
   n_nodes <- length(nodes)
@@ -694,7 +737,7 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
   }
 
   if(anyv(drop.edges, "single") && fnrow(gft)) {
-    peel <- drop_singletons_linear(gft$from, gft$to, keep.nodes = keep.nodes, recursive = reci > 0L)
+    peel <- drop_singletons_linear(gft$from, gft$to, keep.nodes = keep.nodes, recursive = reci > 0L, directed = directed)
     if(peel$dropped > 0L) {
       if(verbose) cat(sprintf("Dropped %d edges leading to singleton nodes in %d peeling steps\n", peel$dropped, peel$rounds))
       keep <- keep[peel$keep]
@@ -729,6 +772,7 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
         keep.nodes <- fmatch(as.integer(keep.nodes), norm_nodes, nomatch = NA_integer_)
     }
   }
+  n_ids <- length(norm_nodes)
 
   gid <- seq_row(gft)  # Local variable mapping current edges to groups
   contractd_any <- FALSE
@@ -798,42 +842,53 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
   }
 
   orient_undirected_nodes <- function(nodes) {
+    # Orient the edges of every maximal chain of candidate (degree-2) nodes so
+    # the chain reads head -> ... -> tail: walk each chain once from a
+    # non-candidate end (or from any node of a pure cycle) and set (from, to)
+    # along the walk. The previous rule flipped one edge per node independently,
+    # which left two adjacent candidates that both needed flipping pointing
+    # into each other (1-2, 3-2, 3-4: both flips fire, giving 1-2, 2-3, 4-3),
+    # after which the contraction produced self-loops or never converged
+    # (2026-09-11). Node ids are dense 1..N here (see norm_nodes above).
     if(!length(nodes)) return(FALSE)
-    N <- length(gft$from)
-    Np <- N + 1L
-    Ninv <- N:1 # Not strictly necessary to take second match, but appears faster and catch more nodes...
-    idx_from <- Np - na_rm(fmatch(nodes, gft$from[Ninv]))
-    if(length(idx_from)) {
-      tmp_from <- gft$from[idx_from]
-      tmp_from_to <- gft$to[idx_from]
+    ef <- gft$from; et <- gft$to
+    N <- length(ef)
+    nn <- max(ef, et, na.rm = TRUE)
+    is_cand <- logical(nn); is_cand[nodes] <- TRUE
+    # incident edges per candidate node (a self-loop counts twice, as in the degree)
+    e_all <- c(seq_len(N)[is_cand[ef]], seq_len(N)[is_cand[et]])
+    n_all <- c(ef[is_cand[ef]], et[is_cand[et]])
+    inc <- gsplit(e_all, n_all, use.g.names = TRUE)
+    inc_key <- as.integer(names(inc)); inc_of <- integer(nn); inc_of[inc_key] <- seq_along(inc)
+    other_end <- function(e, node) if(ef[e] == node) et[e] else ef[e]
+    next_edge <- function(node, e) { ie <- inc[[inc_of[node]]]; if(length(ie) < 2L) NA_integer_ else if(ie[1L] == e) ie[2L] else ie[1L] }
+    visited <- logical(N)
+    for(start in nodes) {
+      ie <- inc[[inc_of[start]]]
+      if(length(ie) < 2L || visited[ie[1L]]) next
+      # walk backwards to the head: a non-candidate node, or `start` again (pure cycle)
+      cur <- start; e <- ie[1L]; steps <- 0L
+      repeat {
+        nxt <- other_end(e, cur)
+        if(!is_cand[nxt] || nxt == start) break
+        e2 <- next_edge(nxt, e); if(is.na(e2)) break
+        e <- e2; cur <- nxt
+        steps <- steps + 1L; if(steps > N) break
+      }
+      head <- nxt
+      # walk forward from the head, orienting every edge cur -> other
+      cur <- head; steps <- 0L
+      repeat {
+        oth <- other_end(e, cur)
+        if(ef[e] != cur) { ef[e] <- cur; et[e] <- oth }
+        visited[e] <- TRUE
+        if(!is_cand[oth] || oth == head) break
+        e2 <- next_edge(oth, e); if(is.na(e2) || visited[e2]) break
+        e <- e2; cur <- oth
+        steps <- steps + 1L; if(steps > N) break
+      }
     }
-    idx_to <- Np - na_rm(fmatch(nodes, gft$to[Ninv]))
-    if(length(idx_to)) {
-      tmp_to <- gft$to[idx_to]
-      tmp_to_from <- gft$from[idx_to]
-    }
-    if(length(idx_from)) {
-      setv(gft$from, idx_from, tmp_from_to, vind1 = TRUE) # gft$from[idx_from] <<- tmp_from_to
-      setv(gft$to, idx_from, tmp_from, vind1 = TRUE) # gft$to[idx_from] <<- tmp_from
-    }
-    if(length(idx_to)) {
-      setv(gft$to, idx_to, tmp_to_from, vind1 = TRUE) # gft$to[idx_to] <<- tmp_to_from
-      setv(gft$from, idx_to, tmp_to, vind1 = TRUE)  # gft$from[idx_to] <<- tmp_to
-    }
-    # # Old slow (iterative) version
-    # for(node in nodes) {
-    #   if(length(idx <- whichv(gft$from, node))) {
-    #     idx <- idx[2L]
-    #     tmp <- gft$from[idx]
-    #     gft$from[idx] <<- gft$to[idx]
-    #     gft$to[idx] <<- tmp
-    #   } else if(length(idx <- whichv(gft$to, node))) {
-    #     idx <- idx[2L]
-    #     tmp <- gft$to[idx]
-    #     gft$to[idx] <<- gft$from[idx]
-    #     gft$from[idx] <<- tmp
-    #   }
-    # }
+    gft$from <<- ef; gft$to <<- et
     TRUE
   }
 
@@ -842,7 +897,17 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
     iter <- iter + 1L
 
     # tic <- now_s()
-    degree_table <- compute_degrees(gft$from, gft$to)
+    # After a contraction pass the rows of a merged chain all carry the chain's
+    # (from, to) but remain separate rows; counting every row inflates the degree
+    # of the chain's end nodes by the number of merged rows, so the dead-end node
+    # of a 2-edge chain looked like a degree-2 node and the next pass contracted
+    # it into a self-loop (1-2, 2-3, 3-4, 3-5 -> 3-3 instead of 1-3; found
+    # 2026-09-11 on the CPCS freight network: 1,262 waterway spurs, 467 road and
+    # 47 rail spurs turned into self-loops). Count each edge group once.
+    if(contractd_any) {
+      ur <- whichv(fduplicated(list(gft$from, gft$to, gid)), FALSE)
+      degree_table <- compute_degrees(gft$from[ur], gft$to[ur])
+    } else degree_table <- compute_degrees(gft$from, gft$to)
     # timers["singleton"] <- timers["singleton"] + (now_s() - tic)
     if(!fnrow(degree_table)) break
 
@@ -851,7 +916,7 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
       if(length(keep.nodes)) nodes <- nodes[nodes %!iin% keep.nodes]
       if(length(nodes)) {
         tic <- now_s()
-        peel <- drop_singletons_linear(gft$from, gft$to, keep.nodes = keep.nodes, recursive = TRUE)
+        peel <- drop_singletons_linear(gft$from, gft$to, keep.nodes = keep.nodes, recursive = TRUE, directed = directed)
         timers["singleton"] <- timers["singleton"] + (now_s() - tic)
         if(peel$dropped > 0L) {
           if(verbose) cat(sprintf("Dropped %d edges leading to singleton nodes in %d peeling steps\n", peel$dropped, peel$rounds))
@@ -863,11 +928,47 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
       }
     }
 
-    if(!anyv(degree_table$deg_total, 2L)) break
+    # (directed: one-way through nodes have degree 2, two-way through nodes degree 4)
+    if(!anyv(degree_table$deg_total, 2L) && !(directed && anyv(degree_table$deg_total, 4L))) break
 
+    n_copies <- 0L
     if(directed) {
+      # One-way through nodes: one arc in, one arc out. A node whose two arcs lead to and from
+      # the same neighbour (a -> v -> a) is the end of a two-way dead end: contracting it would
+      # create a loop a -> a, so it is kept (or dropped as a dead end if drop.edges includes "single").
       nodes <- degree_table$node[degree_table$deg_from == 1L & degree_table$deg_to == 1L]
-      if(length(keep.nodes)) nodes <- nodes[nodes %!iin% keep.nodes]
+      nodes <- nodes[gft$from[fmatch(nodes, gft$to)] != gft$to[fmatch(nodes, gft$from)]]
+      # Two-way through nodes: two arcs in from and two arcs out to the same two neighbours a and b
+      # (a two-way link given as reciprocal arcs). Each such node v is split into two one-way copies,
+      # a -> v -> b and b -> v' -> a, which are contracted like one-way nodes and mapped back below.
+      tw <- degree_table$node[degree_table$deg_from == 2L & degree_table$deg_to == 2L]
+      if(length(keep.nodes)) {
+        nodes <- nodes[nodes %!iin% keep.nodes]
+        tw <- tw[tw %!iin% keep.nodes]
+      }
+      if(length(tw)) {
+        ef <- gft$from; et <- gft$to
+        if(contractd_any) { ef <- ef[ur]; et <- et[ur] }
+        is_tw <- logical(n_ids); is_tw[tw] <- TRUE
+        ia <- which(is_tw[et]); ia <- ia[radixorderv(list(et[ia], ef[ia]))] # in-arcs, 2 per node, by tail
+        oa <- which(is_tw[ef]); oa <- oa[radixorderv(list(ef[oa], et[oa]))] # out-arcs, 2 per node, by head
+        i1 <- seq.int(1L, length(ia), 2L); i2 <- i1 + 1L
+        tw <- et[ia[i1]]; lo <- ef[ia[i1]]; hi <- ef[ia[i2]]
+        rc <- which(lo != hi & lo == et[oa[i1]] & hi == et[oa[i2]] & lo != tw & hi != tw)
+        if(length(rc)) {
+          tw <- tw[rc]
+          n_copies <- length(tw)
+          lo_of <- hi_of <- copy_of <- integer(n_ids)
+          lo_of[tw] <- lo[rc]; hi_of[tw] <- hi[rc]
+          copy_of[tw] <- copies <- n_ids + seq_len(n_copies)
+          # v keeps lo -> v -> hi, the copy takes hi -> v' -> lo (all rows, as merged rows share endpoints)
+          it <- which(hi_of[gft$to] == gft$from)
+          ift <- which(lo_of[gft$from] == gft$to)
+          gft$to[it] <- copy_of[gft$to[it]]
+          gft$from[ift] <- copy_of[gft$from[ift]]
+          nodes <- c(nodes, tw, copies)
+        }
+      }
       if(!length(nodes)) break
     } else {
       nodes <- degree_table$node[degree_table$deg_total %==% 2L]
@@ -877,15 +978,31 @@ consolidate_graph_core <- function(graph_df, directed = FALSE,
       need_orientation <- nodes[degree_table$deg_from[idx] == 2L | degree_table$deg_to[idx] == 2L]
       if(length(need_orientation)) {
         tic <- now_s()
-        if(!orient_undirected_nodes(need_orientation)) stop("Failed to orient undirected edges for consolidation; please verify the input graph.")
+        # walk ALL candidates: orienting only the chains of the nodes that need a
+        # flip can flip the edge shared with a consistently oriented neighbour
+        # and make that neighbour inconsistent instead (2026-09-11)
+        if(!orient_undirected_nodes(nodes)) stop("Failed to orient undirected edges for consolidation; please verify the input graph.")
         timers["orient"] <- timers["orient"] + (now_s() - tic)
         if(verbose) cat(sprintf("Oriented %d undirected intermediate edges\n", length(need_orientation)))
       }
     }
 
-    n_candidates <- length(nodes)
+    n_candidates <- length(nodes) - n_copies
     tic <- now_s()
-    merge_ok <- merge_linear_nodes(nodes)
+    # Directed: contracting one-way chains can create new two-way through nodes (e.g. where the two
+    # carriageways of a dual road meet), whose arcs are chains merged in an earlier iteration. The
+    # contraction rewrites only one row per arc, so contract one row per chain and copy it to the others.
+    if(directed && contractd_any) {
+      rep_row <- fmatch(gid, gid[ur])
+      gft$from <- gft$from[ur]; gft$to <- gft$to[ur]; gid <- gid[ur]
+      merge_ok <- merge_linear_nodes(nodes)
+      gft$from <- gft$from[rep_row]; gft$to <- gft$to[rep_row]; gid <- gid[rep_row]
+    } else merge_ok <- merge_linear_nodes(nodes)
+    if(n_copies) { # copies that were not contracted (e.g. on a two-way ring) revert to their node
+      back <- c(seq_len(n_ids), tw)
+      gft$from <- back[gft$from]
+      gft$to <- back[gft$to]
+    }
     if(is.na(merge_ok) && c_no_progress) {
       if(verbose) cat(sprintf("No further C contraction progress at %d candidates; breaking inner loop.\n", n_candidates))
       break
@@ -1084,7 +1201,7 @@ compute_degrees <- function(from_vec, to_vec) {
 #' nearest_nodes <- nodes_df$node[st_nearest_feature(africa_cities_ports, nodes_df)]
 #'
 #' # Initial consolidation
-#' graph <- consolidate_graph(graph, keep = nearest_nodes, w = ~ passes)
+#' graph <- consolidate_graph(graph, keep.nodes = nearest_nodes, w = ~ passes)
 #'
 #' # Method 1: Shortest-paths simplification (keeps only traversed edges)
 #' graph_simple <- simplify_network(graph, nearest_nodes,
@@ -1597,7 +1714,7 @@ contract_edges <- function(graph, nodes, clusters, centroids, directed = FALSE, 
       add_vars(res) <- ss(nodes, ckmatch(res$from, nodes$node), c("X", "Y")) |> add_stub("F")
       add_vars(res) <- ss(nodes, ckmatch(res$to, nodes$node), c("X", "Y")) |> add_stub("T")
     }
-    ord <- c("edge", "from", "FX", "FY", "to", "TX", "TY")
+    ord <- c("edge", "from", "FX", "FY", "to", "TX", "TY", by)
     res <- colorderv(res, ord[ord %in% nam])
     if(any(nam %!in% ord)) {
       add_vars(res) <- collap(get_vars(graph, nam[nam %!in% ord]), g, keep.by = FALSE, ...)
@@ -1645,7 +1762,7 @@ contract_edges <- function(graph, nodes, clusters, centroids, directed = FALSE, 
 #'   If omitted, row and column names (if present) will be used as node IDs, coerced to integer
 #'   if possible. If names are not available or cannot be coerced to integer, sequential integers
 #'   will be used.
-#' @param sort Sort long OD-matrix in ascending order of from and to columns. This can have computational benefits, e.g., when multithreading with \code{method = "AoN"}.
+#' @param sort Logical (default: TRUE). Sort the long OD-matrix in ascending order of the \code{from} and \code{to} columns.
 #'
 #' @return A data frame with columns:
 #'   \itemize{

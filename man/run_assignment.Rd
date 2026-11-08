@@ -56,7 +56,7 @@ The cost values are used to compute shortest paths and determine route probabili
 
 \item{npaths.max}{Integer (default: Inf). Maximum number of paths to compute per OD-pair. Only used for PSL method. If the number of paths exceeds this number, a random sample will be taken from all but the shortest path.}
 
-\item{dmat.max.size}{Integer (default: 1e4^2). Maximum size of distance matrices (both shortest paths and geodesic) to precompute. If smaller than \code{n_nodes^2}, then the full matrix is precomputed. Otherwise, it is computed in chunks as needed, where each chunk has \code{dmat.max.size} elements. Only used for PSL method.}
+\item{dmat.max.size}{Integer (default: 1e4^2). Maximum size of distance matrices (both shortest paths and geodesic) to precompute. If \code{dmat.max.size >= n_nodes^2} - i.e. the full matrix fits within the budget - it is precomputed once. Otherwise, it is computed in chunks as needed, where each chunk has approximately \code{dmat.max.size} elements. Only used for PSL method.}
 
 \item{return.extra}{Character vector specifying additional results to return.
   Use \code{"all"} to return all available extras for the selected method.
@@ -75,7 +75,7 @@ The cost values are used to compute shortest paths and determine route probabili
 
 \item{verbose}{Logical (default: TRUE). Show progress bar and intermediate steps completion status?}
 
-\item{nthreads}{Integer (default: 1L). Number of threads (daemons) to use for parallel processing with \code{\link[mirai]{mirai}}. Should not exceed the number of logical processors.}
+\item{nthreads}{Integer (default: 1L). Number of threads to use for parallel processing. For AoN these are OpenMP threads over origin nodes (if the package was compiled with OpenMP support), and the results do not depend on their number; for PSL, daemons of \code{\link[mirai]{mirai}}. Should not exceed the number of logical processors.}
 
 \item{x}{An object of class \code{flownet}, typically returned by \code{\link{run_assignment}}.}
 
@@ -86,7 +86,7 @@ A list of class \code{"flownet"} containing:
   \itemize{
     \item \code{call} - The function call
     \item \code{final_flows} - Numeric vector of assigned flows for each edge (same length as \code{nrow(graph_df)})
-    \item \code{od_pairs_used} - Indices of OD pairs with valid flows
+    \item \code{od_pairs_used} - Row indices (into \code{od_matrix_long}) of the OD pairs that were assigned. Pairs with zero or non-finite flow, and pairs for which no path was found (unreachable destination, or origin equal to destination), are skipped. The per-OD-pair elements listed below are aligned with this vector, not with the rows of \code{od_matrix_long}.
     \item Additional elements as specified in \code{return.extra}:
       \itemize{
         \item \code{graph} - The igraph graph object
@@ -113,6 +113,9 @@ more realistic flow distribution.
 \subsection{All-or-Nothing (AoN) Method}{
 A simple assignment method that assigns all flow from each OD pair to the single shortest path.
 This is much faster than PSL but does not consider route alternatives or overlaps.
+The shortest paths are computed in C, one Dijkstra search per origin node, in parallel with
+OpenMP. The search mirrors the one of \code{\link[igraph]{shortest_paths}()}, so ties between
+equal-cost paths are resolved in the same way.
 Parameters \code{detour.max}, \code{angle.max}, \code{unique.cost}, \code{npaths.max},
 \code{beta}, and \code{dmat.max.size} are ignored for AoN.
 }
@@ -148,13 +151,13 @@ For more information about the PSL model consult some of the references below.
 \subsection{Route Enumeration Algorithm}{
 For each origin-destination pair, the algorithm identifies alternative routes as follows:
 \enumerate{
-  \item Compute the shortest path cost from origin to destination. If \code{sqrt(dmat.max.size) < N.nodes}, the entire shortest-path-distance matrix is precomputed.
+  \item Compute the shortest path cost from origin to destination. If \code{sqrt(dmat.max.size) >= N.nodes}, the entire shortest-path-distance matrix is precomputed.
   \item For each potential intermediate node, calculate the total cost of going
         origin -> intermediate -> destination (also using the distance matrix).
   \item Keep only routes where total cost is within \code{detour.max} times the
         shortest path cost.
   \item If \code{angle.max} is specified, filter to intermediate nodes that lie
-        roughly in the direction of the destination (within the specified angle - see further details below).  If \code{sqrt(dmat.max.size) < N.nodes} a geodesic-distance-matrix is precomputed for speedy calculations using the triangle equation.
+        roughly in the direction of the destination (within the specified angle - see further details below). The angles are computed from geodesic distances using the law of cosines. Like the shortest-path-distance matrix, the geodesic-distance-matrix is precomputed if \code{sqrt(dmat.max.size) >= N.nodes}, and computed in chunks otherwise.
   \item If \code{unique.cost = TRUE}, remove duplicate routes based on total cost -
         as multiple intermediate nodes may yield exactly the same route.
   \item (Optionally) use \code{npaths.max} to sample the remaining routes if still too many.
@@ -168,9 +171,11 @@ by avoiding the computation of implausible paths.
 \subsection{Coordinate-Based Filtering}{
 When \code{angle.max} is specified and \code{graph_df} contains coordinate columns
 (\code{FX}, \code{FY}, \code{TX}, \code{TY}), the function uses geographic distance
-calculations to restrict detours. Only intermediate nodes that are (a) closer to the
-origin than the destination is, and (b) within the specified angle from the
-origin-destination line are considered. This improves both computational efficiency
+calculations to restrict detours. With \code{angle.max >= 90}, only intermediate nodes that
+are (a) closer to the origin than the destination is, and (b) within \code{angle.max} degrees
+of the origin-destination line, seen from the origin, are considered. With \code{angle.max < 90},
+intermediate nodes must instead lie within \code{angle.max} degrees of the origin-destination
+line seen from both the origin and the destination. This improves both computational efficiency
 and route realism by excluding geographically implausible detours.
 }
 }
@@ -206,7 +211,7 @@ result_psl <- run_assignment(graph, od_matrix_long, cost.column = "duration",
                              return.extra = c("edges", "counts", "costs", "weights"))
 print(result_psl)
 
-# Visualize AoN Results
+# Visualize PSL Results
 africa_net$final_flows_log10 <- log10(result_psl$final_flows + 1)
 plot(africa_net["final_flows_log10"], main = "PSL Assignment")
 }
@@ -269,7 +274,7 @@ dissertation). Massachusetts Institute of Technology.
 Prato, C. G. (2009). Route choice modeling: Past, present and future research
 directions. \emph{Journal of Choice Modelling, 2}(1), 65-100. \doi{10.1016/S1755-5345(13)70005-8}
 
-AequilibiaE Python Documentation: https://www.aequilibrae.com/develop/python/route_choice/path_size_logit.html
+AequilibraE Python Documentation: \url{https://www.aequilibrae.com/develop/python/route_choice/path_size_logit.html}
 }
 \seealso{
 \link{flownet-package}

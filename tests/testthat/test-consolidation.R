@@ -679,6 +679,27 @@ test_that("simplify_network cluster has no self-loops", {
   expect_false(any(result$from == result$to))
 })
 
+test_that("simplify_network cluster with by returns each by column once", {
+  graph <- linestrings_from_graph(africa_segments[1:100, ]) |>
+    linestrings_to_graph()
+  graph$mode <- rep_len(c("road", "rail"), nrow(graph))
+  nodes_df <- nodes_from_graph(graph)
+  keep_nodes <- nodes_df$node[1:5]
+
+  result <- simplify_network(graph, nodes = keep_nodes,
+                             method = "cluster", by = ~ mode,
+                             cost.column = ".length",
+                             radius_km = list(nodes = 50, cluster = 100), verbose = FALSE)
+
+  expect_false(anyDuplicated(names(result)) > 0L)
+  expect_equal(sum(names(result) == "mode"), 1L)
+  # every output edge carries the mode of all the input edges merged into it
+  ke <- attr(result, "keep.edges"); gid <- attr(result, "group.id")
+  expect_true(all(graph$mode[ke] == result$mode[gid]))
+  # the result is a valid graph data frame for downstream functions
+  expect_no_error(create_undirected_graph(result, by = ~ mode))
+})
+
 test_that("simplify_network cluster adds group attributes", {
   testthat::skip_if_not_installed("RANN")
   graph <- linestrings_from_graph(africa_segments[1:100, ]) |>
@@ -726,4 +747,242 @@ test_that("simplify_network cluster errors without coordinate columns", {
                      cost.column = "cost", verbose = FALSE),
     "FX.*FY.*TX.*TY"
   )
+})
+
+# Directed consolidation of two-way links given as reciprocal arcs
+
+two_way <- function(from, to, cost = 1, back = cost) {
+  data.frame(from = c(from, to), to = c(to, from), cost = c(rep_len(cost, length(from)), rep_len(back, length(from))))
+}
+
+drop_attrs <- function(x) {
+  attr(x, "keep.edges") <- NULL
+  attr(x, "group.id") <- NULL
+  x
+}
+
+# Grid road network: most links two-way (as reciprocal arcs), some one-way, some removed.
+# A share p_dual of the two-way links is a dual carriageway: one-way a -> m -> b and b -> m' -> a.
+make_road_grid <- function(n, p_drop = 0.35, p_oneway = 0.25, p_rail = 0, p_dual = 0) {
+  id <- matrix(seq_len(n * n), n)
+  e <- rbind(cbind(c(id[-n, ]), c(id[-1, ])), cbind(c(id[, -n]), c(id[, -1])))
+  e <- e[runif(nrow(e)) > p_drop, , drop = FALSE]
+  ow <- runif(nrow(e)) < p_oneway
+  rev <- ow & runif(nrow(e)) < 0.5
+  e[rev, ] <- e[rev, 2:1]
+  mode <- ifelse(runif(nrow(e)) < p_rail, "rail", "road")
+  g <- rbind(data.frame(from = e[, 1], to = e[, 2], cost = runif(nrow(e), 1, 10), mode = mode),
+             data.frame(from = e[!ow, 2], to = e[!ow, 1], cost = runif(sum(!ow), 1, 10), mode = mode[!ow]))
+  if (p_dual <= 0) return(g)
+  tw <- which(!ow)
+  dl <- tw[runif(length(tw)) < p_dual]
+  dual <- c(dl, nrow(e) + match(dl, tw))  # rows of both arcs of each dual link
+  mid <- n * n + seq_along(dual)
+  rbind(g[-dual, ], transform(g[dual, ], to = mid, cost = cost / 2), transform(g[dual, ], from = mid, cost = cost / 2))
+}
+
+keep_distances <- function(g, keep, nodes) {
+  ig <- igraph::graph_from_data_frame(g[c("from", "to", "cost")], directed = TRUE,
+                                      vertices = data.frame(name = as.character(nodes)))
+  igraph::distances(ig, v = as.character(keep), to = as.character(keep), mode = "out",
+                    weights = igraph::E(ig)$cost)
+}
+
+test_that("directed consolidate_graph contracts reciprocal arcs per direction", {
+  # 1 <-> 2 <-> 3, with different costs in each direction
+  g <- data.frame(from = c(1, 2, 3, 2), to = c(2, 3, 2, 1), cost = c(1, 2, 10, 20))
+  res <- consolidate_graph(g, directed = TRUE, drop.edges = NULL, keep.nodes = c(1, 3),
+                           custom = list(fsum = "cost"), verbose = FALSE)
+  res <- res[order(res$from), ]
+  expect_equal(res$from, c(1, 3))
+  expect_equal(res$to, c(3, 1))
+  expect_equal(res$cost, c(3, 30))
+
+  # 1 <-> 2 <-> 3 <-> 4 <-> 5
+  g5 <- two_way(1:4, 2:5, cost = 1:4, back = 5:8)
+  res <- consolidate_graph(g5, directed = TRUE, drop.edges = NULL, keep.nodes = c(1, 5),
+                           custom = list(fsum = "cost"), verbose = FALSE)
+  res <- res[order(res$from), ]
+  expect_equal(res$from, c(1, 5))
+  expect_equal(res$to, c(5, 1))
+  expect_equal(res$cost, c(10, 26))
+
+  for (gr in list(g, g5))
+    expect_consolidate_equiv_c_r(gr, directed = TRUE, drop.edges = NULL, keep.nodes = c(1, 5, 3)[seq_len(2 + identical(gr, g))],
+                                 custom = list(fsum = "cost"))
+})
+
+test_that("directed consolidate_graph stops at a change between one-way and two-way", {
+  # 1 <-> 2 <-> 3 -> 4 -> 5: node 3 can be left towards 2 or 4, so it stays
+  g <- rbind(two_way(1:2, 2:3), data.frame(from = 3:4, to = 4:5, cost = 1))
+  res <- consolidate_graph(g, directed = TRUE, drop.edges = NULL, keep.nodes = c(1, 5),
+                           custom = list(fsum = "cost"), verbose = FALSE)
+  res <- res[order(res$from, res$to), ]
+  expect_equal(res$from, c(1, 3, 3))
+  expect_equal(res$to, c(3, 1, 5))
+  expect_equal(res$cost, c(2, 2, 2))
+  expect_consolidate_equiv_c_r(g, directed = TRUE, drop.edges = NULL, keep.nodes = c(1, 5),
+                               custom = list(fsum = "cost"))
+})
+
+test_that("directed consolidate_graph does not contract a crossing of one-way roads", {
+  # 1 -> 5 -> 2 and 3 -> 5 -> 4: two arcs in and two out, but not reciprocal
+  g <- data.frame(from = c(1, 5, 3, 5), to = c(5, 2, 5, 4), cost = 1)
+  res <- consolidate_graph(g, directed = TRUE, drop.edges = NULL, keep.nodes = 1:4, verbose = FALSE)
+  expect_equal(nrow(res), 4L)
+  # two in from and two out to the same neighbour (parallel arcs) is not a two-way link either
+  gp <- data.frame(from = c(1, 1, 2, 2), to = c(2, 2, 1, 3), cost = 1)
+  res <- consolidate_graph(gp, directed = TRUE, drop.edges = NULL, keep.nodes = c(1, 3), verbose = FALSE)
+  expect_equal(nrow(res), 4L)
+})
+
+test_that("directed consolidate_graph respects by and keep.nodes at two-way nodes", {
+  g <- cbind(two_way(1:2, 2:3), mode = c("road", "rail", "road", "rail"))
+  res <- consolidate_graph(g, directed = TRUE, drop.edges = NULL, by = ~ mode,
+                           keep.nodes = c(1, 3), verbose = FALSE)
+  expect_equal(nrow(res), 4L)
+
+  g4 <- two_way(1:3, 2:4)
+  res <- consolidate_graph(g4, directed = TRUE, drop.edges = NULL, keep.nodes = c(1, 2, 4),
+                           custom = list(fsum = "cost"), verbose = FALSE)
+  res <- res[order(res$from, res$to), ]
+  expect_equal(res$from, c(1, 2, 2, 4))
+  expect_equal(res$to, c(2, 1, 4, 2))
+  expect_equal(res$cost, c(1, 1, 2, 2))
+})
+
+test_that("directed consolidate_graph leaves two-way rings intact", {
+  ring <- two_way(1:4, c(2:4, 1), cost = 1:4)
+  for (dr in list(NULL, c("loop", "duplicate", "single"))) {
+    for (rec in c("none", "partial", "full")) {
+      res <- consolidate_graph(ring, directed = TRUE, drop.edges = dr, recursive = rec, verbose = FALSE)
+      expect_equal(nrow(res), 8L)
+      expect_true(all(c(res$from, res$to) %in% 1:4))
+      expect_false(any(res$from == res$to))
+    }
+  }
+  expect_consolidate_equiv_c_r(ring, directed = TRUE, drop.edges = NULL)
+})
+
+test_that("directed consolidate_graph keeps or peels two-way dead ends without creating loops", {
+  # one-way trunk 1 -> 2 -> 3 with a two-way spur 2 <-> 8 <-> 9
+  g <- rbind(data.frame(from = 1:2, to = 2:3, cost = 1), two_way(c(2, 8), c(8, 9)))
+  res <- consolidate_graph(g, directed = TRUE, drop.edges = NULL, keep.nodes = c(1, 3),
+                           custom = list(fsum = "cost"), verbose = FALSE)
+  expect_false(any(res$from == res$to))
+  res <- res[order(res$from, res$to), ]
+  expect_equal(res$from, c(1, 2, 2, 9))
+  expect_equal(res$to, c(2, 3, 9, 2))
+  expect_equal(res$cost, c(1, 1, 2, 2))
+  expect_consolidate_equiv_c_r(g, directed = TRUE, drop.edges = NULL, keep.nodes = c(1, 3),
+                               custom = list(fsum = "cost"))
+
+  for (rec in c("none", "partial", "full")) {
+    res <- consolidate_graph(g, directed = TRUE, keep.nodes = c(1, 3), recursive = rec,
+                             custom = list(fsum = "cost"), verbose = FALSE)
+    if (rec == "none") {
+      expect_false(any(c(res$from, res$to) == 9))  # outer end peeled once
+    } else {
+      expect_equal(drop_attrs(res), data.frame(from = 1, to = 3, cost = 2))
+    }
+  }
+})
+
+test_that("directed consolidate_graph partial recursion maps each arc to one output arc", {
+  g <- rbind(two_way(c(1, 2, 3, 3), c(2, 3, 4, 6)), data.frame(from = c(4, 5), to = c(5, 3), cost = 1))
+  g$cost <- seq_len(nrow(g))
+  res <- consolidate_graph(g, directed = TRUE, drop.edges = NULL, keep.nodes = c(1, 6),
+                           recursive = "partial", custom = list(fsum = "cost"), verbose = FALSE)
+  ke <- attr(res, "keep.edges"); gid <- attr(res, "group.id")
+  expect_identical(sort(ke), seq_len(nrow(g)))
+  expect_true(nrow(res) < nrow(g))
+  for (r in seq_len(nrow(res))) {
+    m <- ke[gid == r]
+    # the members form one directed path from res$from[r] to res$to[r]
+    expect_equal(setdiff(g$from[m], g$to[m]), res$from[r])
+    expect_equal(setdiff(g$to[m], g$from[m]), res$to[r])
+    expect_equal(anyDuplicated(g$from[m]), 0L)
+    expect_equal(sum(g$cost[m]), res$cost[r])
+  }
+  for (rec in c("none", "full"))
+    expect_no_error(consolidate_graph(g, directed = TRUE, keep.nodes = c(1, 6), recursive = rec, verbose = FALSE))
+  expect_consolidate_equiv_c_r(g, directed = TRUE, drop.edges = NULL, keep.nodes = c(1, 6),
+                               recursive = "partial", custom = list(fsum = "cost"))
+})
+
+test_that("directed consolidate_graph contracts two-way nodes created by contracting one-way chains", {
+  # Node 3 is reached from 1 and 5 by one-way chains and left towards both by one-way chains
+  # (where the carriageways of a dual road meet). Contracting those chains turns 3 into a
+  # two-way through node, whose arcs are then multi-row chains.
+  g <- data.frame(from = c(1, 2, 3, 4, 5, 6, 3, 7),
+                  to   = c(2, 3, 4, 1, 6, 3, 7, 5), cost = 1:8)
+  for (rec in c("partial", "full")) {
+    res <- consolidate_graph(g, directed = TRUE, drop.edges = NULL, keep.nodes = c(1, 5), recursive = rec,
+                             custom = list(fsum = "cost"), verbose = FALSE)
+    res <- drop_attrs(res)
+    res <- res[order(res$from), ]
+    rownames(res) <- NULL
+    expect_equal(res, data.frame(from = c(1, 5), to = c(5, 1), cost = c(1 + 2 + 7 + 8, 5 + 6 + 3 + 4)))
+    expect_consolidate_equiv_c_r(g, directed = TRUE, drop.edges = NULL, keep.nodes = c(1, 5), recursive = rec,
+                                 custom = list(fsum = "cost"))
+  }
+
+  # Excerpt of a German road graph on which contracting such nodes one row per arc never terminated
+  g <- data.frame(from = c(6, 7, 5, 14, 16, 13, 4, 8, 9, 3, 12, 15, 1, 13, 2, 11, 15, 7, 11, 6, 16, 1, 10),
+                  to = c(7, 11, 11, 15, 6, 16, 13, 1, 1, 5, 14, 10, 4, 8, 3, 12, 2, 6, 7, 16, 13, 9, 15),
+                  cost = c(12, 2, 15, 12, 49, 10, 15, 31, 18, 54, 61, 79, 31, 15, 6, 15, 12, 12, 2, 49, 10, 18, 79))
+  dist <- function(x, v) keep_distances(x, v, 1:16)
+  for (rec in c("partial", "full")) {
+    res <- consolidate_graph(g, directed = TRUE, drop.edges = NULL, keep.nodes = 9, recursive = rec,
+                             custom = list(fsum = "cost"), verbose = FALSE)
+    nd <- sort(unique(c(res$from, res$to)))
+    expect_equal(nd, c(9, 10))  # 10 is the end of a two-way dead end, kept without "single"
+    expect_equal(dist(res, nd), dist(g, nd))
+    expect_consolidate_equiv_c_r(g, directed = TRUE, drop.edges = NULL, keep.nodes = 9, recursive = rec,
+                                 custom = list(fsum = "cost"))
+  }
+})
+
+test_that("directed consolidate_graph preserves directed distances between keep nodes", {
+  set.seed(42)
+  for (i in 1:9) {
+    g <- make_road_grid(12, p_rail = if (i %in% 4:6) 0.2 else 0, p_dual = if (i > 6) 0.3 else 0)
+    nodes <- unique(c(g$from, g$to))
+    keep <- sample(nodes, 8)
+    d0 <- keep_distances(g, keep, nodes)
+    for (rec in c("partial", "full")) {
+      res <- consolidate_graph(g, directed = TRUE, drop.edges = c("loop", "single"), recursive = rec,
+                               by = if (i %in% 4:6) ~ mode, keep.nodes = keep, custom = list(fsum = "cost"), verbose = FALSE)
+      expect_true(nrow(res) < nrow(g))
+      expect_equal(keep_distances(res, keep, nodes), d0, tolerance = 1e-9)
+      # contraction only removes nodes, so distances between all remaining nodes are preserved too
+      nd <- unique(c(res$from, res$to))
+      expect_equal(keep_distances(res, nd, nodes), keep_distances(g, nd, nodes), tolerance = 1e-9)
+    }
+    expect_consolidate_equiv_c_r(g, directed = TRUE, drop.edges = c("loop", "single"),
+                                 keep.nodes = keep, custom = list(fsum = "cost"))
+  }
+})
+
+test_that("directed consolidation of an all-two-way graph gives two arcs per undirected edge", {
+  set.seed(7)
+  for (i in 1:4) {
+    g <- make_road_grid(12, p_oneway = 0)
+    und <- g[g$from < g$to, ]
+    keep <- sample(unique(c(g$from, g$to)), 8)
+    dr <- c("loop", "single")
+    rd <- consolidate_graph(g, directed = TRUE, drop.edges = dr, keep.nodes = keep, verbose = FALSE)
+    ru <- consolidate_graph(und, directed = FALSE, drop.edges = dr, keep.nodes = keep, verbose = FALSE)
+    expect_equal(nrow(rd), 2L * nrow(ru))
+    # Undirected mode only detects parallel edges with the same orientation as duplicates,
+    # so with "duplicate" it is compared at its fixpoint over re-normalised edges.
+    dr <- c("loop", "duplicate", "single")
+    rd <- consolidate_graph(g, directed = TRUE, drop.edges = dr, keep.nodes = keep, verbose = FALSE)
+    ru <- und; n0 <- Inf
+    while (nrow(ru) < n0) {
+      n0 <- nrow(ru)
+      ru <- consolidate_graph(create_undirected_graph(ru), directed = FALSE, drop.edges = dr, keep.nodes = keep, verbose = FALSE)
+    }
+    expect_equal(nrow(rd), 2L * nrow(ru))
+  }
 })

@@ -10,7 +10,7 @@
 [![Conda Version](https://img.shields.io/conda/vn/conda-forge/r-flownet.svg)](https://anaconda.org/conda-forge/r-flownet)
 [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/r-flownet.svg)](https://anaconda.org/conda-forge/r-flownet)
 [![Codecov test coverage](https://codecov.io/gh/SebKrantz/flownet/graph/badge.svg)](https://app.codecov.io/gh/SebKrantz/flownet)
-[![minimal R version](https://img.shields.io/badge/R%3E%3D-3.5.0-6666ff.svg)](https://cran.r-project.org/)
+[![minimal R version](https://img.shields.io/badge/R%3E%3D-4.1.0-6666ff.svg)](https://cran.r-project.org/)
 [![dependencies](https://tinyverse.netlify.app/badge/flownet)](https://CRAN.R-project.org/package=flownet)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/SebKrantz/flownet)
 <!-- badges: end -->
@@ -25,7 +25,7 @@
 - **Network Processing**: Convert LINESTRINGs to network graphs and consolidate/simplify them
 - **Route Enumeration**: Efficient algorithm for finding alternative routes between origin-destination pairs
 - **High Performance**: [fastverse](https://fastverse.org/fastverse/) packages and custom C implementations for critical path operations
-- **Multithreading**: Asynchronous parallelism using [`mirai`](https://github.com/r-lib/mirai) for faster processing of large networks
+- **Multithreading**: OpenMP for all-or-nothing assignment and critical link analysis, and asynchronous parallelism using [`mirai`](https://github.com/r-lib/mirai) for path-sized logit assignment and network simplification
 
 ## Installation
 
@@ -93,7 +93,7 @@ nodes <- nodes_from_graph(graph, sf = TRUE)
 nearest_nodes <- nodes$node[st_nearest_feature(od_zones, nodes)]
 
 # Consolidate Graph (optional)
-graph <- consolidate_graph(graph, keep = nearest_nodes, w = ~ cost)
+graph <- consolidate_graph(graph, keep.nodes = nearest_nodes, w = ~ cost)
 
 # Simplify network by keeping only traversed edges along shortest paths (optional)
 # Use 'by' for multimodal networks to compute paths separately per mode
@@ -154,7 +154,7 @@ The `africa_network`, `africa_cities_ports`, and `africa_segments` datasets are 
 
 - **`run_assignment()`**:
   - Iterates through OD-pairs generating sensible alternative routes
-  - Assigns traffic flows to network edges using path-sized logit model
+  - Assigns traffic flows to network edges using the path-sized logit model, or all-or-nothing to the shortest paths (`method = "AoN"`, multithreaded in C)
   - Supports directed and undirected graphs
   - Returns flows and optional path/route information
   - **Key Parameters**:
@@ -167,7 +167,7 @@ The `africa_network`, `africa_cities_ports`, and `africa_segments` datasets are 
 
 - **`linestrings_to_graph()`** - Convert LINESTRING geometries to graph data frame
 - **`create_undirected_graph()`** - Convert directed graph to undirected with edge aggregation
-- **`consolidate_graph()`** - Consolidate graph by removing intermediate nodes and merging edges
+- **`consolidate_graph()`** - Consolidate graph by removing intermediate nodes and merging edges (in directed graphs also two-way links given as reciprocal arcs, per direction)
 - **`simplify_network()`** - Simplify network using shortest-paths or spatial clustering methods
 
 ### Graph Utilities
@@ -176,6 +176,7 @@ The `africa_network`, `africa_cities_ports`, and `africa_segments` datasets are 
 - **`normalize_graph()`** - Normalize node IDs to consecutive integers starting from 1
 - **`linestrings_from_graph()`** - Convert graph to LINESTRING geometries
 - **`distances_from_graph()`** - Compute distance matrix for all node pairs
+- **`critical_link_analysis()`** - Compute edge detour costs and vulnerability ratios
 
 ### OD Matrix Utilities
 

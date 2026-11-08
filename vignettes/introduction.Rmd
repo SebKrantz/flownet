@@ -27,9 +27,9 @@ knitr::opts_chunk$set(
 
 ## Introduction
 
-The `flownet` package provides efficient tools for transportation modeling, specifically network processing/preparation, route enumeration, and traffic assignment tasks. The package implements the **path-sized logit (PSL) model** for traffic assignment, which accounts for route overlap when assigning traffic flows to network edges. It can handle directed or undirected graphs, and it's network processing functions/algorithms support multimodal networks. A key design decision was to represent network graphs using simple data frames with `from` and `to` node columns. This facilitates applied work, e.g., further manual network edits such as adding multimodal connector links, and the development of generalized cost functions using network features. <!-- This makes it particularly suitable for modeling transport networks where multiple alternative routes may share common segments. -->
+The `flownet` package provides efficient tools for transportation modeling, specifically network processing/preparation, route enumeration, and traffic assignment tasks. The package implements the **path-sized logit (PSL) model** for traffic assignment, which accounts for route overlap when assigning traffic flows to network edges. It can handle directed or undirected graphs, and its network processing functions/algorithms support multimodal networks. A key design decision was to represent network graphs using simple data frames with `from` and `to` node columns. This facilitates applied work, e.g., further manual network edits such as adding multimodal connector links, and the development of generalized cost functions using network features. <!-- This makes it particularly suitable for modeling transport networks where multiple alternative routes may share common segments. -->
 
-This vignette, while aiming to comprehensively cover the package, does not really do justice to it as CRAN noes not permit long-running computations (often required with the PSL) or complex visual outputs (network plots >= 1Mb in size) inside package vignettes. Therefore, I have also written a comprehensive [release blog post](https://sebkrantz.github.io/Rblog/2026/02/09/introducing-flownet-efficient-transport-modeling-in-r/) covering PSL modelling on the African and US road networks. This post should also be consulted and treated as complementary to this vignette. 
+This vignette, while aiming to comprehensively cover the package, does not really do justice to it as CRAN does not permit long-running computations (often required with the PSL) or complex visual outputs (network plots >= 1Mb in size) inside package vignettes. Therefore, I have also written a comprehensive [release blog post](https://sebkrantz.github.io/Rblog/2026/02/09/introducing-flownet-efficient-transport-modeling-in-r/) covering PSL modelling on the African and US road networks. This post should also be consulted and treated as complementary to this vignette. 
 
 ## Getting Started
 
@@ -140,7 +140,7 @@ Now we can run the traffic assignment. The `run_assignment()` function:
 - Computes path probabilities accounting for route overlap (PSL model)
 - Assigns flows to network edges
 
-For large networks like this one, we'll use the All-or-Nothing (AoN) method which is faster:
+For large networks like this one, we'll use the All-or-Nothing (AoN) method which is faster. AoN computes its shortest paths in C and can use several threads via the `nthreads` argument, with results that do not depend on the number of threads:
 
 ```{r run-assignment}
 # Run Traffic Assignment (All-or-Nothing method for speed)
@@ -259,12 +259,30 @@ The `consolidate_graph()` function recursively removes intermediate nodes (nodes
 
 ```{r consolidate-graph}
 # Consolidate graph, preserving city nodes
-graph_cons <- consolidate_graph(graph_seg, keep = nearest_nodes_seg, w = ~ .length)
+graph_cons <- consolidate_graph(graph_seg, keep.nodes = nearest_nodes_seg, w = ~ .length)
 
 cat("After consolidation:", nrow(graph_cons), "\n")
 ```
 
-The use of `keep` here indicates node IDs to preserve (city/port closest nodes).
+The use of `keep.nodes` here indicates node IDs to preserve (city/port closest nodes).
+
+### Directed Networks
+
+In a directed graph, every direction in which a link can be traversed is its own row: a two-way road is given as two reciprocal arcs (`a -> b` and `b -> a`), a one-way road as a single arc. `consolidate_graph(directed = TRUE)` contracts one-way chains as well as two-way roads given as reciprocal arcs, each direction separately: the chain `a <-> v <-> b` becomes the arcs `a -> b` and `b -> a`, each aggregating only the arcs of its own direction. To illustrate, we give every segment as two arcs and consolidate the directed graph:
+
+```{r consolidate-directed}
+# Every segment as two reciprocal arcs (swapping nodes and coordinates)
+arcs_seg <- rowbind(graph_seg,
+  fmutate(graph_seg, from = graph_seg$to, to = graph_seg$from,
+          FX = graph_seg$TX, FY = graph_seg$TY, TX = graph_seg$FX, TY = graph_seg$FY))
+
+arcs_cons <- consolidate_graph(arcs_seg, directed = TRUE,
+                               keep.nodes = nearest_nodes_seg, w = ~ .length)
+
+cat("Directed arcs:", nrow(arcs_seg), "-> after consolidation:", nrow(arcs_cons), "\n")
+```
+
+The directed graph contracts to about twice as many arcs as the undirected one has edges. Directed shortest-path costs between the remaining nodes are unchanged by the contraction.
 
 
 ### Compare Original vs Consolidated Network
@@ -300,7 +318,7 @@ While `consolidate_graph()` simplifies the network topology preserving full conn
 1. **shortest-paths**: Keeps only edges traversed by shortest paths between specified nodes
 2. **cluster**: Spatially clusters nodes using the `leaderCluster` algorithm and contracts the graph
 
-The two functions are complimentary, after calling `simplify_network()`, `consolidate_graph()` could be called again to simplify the topology of the reduced network.
+The two functions are complementary, after calling `simplify_network()`, `consolidate_graph()` could be called again to simplify the topology of the reduced network.
 
 ### Shortest-Paths Method
 
@@ -388,7 +406,7 @@ tm_layout(frame = FALSE)
 
 ## Key Concepts and Functions
 
-The above overview showcased essential package functions. The Path-Sized Logit (PSL) assignment model was not used as it takes a few minutes to process around 200k OD-pairs with the PSL, beholding that a selection of routes must be generated for each OD pair. PSL flow assignments are smoother/more distributed, and more realistic than the all-or-nothing method which assigns the entire flow to the shortest path without regard for alternative routes. 
+The above overview showcased essential package functions. The Path-Sized Logit (PSL) assignment model was not used as it takes a few minutes to process around 200k OD-pairs with the PSL, given that a selection of routes must be generated for each OD pair. PSL flow assignments are smoother/more distributed, and more realistic than the all-or-nothing method which assigns the entire flow to the shortest path without regard for alternative routes. 
 
 The remainder of this vignette provides a theoretical overview of the PSL model, followed by a summary of the key functions of this package. 
 
@@ -455,6 +473,8 @@ This formulation ensures that the model assigns lower probabilities to routes th
 
 **`distances_from_graph()`**: Computes a distance matrix for all node pairs using the graph structure.
 
+**`critical_link_analysis()`**: Computes, for every edge, the cost of the best detour if that edge is removed, and the ratio of detour cost to edge cost. Useful for identifying links whose failure would be most disruptive.
+
 ### OD Matrix Utilities
 
 **`melt_od_matrix()`**: Converts an origin-destination matrix to long format with columns `from`, `to`, and `flow`. This format is required by `run_assignment()`.
@@ -468,7 +488,8 @@ This formulation ensures that the model assigns lower probabilities to routes th
 - **`detour.max`** (default: 1.5): Maximum detour factor for alternative routes. Higher values consider more routes but increase computation time substantially.
 - **`angle.max`** (default: 90): Maximum detour angle in degrees. Routes outside this angle from the straight line between origin and destination are not considered.
 - **`cost.column`**: The cost column to use for route computation. Can be a column name or numeric vector.
-- **`return.extra`**: Additional results to return, such as paths, edge counts, or distance matrices.
+- **`return.extra`**: Additional results to return, such as paths, path costs, or edge counts.
+- **`nthreads`**: Number of threads. For AoN, OpenMP threads, with results that do not depend on their number; for PSL, `mirai` daemons.
 
 ### Parameter Tuning Tips
 
@@ -510,5 +531,5 @@ Ramming, M. S. (2002). *Network knowledge and route choice* (Doctoral dissertati
 
 Prato, C. G. (2009). Route choice modeling: Past, present and future research directions. *Journal of Choice Modelling, 2*(1), 65–100. https://doi.org/10.1016/S1755-5345(13)70005-8
 
-AequilibiaE Python Documentation: https://www.aequilibrae.com/develop/python/route_choice/path_size_logit.html
+AequilibraE Python Documentation: https://www.aequilibrae.com/develop/python/route_choice/path_size_logit.html
 

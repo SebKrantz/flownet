@@ -12,7 +12,7 @@ create_undirected_graph(graph_df, by = NULL, ...)
 
 \item{by}{Link characteristics to preserve/not aggregate across, passed as a one-sided formula or character vector of column names. Typically this includes attributes like \emph{mode}, \emph{type}, or \emph{capacity} to ensure that only edges with the same characteristics are aggregated.}
 
-\item{\dots}{Arguments passed to \code{\link[collapse]{collap}()} for aggregation across duplicated (diretional) edges. The defaults are \code{FUN = fmean} for numeric columns and \code{catFUN = fmode} for categorical columns. Select columns using \code{cols} or use argument \code{custom = list(fmean = cols1, fsum = cols2, fmode = cols3)} to map different columns to specific aggregation functions. You can weight the aggregation (using \code{w = ~ weight_col}).}
+\item{\dots}{Arguments passed to \code{\link[collapse]{collap}()} for aggregation across duplicated (directional) edges. The defaults are \code{FUN = fmean} for numeric columns and \code{catFUN = fmode} for categorical columns. Select columns using \code{cols} or use argument \code{custom = list(fmean = cols1, fsum = cols2, fmode = cols3)} to map different columns to specific aggregation functions. You can weight the aggregation (using \code{w = ~ weight_col}).}
 }
 \value{
 A data frame representing an undirected graph with:
@@ -40,7 +40,8 @@ Convert a directed graph to an undirected graph by normalizing edges and aggrega
 \details{
 This function converts a directed graph to an undirected graph by:
 \itemize{
-  \item Normalizing edge directions so that \code{from < to} for all edges
+  \item Normalizing edge directions so that \code{from < to} for all edges, swapping
+    the node coordinates (\code{FX}, \code{FY} with \code{TX}, \code{TY}) along with the nodes
   \item Collapsing duplicate edges (same \code{from} and \code{to} nodes)
   \item For spatial/identifier columns (\code{edge}, \code{FX}, \code{FY}, \code{TX}, \code{TY}),
     taking the first value from duplicates
