@@ -679,6 +679,27 @@ test_that("simplify_network cluster has no self-loops", {
   expect_false(any(result$from == result$to))
 })
 
+test_that("simplify_network cluster with by returns each by column once", {
+  graph <- linestrings_from_graph(africa_segments[1:100, ]) |>
+    linestrings_to_graph()
+  graph$mode <- rep_len(c("road", "rail"), nrow(graph))
+  nodes_df <- nodes_from_graph(graph)
+  keep_nodes <- nodes_df$node[1:5]
+
+  result <- simplify_network(graph, nodes = keep_nodes,
+                             method = "cluster", by = ~ mode,
+                             cost.column = ".length",
+                             radius_km = list(nodes = 50, cluster = 100), verbose = FALSE)
+
+  expect_false(anyDuplicated(names(result)) > 0L)
+  expect_equal(sum(names(result) == "mode"), 1L)
+  # every output edge carries the mode of all the input edges merged into it
+  ke <- attr(result, "keep.edges"); gid <- attr(result, "group.id")
+  expect_true(all(graph$mode[ke] == result$mode[gid]))
+  # the result is a valid graph data frame for downstream functions
+  expect_no_error(create_undirected_graph(result, by = ~ mode))
+})
+
 test_that("simplify_network cluster adds group attributes", {
   testthat::skip_if_not_installed("RANN")
   graph <- linestrings_from_graph(africa_segments[1:100, ]) |>
