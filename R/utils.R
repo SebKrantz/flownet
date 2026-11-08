@@ -1714,7 +1714,7 @@ contract_edges <- function(graph, nodes, clusters, centroids, directed = FALSE, 
       add_vars(res) <- ss(nodes, ckmatch(res$from, nodes$node), c("X", "Y")) |> add_stub("F")
       add_vars(res) <- ss(nodes, ckmatch(res$to, nodes$node), c("X", "Y")) |> add_stub("T")
     }
-    ord <- c("edge", "from", "FX", "FY", "to", "TX", "TY")
+    ord <- c("edge", "from", "FX", "FY", "to", "TX", "TY", by)
     res <- colorderv(res, ord[ord %in% nam])
     if(any(nam %!in% ord)) {
       add_vars(res) <- collap(get_vars(graph, nam[nam %!in% ord]), g, keep.by = FALSE, ...)

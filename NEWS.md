@@ -20,6 +20,8 @@
 
 - Fixed `consolidate_graph(recursive = "partial")` (and the inner passes of `"full"`) contracting the dead end of a short chain into a self-loop. After a contraction pass, the rows of a merged chain were each counted when recomputing node degrees, so the end node of a two-edge dead-end chain looked like an intermediate node (`1-2, 2-3, 3-4, 3-5` gave the loop `3-3` instead of `1-3`). Each merged chain is now counted once. On the CPCS global freight network this had turned 1,262 waterway, 467 road and 47 rail spurs into self-loops.
 
+- Fixed `simplify_network(method = "cluster")` returning every `by` column twice. The grouping columns were taken from the contraction groups and aggregated again with the other edge attributes, so the result had duplicated column names (identical values), which made e.g. `create_undirected_graph()` fail on it. Each `by` column is now returned once, after the coordinate columns.
+
 - Fixed `run_assignment(method = "PSL")` failing with `object '<name>' not found` when `beta`, `detour.max`, `unique.cost` or `npaths.max` were passed as *variables* (rather than literals) together with `nthreads > 1`. These four arguments are only referenced inside the parallel worker closure, so they were still unevaluated promises when *mirai* serialized it to the daemons. They are now forced before the closure is created. Literal arguments, single-threaded runs, `angle.max` and `dmat.max.size` were unaffected. Added a regression test.
 
 ## Documentation
