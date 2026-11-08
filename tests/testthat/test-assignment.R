@@ -472,3 +472,43 @@ test_that("PSL arguments passed as variables work with nthreads > 1", {
   expect_equal(res_multi$final_flows, res_single$final_flows, tolerance = 1e-10)
   expect_identical(res_multi$od_pairs_used, res_single$od_pairs_used)
 })
+
+test_that("AoN paths match igraph::shortest_paths(), ties included, for any nthreads", {
+  # The C search mirrors igraph's Dijkstra (heap, relaxation, incident-edge order), so ties
+  # between equal-cost paths, zero-cost edges and parallel edges resolve as in igraph.
+  igraph_epaths <- function(g, od, directed) {
+    nodes <- sort(unique(c(g$from, g$to)))
+    ig <- igraph::graph_from_data_frame(data.frame(from = match(g$from, nodes), to = match(g$to, nodes)),
+                                        directed = directed, vertices = data.frame(name = seq_along(nodes)))
+    o <- match(od$from, nodes); d <- match(od$to, nodes)
+    out <- vector("list", nrow(od))
+    for (s in unique(o)) {
+      i <- which(o == s)
+      sp <- suppressWarnings(igraph::shortest_paths(ig, from = s, to = d[i], weights = g$cost,
+                                                    mode = "out", output = "epath")$epath)
+      for (k in seq_along(i)) out[[i[k]]] <- as.integer(sp[[k]])
+    }
+    out
+  }
+  set.seed(101)
+  for (it in 1:40) {
+    nn <- sample(5:40, 1); E <- sample(nn:(3 * nn), 1)
+    f <- sample.int(nn, E, TRUE); t <- sample.int(nn, E, TRUE); dup <- sample.int(E, E %/% 4, TRUE)
+    g <- data.frame(from = c(f, f[dup]) * 3L, to = c(t, t[dup]) * 3L)
+    g$cost <- sample(c(0, 1, 1, 2), nrow(g), TRUE)
+    nds <- unique(c(g$from, g$to))
+    od <- data.frame(from = sample(nds, 60, TRUE), to = sample(nds, 60, TRUE), flow = 1)
+    for (directed in c(TRUE, FALSE)) {
+      ref <- igraph_epaths(g, od, directed)
+      for (nt in c(1L, 2L)) {
+        r <- suppressWarnings(run_assignment(g, od, directed = directed, method = "AoN",
+                                             return.extra = c("paths", "costs"), verbose = FALSE, nthreads = nt))
+        used <- which(lengths(ref) > 0)
+        expect_identical(as.integer(r$od_pairs_used), used)
+        expect_identical(r$paths, ref[used])
+        expect_identical(r$final_flows, tabulate(unlist(ref), nrow(g)) * 1)
+        expect_equal(r$path_costs, vapply(ref[used], function(p) sum(g$cost[p]), 0))
+      }
+    }
+  }
+})
