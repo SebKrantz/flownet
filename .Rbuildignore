@@ -16,3 +16,5 @@ LICENSE
 ^man/figures
 ^\.positai$
 ^\.claude$
+^cran-comments\.md$
+^CRAN-SUBMISSION$
