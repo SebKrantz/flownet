@@ -8,7 +8,7 @@ distances_from_graph(graph_df, directed = FALSE, cost.column = "cost", ...)
 }
 \arguments{
 \item{graph_df}{A data frame representing a graph with columns:
-\code{from}, \code{to}, and \code{cost}.}
+\code{from}, \code{to}, and a cost column (see \code{cost.column}).}
 
 \item{directed}{Logical (default: FALSE). If TRUE, treats the graph as directed;
 if FALSE, treats it as undirected.}
@@ -19,9 +19,8 @@ Alternatively, a numeric vector of edge costs with length equal to \code{nrow(gr
 \item{\dots}{Additional arguments passed to \code{\link[igraph]{distances}()}, such as \code{v} (from) and \code{to} to compute paths between specific nodes.}
 }
 \value{
-A matrix of distances between all node pairs, where rows and columns
-  correspond to node IDs. The matrix contains the shortest path distances
-  (based on the \code{cost} column) between all pairs of nodes.
+A matrix of shortest path distances (based on the edge costs) between
+  node pairs. Rows and columns are named by node ID, in ascending order of node ID.
 }
 \description{
 Compute a distance matrix for all node pairs in a graph using \emph{igraph}.
@@ -29,9 +28,10 @@ Compute a distance matrix for all node pairs in a graph using \emph{igraph}.
 \details{
 This function:
 \itemize{
-  \item Converts the graph data frame to a \emph{igraph} graph object
-  \item Contracts the graph for efficient distance computation
-  \item Computes the distance matrix for all node pairs using the specified algorithm
+  \item Converts the graph data frame to an \emph{igraph} graph object, with the sorted unique
+    node IDs as vertex names
+  \item Computes the shortest path distances with \code{\link[igraph]{distances}(mode = "out")},
+    by default for all node pairs
 }
 }
 \examples{

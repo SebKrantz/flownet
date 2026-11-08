@@ -28,7 +28,8 @@ may be given as reciprocal arcs (\code{a -> b} and \code{b -> a}); they are cont
 \item{drop.edges}{Character vector (default: \code{c("loop", "duplicate", "single")}). Types of edges to drop:
 \code{"loop"} removes self-loops (edges where from == to),
 \code{"duplicate"} removes duplicate edges (same from-to pair),
-\code{"single"} removes edges leading to singleton nodes (nodes that occur only once).
+\code{"single"} removes edges leading to singleton nodes (nodes that occur only once;
+in directed graphs, nodes linked to a single neighbour, e.g. by a pair of reciprocal arcs).
 Set to \code{NULL} to keep all edges.}
 
 \item{contract}{Logical (default: TRUE). If TRUE, contracts the graph by removing
@@ -116,7 +117,7 @@ nodes <- nodes_from_graph(graph, sf = TRUE)
 nearest_nodes <- nodes$node[st_nearest_feature(africa_cities_ports, nodes)]
 
 # Consolidate graph, preserving city nodes
-graph_cons <- consolidate_graph(graph, keep = nearest_nodes, w = ~ passes)
+graph_cons <- consolidate_graph(graph, keep.nodes = nearest_nodes, w = ~ passes)
 
 # Consolidated graph has fewer edges
 c(original = nrow(graph), consolidated = nrow(graph_cons))

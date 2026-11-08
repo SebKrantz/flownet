@@ -12,11 +12,14 @@ contract_linear_nodes_c <- function(from, to, gid, nodes) {
 }
 
 #' @title Convert Linestring to Graph
+#' @description Convert an sf data frame of LINESTRING geometries to a graph data frame. The first and last
+#'   point of each linestring become its from- and to-node, and points with identical (rounded) coordinates
+#'   become the same node.
 #'
 #' @param lines An sf data frame of LINESTRING geometries.
 #' @param digits Numeric rounding applied to coordinates (to ensure that matching points across different linestrings is not impaired by numeric precision issues). Set to \code{NA/Inf/FALSE} to disable.
-#' @param keep.cols Character vector of column names to keep from the input data frame.
-#' @param compute.length Applies \code{st_length()} to and saves it as an additional column named \code{".length"}.
+#' @param keep.cols Columns of \code{lines} to keep: anything \code{\link[collapse]{get_vars}()} accepts, i.e. column names, indices, or a function selecting columns. The default \code{is.atomic} keeps all non-geometry columns. \code{NULL} keeps none.
+#' @param compute.length Logical (default: TRUE). Compute the length of each linestring with \code{\link[sf]{st_length}()} and add it as a column named \code{".length"}.
 #'
 #' @return A data.frame representing the graph with columns:
 #' \itemize{
@@ -27,6 +30,8 @@ contract_linear_nodes_c <- function(from, to, gid, nodes) {
 #'  \item \code{to} - Ending node ID
 #'  \item \code{TX} - Ending node X-coordinate (longitude)
 #'  \item \code{TY} - Ending node Y-coordinate (latitude)
+#'  \item \code{.length} - Length of the linestring (if \code{compute.length = TRUE})
+#'  \item The columns selected by \code{keep.cols}
 #' }
 #'
 #' @seealso \link{simplify_network} \link{flownet-package}
@@ -139,7 +144,7 @@ linestrings_from_graph <- function(graph_df, crs = 4326) {
 #' @param graph_df A data frame representing a directed graph including columns:
 #'   \code{from}, \code{to}, and (optionally) \code{edge}, \code{FX}, \code{FY}, \code{TX}, \code{TY}.
 #' @param by Link characteristics to preserve/not aggregate across, passed as a one-sided formula or character vector of column names. Typically this includes attributes like \emph{mode}, \emph{type}, or \emph{capacity} to ensure that only edges with the same characteristics are aggregated.
-#' @param \dots Arguments passed to \code{\link[collapse]{collap}()} for aggregation across duplicated (diretional) edges. The defaults are \code{FUN = fmean} for numeric columns and \code{catFUN = fmode} for categorical columns. Select columns using \code{cols} or use argument \code{custom = list(fmean = cols1, fsum = cols2, fmode = cols3)} to map different columns to specific aggregation functions. You can weight the aggregation (using \code{w = ~ weight_col}).
+#' @param \dots Arguments passed to \code{\link[collapse]{collap}()} for aggregation across duplicated (directional) edges. The defaults are \code{FUN = fmean} for numeric columns and \code{catFUN = fmode} for categorical columns. Select columns using \code{cols} or use argument \code{custom = list(fmean = cols1, fsum = cols2, fmode = cols3)} to map different columns to specific aggregation functions. You can weight the aggregation (using \code{w = ~ weight_col}).
 #'
 #' @return A data frame representing an undirected graph with:
 #'   \itemize{
@@ -241,7 +246,9 @@ create_undirected_graph <- function(graph_df, by = NULL, ...) {
 #' @details
 #' This function extracts all unique nodes from both the \code{from} and \code{to}
 #' columns of the graph, along with their corresponding coordinates. Duplicate nodes
-#' are removed, keeping only unique node IDs with their coordinates.
+#' are removed, keeping only unique node IDs with their coordinates. A node's coordinates
+#' are taken from its first occurrence (searching \code{from} before \code{to}); conflicting
+#' coordinates for the same node ID elsewhere in the graph are not checked.
 #'
 #' @examples
 #' library(flownet)
@@ -280,23 +287,23 @@ nodes_from_graph <- function(graph_df, sf = FALSE, crs = 4326) {
 #' @description Compute a distance matrix for all node pairs in a graph using \emph{igraph}.
 #'
 #' @param graph_df A data frame representing a graph with columns:
-#'   \code{from}, \code{to}, and \code{cost}.
+#'   \code{from}, \code{to}, and a cost column (see \code{cost.column}).
 #' @param directed Logical (default: FALSE). If TRUE, treats the graph as directed;
 #'   if FALSE, treats it as undirected.
 #' @param cost.column Character string (optional). Name of the cost column in \code{graph_df}.
 #'   Alternatively, a numeric vector of edge costs with length equal to \code{nrow(graph_df)}.
 #' @param \dots Additional arguments passed to \code{\link[igraph]{distances}()}, such as \code{v} (from) and \code{to} to compute paths between specific nodes.
 #'
-#' @return A matrix of distances between all node pairs, where rows and columns
-#'   correspond to node IDs. The matrix contains the shortest path distances
-#'   (based on the \code{cost} column) between all pairs of nodes.
+#' @return A matrix of shortest path distances (based on the edge costs) between
+#'   node pairs. Rows and columns are named by node ID, in ascending order of node ID.
 #'
 #' @details
 #' This function:
 #' \itemize{
-#'   \item Converts the graph data frame to a \emph{igraph} graph object
-#'   \item Contracts the graph for efficient distance computation
-#'   \item Computes the distance matrix for all node pairs using the specified algorithm
+#'   \item Converts the graph data frame to an \emph{igraph} graph object, with the sorted unique
+#'     node IDs as vertex names
+#'   \item Computes the shortest path distances with \code{\link[igraph]{distances}(mode = "out")},
+#'     by default for all node pairs
 #' }
 #'
 #' @examples
@@ -403,7 +410,8 @@ normalize_graph <- function(graph_df) {
 #' @param drop.edges Character vector (default: \code{c("loop", "duplicate", "single")}). Types of edges to drop:
 #'   \code{"loop"} removes self-loops (edges where from == to),
 #'   \code{"duplicate"} removes duplicate edges (same from-to pair),
-#'   \code{"single"} removes edges leading to singleton nodes (nodes that occur only once).
+#'   \code{"single"} removes edges leading to singleton nodes (nodes that occur only once;
+#'   in directed graphs, nodes linked to a single neighbour, e.g. by a pair of reciprocal arcs).
 #'   Set to \code{NULL} to keep all edges.
 #' @param contract Logical (default: TRUE). If TRUE, contracts the graph by removing
 #'   intermediate nodes (nodes that occur exactly twice) and merging connecting edges.
@@ -483,7 +491,7 @@ normalize_graph <- function(graph_df) {
 #' nearest_nodes <- nodes$node[st_nearest_feature(africa_cities_ports, nodes)]
 #'
 #' # Consolidate graph, preserving city nodes
-#' graph_cons <- consolidate_graph(graph, keep = nearest_nodes, w = ~ passes)
+#' graph_cons <- consolidate_graph(graph, keep.nodes = nearest_nodes, w = ~ passes)
 #'
 #' # Consolidated graph has fewer edges
 #' c(original = nrow(graph), consolidated = nrow(graph_cons))
@@ -1193,7 +1201,7 @@ compute_degrees <- function(from_vec, to_vec) {
 #' nearest_nodes <- nodes_df$node[st_nearest_feature(africa_cities_ports, nodes_df)]
 #'
 #' # Initial consolidation
-#' graph <- consolidate_graph(graph, keep = nearest_nodes, w = ~ passes)
+#' graph <- consolidate_graph(graph, keep.nodes = nearest_nodes, w = ~ passes)
 #'
 #' # Method 1: Shortest-paths simplification (keeps only traversed edges)
 #' graph_simple <- simplify_network(graph, nearest_nodes,
@@ -1754,7 +1762,7 @@ contract_edges <- function(graph, nodes, clusters, centroids, directed = FALSE, 
 #'   If omitted, row and column names (if present) will be used as node IDs, coerced to integer
 #'   if possible. If names are not available or cannot be coerced to integer, sequential integers
 #'   will be used.
-#' @param sort Sort long OD-matrix in ascending order of from and to columns. This can have computational benefits, e.g., when multithreading with \code{method = "AoN"}.
+#' @param sort Logical (default: TRUE). Sort the long OD-matrix in ascending order of the \code{from} and \code{to} columns.
 #'
 #' @return A data frame with columns:
 #'   \itemize{

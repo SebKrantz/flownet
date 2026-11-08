@@ -1,4 +1,6 @@
-# flownet 0.3.0.9000 (development)
+# flownet 0.3.1
+
+*flownet* 0.3.1 makes all-or-nothing assignment much faster and multithreaded, extends directed graph consolidation to two-way links given as reciprocal arcs, and fixes several bugs in network processing and parallel PSL assignment.
 
 ## Performance
 
@@ -14,9 +16,21 @@
 
 - Fixed `create_undirected_graph()` corrupting node coordinates. Edges are normalized to `from < to`, but the coordinate columns were not swapped along with the nodes, so every reversed edge ended up carrying the coordinates of the wrong endpoints. Nodes then had two conflicting sets of coordinates, and whichever `nodes_from_graph()` picked up propagated into `consolidate_graph()`, node-to-zone snapping and any geometry rebuilt from the graph - visible as straight "V" spikes towards displaced nodes. Coordinates are now swapped together with the nodes. Graphs without coordinate columns, and graphs whose edges are all already ordered, are unaffected.
 
+- Fixed `consolidate_graph()` (undirected) orienting chains of intermediate nodes inconsistently. The edges of a chain were flipped node by node, so two adjacent degree-2 nodes that both needed a flip could end up pointing into each other (`1-2, 3-2, 3-4` became `1-2, 2-3, 4-3`), after which contraction produced self-loops or did not converge. Each chain is now walked once from one end and oriented along the walk.
+
+- Fixed `consolidate_graph(recursive = "partial")` (and the inner passes of `"full"`) contracting the dead end of a short chain into a self-loop. After a contraction pass, the rows of a merged chain were each counted when recomputing node degrees, so the end node of a two-edge dead-end chain looked like an intermediate node (`1-2, 2-3, 3-4, 3-5` gave the loop `3-3` instead of `1-3`). Each merged chain is now counted once. On the CPCS global freight network this had turned 1,262 waterway, 467 road and 47 rail spurs into self-loops.
+
 - Fixed `run_assignment(method = "PSL")` failing with `object '<name>' not found` when `beta`, `detour.max`, `unique.cost` or `npaths.max` were passed as *variables* (rather than literals) together with `nthreads > 1`. These four arguments are only referenced inside the parallel worker closure, so they were still unevaluated promises when *mirai* serialized it to the daemons. They are now forced before the closure is created. Literal arguments, single-threaded runs, `angle.max` and `dmat.max.size` were unaffected. Added a regression test.
 
-- Corrected the documentation of `dmat.max.size` in `run_assignment()`, which stated the precompute condition backwards in two places. The full distance matrix is precomputed when `dmat.max.size >= n_nodes^2` (i.e. when the budget accommodates it), not when it is smaller.
+## Documentation
+
+- Corrected the documentation of `dmat.max.size` in `run_assignment()`, which stated the precompute condition backwards in two places. The full distance matrix is precomputed when `dmat.max.size >= n_nodes^2` (i.e. when the budget accommodates it), not when it is smaller. The same condition, also stated backwards, applies to the geodesic distance matrix used by `angle.max`.
+
+- `run_assignment()`: the description of the angle filter now distinguishes `angle.max >= 90` (nodes closer to the origin than the destination, within `angle.max` seen from the origin) from `angle.max < 90` (within `angle.max` seen from both the origin and the destination). `od_pairs_used` now documents which OD pairs are skipped (zero or non-finite flow, no path, origin equal to destination) and that the per-OD-pair results are aligned with it.
+
+- `distances_from_graph()` no longer claims to contract the graph or to use a selectable algorithm; it computes `igraph::distances()` on the graph as given. `linestrings_to_graph()` gained a description and documents `keep.cols` (anything `collapse::get_vars()` accepts) and the `.length` column. `nodes_from_graph()` documents that a node's coordinates are taken from its first occurrence. `melt_od_matrix(sort = )` no longer claims a benefit for multithreaded AoN, which now groups OD pairs by origin itself.
+
+- The vignette has a new section on directed networks, and examples use the full argument name `keep.nodes` instead of relying on partial matching of `keep`.
 
 # flownet 0.3.0
 

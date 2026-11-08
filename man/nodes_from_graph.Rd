@@ -29,7 +29,9 @@ Extract unique nodes with their coordinates from a graph data frame.
 \details{
 This function extracts all unique nodes from both the \code{from} and \code{to}
 columns of the graph, along with their corresponding coordinates. Duplicate nodes
-are removed, keeping only unique node IDs with their coordinates.
+are removed, keeping only unique node IDs with their coordinates. A node's coordinates
+are taken from its first occurrence (searching \code{from} before \code{to}); conflicting
+coordinates for the same node ID elsewhere in the graph are not checked.
 }
 \examples{
 library(flownet)

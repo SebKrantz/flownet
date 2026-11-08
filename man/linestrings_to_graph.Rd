@@ -16,9 +16,9 @@ linestrings_to_graph(
 
 \item{digits}{Numeric rounding applied to coordinates (to ensure that matching points across different linestrings is not impaired by numeric precision issues). Set to \code{NA/Inf/FALSE} to disable.}
 
-\item{keep.cols}{Character vector of column names to keep from the input data frame.}
+\item{keep.cols}{Columns of \code{lines} to keep: anything \code{\link[collapse]{get_vars}()} accepts, i.e. column names, indices, or a function selecting columns. The default \code{is.atomic} keeps all non-geometry columns. \code{NULL} keeps none.}
 
-\item{compute.length}{Applies \code{st_length()} to and saves it as an additional column named \code{".length"}.}
+\item{compute.length}{Logical (default: TRUE). Compute the length of each linestring with \code{\link[sf]{st_length}()} and add it as a column named \code{".length"}.}
 }
 \value{
 A data.frame representing the graph with columns:
@@ -30,10 +30,14 @@ A data.frame representing the graph with columns:
  \item \code{to} - Ending node ID
  \item \code{TX} - Ending node X-coordinate (longitude)
  \item \code{TY} - Ending node Y-coordinate (latitude)
+ \item \code{.length} - Length of the linestring (if \code{compute.length = TRUE})
+ \item The columns selected by \code{keep.cols}
 }
 }
 \description{
-Convert Linestring to Graph
+Convert an sf data frame of LINESTRING geometries to a graph data frame. The first and last
+  point of each linestring become its from- and to-node, and points with identical (rounded) coordinates
+  become the same node.
 }
 \examples{
 library(flownet)
