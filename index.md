@@ -19,9 +19,10 @@ processing/preparation.
   routes between origin-destination pairs
 - **High Performance**: [fastverse](https://fastverse.org/fastverse/)
   packages and custom C implementations for critical path operations
-- **Multithreading**: Asynchronous parallelism using
-  [`mirai`](https://github.com/r-lib/mirai) for faster processing of
-  large networks
+- **Multithreading**: OpenMP for all-or-nothing assignment and critical
+  link analysis, and asynchronous parallelism using
+  [`mirai`](https://github.com/r-lib/mirai) for path-sized logit
+  assignment and network simplification
 
 ## Installation
 
@@ -95,7 +96,7 @@ nodes <- nodes_from_graph(graph, sf = TRUE)
 nearest_nodes <- nodes$node[st_nearest_feature(od_zones, nodes)]
 
 # Consolidate Graph (optional)
-graph <- consolidate_graph(graph, keep = nearest_nodes, w = ~ cost)
+graph <- consolidate_graph(graph, keep.nodes = nearest_nodes, w = ~ cost)
 
 # Simplify network by keeping only traversed edges along shortest paths (optional)
 # Use 'by' for multimodal networks to compute paths separately per mode
@@ -170,7 +171,9 @@ Working Paper 10893. World Bank. Replication materials are available at
 
 - **[`run_assignment()`](https://sebkrantz.github.io/flownet/reference/run_assignment.md)**:
   - Iterates through OD-pairs generating sensible alternative routes
-  - Assigns traffic flows to network edges using path-sized logit model
+  - Assigns traffic flows to network edges using the path-sized logit
+    model, or all-or-nothing to the shortest paths (`method = "AoN"`,
+    multithreaded in C)
   - Supports directed and undirected graphs
   - Returns flows and optional path/route information
   - **Key Parameters**:
@@ -191,7 +194,9 @@ Working Paper 10893. World Bank. Replication materials are available at
 - **[`create_undirected_graph()`](https://sebkrantz.github.io/flownet/reference/create_undirected_graph.md)** -
   Convert directed graph to undirected with edge aggregation
 - **[`consolidate_graph()`](https://sebkrantz.github.io/flownet/reference/consolidate_graph.md)** -
-  Consolidate graph by removing intermediate nodes and merging edges
+  Consolidate graph by removing intermediate nodes and merging edges (in
+  directed graphs also two-way links given as reciprocal arcs, per
+  direction)
 - **[`simplify_network()`](https://sebkrantz.github.io/flownet/reference/simplify_network.md)** -
   Simplify network using shortest-paths or spatial clustering methods
 
@@ -205,6 +210,8 @@ Working Paper 10893. World Bank. Replication materials are available at
   Convert graph to LINESTRING geometries
 - **[`distances_from_graph()`](https://sebkrantz.github.io/flownet/reference/distances_from_graph.md)** -
   Compute distance matrix for all node pairs
+- **[`critical_link_analysis()`](https://sebkrantz.github.io/flownet/reference/critical_link_analysis.md)** -
+  Compute edge detour costs and vulnerability ratios
 
 ### OD Matrix Utilities
 

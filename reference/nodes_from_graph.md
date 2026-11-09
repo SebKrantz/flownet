@@ -42,7 +42,9 @@ Result is sorted by node ID.
 This function extracts all unique nodes from both the `from` and `to`
 columns of the graph, along with their corresponding coordinates.
 Duplicate nodes are removed, keeping only unique node IDs with their
-coordinates.
+coordinates. A node's coordinates are taken from its first occurrence
+(searching `from` before `to`); conflicting coordinates for the same
+node ID elsewhere in the graph are not checked.
 
 ## Examples
 

@@ -1,6 +1,9 @@
 # Convert Linestring to Graph
 
-Convert Linestring to Graph
+Convert an sf data frame of LINESTRING geometries to a graph data frame.
+The first and last point of each linestring become its from- and
+to-node, and points with identical (rounded) coordinates become the same
+node.
 
 ## Usage
 
@@ -27,13 +30,17 @@ linestrings_to_graph(
 
 - keep.cols:
 
-  Character vector of column names to keep from the input data frame.
+  Columns of `lines` to keep: anything
+  [`get_vars()`](https://fastverse.org/collapse/reference/select_replace_vars.html)
+  accepts, i.e. column names, indices, or a function selecting columns.
+  The default `is.atomic` keeps all non-geometry columns. `NULL` keeps
+  none.
 
 - compute.length:
 
-  Applies
+  Logical (default: TRUE). Compute the length of each linestring with
   [`st_length()`](https://r-spatial.github.io/sf/reference/geos_measures.html)
-  to and saves it as an additional column named `".length"`.
+  and add it as a column named `".length"`.
 
 ## Value
 
@@ -52,6 +59,10 @@ A data.frame representing the graph with columns:
 - `TX` - Ending node X-coordinate (longitude)
 
 - `TY` - Ending node Y-coordinate (latitude)
+
+- `.length` - Length of the linestring (if `compute.length = TRUE`)
+
+- The columns selected by `keep.cols`
 
 ## See also
 

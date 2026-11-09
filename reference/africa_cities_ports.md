@@ -115,7 +115,7 @@ The bounding box spans from approximately 34S to 37N latitude and 17W to
 
 ``` r
 library(sf)
-#> Linking to GEOS 3.12.1, GDAL 3.8.4, PROJ 9.4.0; sf_use_s2() is TRUE
+#> Linking to GEOS 3.14.1, GDAL 3.12.2, PROJ 9.7.1; sf_use_s2() is TRUE
 data(africa_cities_ports)
 head(africa_cities_ports)
 #> Simple feature collection with 6 features and 12 fields

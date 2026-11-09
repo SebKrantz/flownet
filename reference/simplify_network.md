@@ -106,7 +106,8 @@ simplify_network(
 - cluster.algo.dbscan:
 
   Logical (default: FALSE). If TRUE, use
-  [`dbscan`](https://rdrr.io/pkg/dbscan/man/dbscan.html) instead of
+  [`dbscan`](https://michael.hahsler.net/dbscan/reference/dbscan.html)
+  instead of
   [`leaderCluster`](https://rdrr.io/pkg/leaderCluster/man/leaderCluster.html)
   for clustering remaining nodes. This requires the dbscan package.
 
@@ -184,7 +185,8 @@ networks:
 
 - Remaining nodes are clustered using
   [`leaderCluster`](https://rdrr.io/pkg/leaderCluster/man/leaderCluster.html)
-  by default, or [`dbscan`](https://rdrr.io/pkg/dbscan/man/dbscan.html)
+  by default, or
+  [`dbscan`](https://michael.hahsler.net/dbscan/reference/dbscan.html)
   when `cluster.algo.dbscan = TRUE`, with `radius_km$cluster` as the
   clustering radius
 
@@ -225,51 +227,37 @@ nodes_df <- nodes_from_graph(graph, sf = TRUE)
 nearest_nodes <- nodes_df$node[st_nearest_feature(africa_cities_ports, nodes_df)]
 
 # Initial consolidation
-graph <- consolidate_graph(graph, keep = nearest_nodes, w = ~ passes)
+graph <- consolidate_graph(graph, keep.nodes = nearest_nodes, w = ~ passes)
 #> Consolidating undirected graph graph with 11385 edges using full recursion
 #> Initial node degrees:
 #>    1    2    3    4    5    6    7    8    9   10 
 #>  125 5293 3240  395  102   31    4    2    1    1 
 #> 
 #> Dropped 44 loop edges
-#> Dropped 11 edges leading to singleton nodes in 11 peeling steps
-#> Oriented 3431 undirected intermediate edges
-#> Contracted 5079 intermediate nodes
-#> Oriented 10 undirected intermediate edges
-#> Contracted 10 intermediate nodes
-#> Aggregated 11330 edges down to 6597 edges
-#> Timing (s): singleton=0.00, orient=0.00, contract=0.00, aggregate=0.00
-#> Oriented 361 undirected intermediate edges
-#> Contracted 375 intermediate nodes
-#> Oriented 8 undirected intermediate edges
-#> Contracted 8 intermediate nodes
-#> Aggregated 6597 edges down to 6264 edges
-#> Timing (s): singleton=0.00, orient=0.00, contract=0.00, aggregate=0.00
-#> Oriented 41 undirected intermediate edges
-#> Contracted 43 intermediate nodes
-#> Oriented 1 undirected intermediate edges
-#> Contracted 1 intermediate nodes
-#> Aggregated 6264 edges down to 6224 edges
-#> Timing (s): singleton=0.00, orient=0.00, contract=0.00, aggregate=0.00
+#> Dropped 2 edges leading to singleton nodes in 2 peeling steps
+#> Oriented 3430 undirected intermediate edges
+#> Contracted 5077 intermediate nodes
+#> Aggregated 11339 edges down to 6251 edges
+#> Timing (s): singleton=0.00, orient=0.02, contract=0.00, aggregate=0.00
 #> Oriented 2 undirected intermediate edges
-#> Contracted 3 intermediate nodes
-#> Aggregated 6224 edges down to 6221 edges
+#> Contracted 9 intermediate nodes
+#> Aggregated 6251 edges down to 6242 edges
 #> Timing (s): singleton=0.00, orient=0.00, contract=0.00, aggregate=0.00
 #> No nodes to contract, returning graph
 #> 
-#> Consolidated undirected graph graph from 11385 edges to 6221 edges (54.6%)
+#> Consolidated undirected graph graph from 11385 edges to 6242 edges (54.8%)
 #> Final node degrees:
 #>    1    2    3    4    5    6    7    8 
-#>  114  236 3246  392   84   18    2    1 
+#>  123  225 3252  401   83   19    2    1 
 
 # Method 1: Shortest-paths simplification (keeps only traversed edges)
 graph_simple <- simplify_network(graph, nearest_nodes,
                                  method = "shortest-paths",
                                  cost.column = ".length")
-#> Created graph with 4093 nodes and 6221 edges...
-#> Retained 4422/6221 edges traversed by shortest paths (71.1%)
+#> Created graph with 4106 nodes and 6242 edges...
+#> Retained 4443/6242 edges traversed by shortest paths (71.2%)
 nrow(graph_simple)  # Reduced number of edges
-#> [1] 4422
+#> [1] 4443
 
 # \donttest{
 # Method 2: Cluster-based simplification (contracts graph spatially)
@@ -287,12 +275,12 @@ graph_cluster <- simplify_network(graph, nearest_nodes,
                                   w = ~ passes)
 #> Clustering nodes close to 'keep' nodes using a radius of 30km
 #> Clustering the remaining nodes with the leaderCluster algorithm using a radius of 27km
-#> leaderCluster algorithm converged in 7 iterations and identified 996 clusters
+#> leaderCluster algorithm converged in 9 iterations and identified 1001 clusters
 #> Clustering step completed. Identified clusters
-#> Dropped 3540 self-loop edges (following clustering)
-#> Oriented 637 undirected edges
-#> Contracting 2681 edges down to 2430 edges
+#> Dropped 3557 self-loop edges (following clustering)
+#> Oriented 911 undirected edges
+#> Contracting 2685 edges down to 2439 edges
 nrow(graph_cluster)
-#> [1] 2430
+#> [1] 2439
 # }
 ```

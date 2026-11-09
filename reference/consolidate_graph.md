@@ -32,7 +32,9 @@ consolidate_graph(
 
 - directed:
 
-  Logical (default: FALSE). Whether the graph is directed.
+  Logical (default: FALSE). Whether the graph is directed. Two-way links
+  in a directed graph may be given as reciprocal arcs (`a -> b` and
+  `b -> a`); they are contracted per direction (see Details).
 
 - drop.edges:
 
@@ -40,7 +42,8 @@ consolidate_graph(
   of edges to drop: `"loop"` removes self-loops (edges where from ==
   to), `"duplicate"` removes duplicate edges (same from-to pair),
   `"single"` removes edges leading to singleton nodes (nodes that occur
-  only once). Set to `NULL` to keep all edges.
+  only once; in directed graphs, nodes linked to a single neighbour,
+  e.g. by a pair of reciprocal arcs). Set to `NULL` to keep all edges.
 
 - contract:
 
@@ -142,6 +145,16 @@ A-\>D in a single call.
 For undirected graphs, the algorithm also handles cases where a node
 appears twice as either origin or destination (circular cases).
 
+For directed graphs, a node is contracted if it has one incoming and one
+outgoing arc (a one-way through node), or two incoming arcs from and two
+outgoing arcs to the same two neighbours (a two-way link given as
+reciprocal arcs). Each direction is contracted separately: the chain
+A\<-\>B\<-\>C becomes the arcs A-\>C and C-\>A, each aggregating the
+arcs of its own direction. A node whose only arcs lead to and from the
+same neighbour (A-\>B-\>A, the end of a two-way dead end) is not
+contracted; with `"single"` in `drop.edges`, such dead ends are dropped
+like singleton edges.
+
 If coordinate columns (`FX`, `FY`, `TX`, `TY`) are present in the input,
 they are preserved and updated based on the consolidated node
 coordinates from the original graph.
@@ -169,45 +182,31 @@ nodes <- nodes_from_graph(graph, sf = TRUE)
 nearest_nodes <- nodes$node[st_nearest_feature(africa_cities_ports, nodes)]
 
 # Consolidate graph, preserving city nodes
-graph_cons <- consolidate_graph(graph, keep = nearest_nodes, w = ~ passes)
+graph_cons <- consolidate_graph(graph, keep.nodes = nearest_nodes, w = ~ passes)
 #> Consolidating undirected graph graph with 11385 edges using full recursion
 #> Initial node degrees:
 #>    1    2    3    4    5    6    7    8    9   10 
 #>  125 5293 3240  395  102   31    4    2    1    1 
 #> 
 #> Dropped 44 loop edges
-#> Dropped 11 edges leading to singleton nodes in 11 peeling steps
-#> Oriented 3431 undirected intermediate edges
-#> Contracted 5079 intermediate nodes
-#> Oriented 10 undirected intermediate edges
-#> Contracted 10 intermediate nodes
-#> Aggregated 11330 edges down to 6597 edges
-#> Timing (s): singleton=0.00, orient=0.00, contract=0.00, aggregate=0.00
-#> Oriented 361 undirected intermediate edges
-#> Contracted 375 intermediate nodes
-#> Oriented 8 undirected intermediate edges
-#> Contracted 8 intermediate nodes
-#> Aggregated 6597 edges down to 6264 edges
-#> Timing (s): singleton=0.00, orient=0.00, contract=0.00, aggregate=0.00
-#> Oriented 41 undirected intermediate edges
-#> Contracted 43 intermediate nodes
-#> Oriented 1 undirected intermediate edges
-#> Contracted 1 intermediate nodes
-#> Aggregated 6264 edges down to 6224 edges
-#> Timing (s): singleton=0.00, orient=0.00, contract=0.00, aggregate=0.00
+#> Dropped 2 edges leading to singleton nodes in 2 peeling steps
+#> Oriented 3430 undirected intermediate edges
+#> Contracted 5077 intermediate nodes
+#> Aggregated 11339 edges down to 6251 edges
+#> Timing (s): singleton=0.00, orient=0.02, contract=0.00, aggregate=0.00
 #> Oriented 2 undirected intermediate edges
-#> Contracted 3 intermediate nodes
-#> Aggregated 6224 edges down to 6221 edges
+#> Contracted 9 intermediate nodes
+#> Aggregated 6251 edges down to 6242 edges
 #> Timing (s): singleton=0.00, orient=0.00, contract=0.00, aggregate=0.00
 #> No nodes to contract, returning graph
 #> 
-#> Consolidated undirected graph graph from 11385 edges to 6221 edges (54.6%)
+#> Consolidated undirected graph graph from 11385 edges to 6242 edges (54.8%)
 #> Final node degrees:
 #>    1    2    3    4    5    6    7    8 
-#>  114  236 3246  392   84   18    2    1 
+#>  123  225 3252  401   83   19    2    1 
 
 # Consolidated graph has fewer edges
 c(original = nrow(graph), consolidated = nrow(graph_cons))
 #>     original consolidated 
-#>        11385         6221 
+#>        11385         6242 
 ```

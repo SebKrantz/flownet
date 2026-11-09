@@ -27,7 +27,7 @@ create_undirected_graph(graph_df, by = NULL, ...)
 
   Arguments passed to
   [`collap()`](https://fastverse.org/collapse/reference/collap.html) for
-  aggregation across duplicated (diretional) edges. The defaults are
+  aggregation across duplicated (directional) edges. The defaults are
   `FUN = fmean` for numeric columns and `catFUN = fmode` for categorical
   columns. Select columns using `cols` or use argument
   `custom = list(fmean = cols1, fsum = cols2, fmode = cols3)` to map
@@ -70,7 +70,9 @@ The result also carries grouping attributes describing how the input
 
 This function converts a directed graph to an undirected graph by:
 
-- Normalizing edge directions so that `from < to` for all edges
+- Normalizing edge directions so that `from < to` for all edges,
+  swapping the node coordinates (`FX`, `FY` with `TX`, `TY`) along with
+  the nodes
 
 - Collapsing duplicate edges (same `from` and `to` nodes)
 

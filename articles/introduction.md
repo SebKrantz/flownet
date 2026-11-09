@@ -7,7 +7,7 @@ modeling, specifically network processing/preparation, route
 enumeration, and traffic assignment tasks. The package implements the
 **path-sized logit (PSL) model** for traffic assignment, which accounts
 for route overlap when assigning traffic flows to network edges. It can
-handle directed or undirected graphs, and it’s network processing
+handle directed or undirected graphs, and its network processing
 functions/algorithms support multimodal networks. A key design decision
 was to represent network graphs using simple data frames with `from` and
 `to` node columns. This facilitates applied work, e.g., further manual
@@ -15,7 +15,7 @@ network edits such as adding multimodal connector links, and the
 development of generalized cost functions using network features.
 
 This vignette, while aiming to comprehensively cover the package, does
-not really do justice to it as CRAN noes not permit long-running
+not really do justice to it as CRAN does not permit long-running
 computations (often required with the PSL) or complex visual outputs
 (network plots \>= 1Mb in size) inside package vignettes. Therefore, I
 have also written a comprehensive [release blog
@@ -302,7 +302,9 @@ function:
 - Assigns flows to network edges
 
 For large networks like this one, we’ll use the All-or-Nothing (AoN)
-method which is faster:
+method which is faster. AoN computes its shortest paths in C and can use
+several threads via the `nthreads` argument, with results that do not
+depend on the number of threads:
 
 ``` r
 
@@ -310,7 +312,8 @@ method which is faster:
 result <- run_assignment(graph, od_matrix_long, cost.column = "duration",
                          method = "AoN", return.extra = "all")
 #> Created graph with 1379 nodes and 2344 edges...
-#> 495 OD-pairs have zero or non-finite flow values and will be skipped...
+#> Computing shortest paths for 205209 OD-pairs on 1 thread...
+#> Skipped 495 OD-pairs: 0 with zero or non-finite flow and 495 with no path found (destination unreachable or equal to origin)
 print(result)
 #> FlowNet object
 #> Call: run_assignment(graph_df = graph, od_matrix_long = od_matrix_long,      cost.column = "duration", method = "AoN", return.extra = "all") 
@@ -433,6 +436,7 @@ head(od_matrix_trade)
 result_trade <- run_assignment(graph, od_matrix_trade, cost.column = "duration",
                                method = "AoN", return.extra = "all")
 #> Created graph with 1379 nodes and 2344 edges...
+#> Computing shortest paths for 189020 OD-pairs on 1 thread...
 print(result_trade)
 #> FlowNet object
 #> Call: run_assignment(graph_df = graph, od_matrix_long = od_matrix_trade,      cost.column = "duration", method = "AoN", return.extra = "all") 
@@ -525,49 +529,83 @@ for categorical attributes (columns), and supports weights.
 ``` r
 
 # Consolidate graph, preserving city nodes
-graph_cons <- consolidate_graph(graph_seg, keep = nearest_nodes_seg, w = ~ .length)
+graph_cons <- consolidate_graph(graph_seg, keep.nodes = nearest_nodes_seg, w = ~ .length)
 #> Consolidating undirected graph graph_seg with 11385 edges using full recursion
 #> Initial node degrees:
 #>    1    2    3    4    5    6    7    8    9   10 
 #>  125 5293 3240  395  102   31    4    2    1    1 
 #> 
 #> Dropped 44 loop edges
-#> Dropped 11 edges leading to singleton nodes in 11 peeling steps
-#> Oriented 3431 undirected intermediate edges
-#> Contracted 5079 intermediate nodes
-#> Oriented 10 undirected intermediate edges
-#> Contracted 10 intermediate nodes
-#> Aggregated 11330 edges down to 6597 edges
-#> Timing (s): singleton=0.00, orient=0.00, contract=0.00, aggregate=0.00
-#> Oriented 361 undirected intermediate edges
-#> Contracted 375 intermediate nodes
-#> Oriented 8 undirected intermediate edges
-#> Contracted 8 intermediate nodes
-#> Aggregated 6597 edges down to 6264 edges
-#> Timing (s): singleton=0.00, orient=0.00, contract=0.00, aggregate=0.00
-#> Oriented 41 undirected intermediate edges
-#> Contracted 43 intermediate nodes
-#> Oriented 1 undirected intermediate edges
-#> Contracted 1 intermediate nodes
-#> Aggregated 6264 edges down to 6224 edges
-#> Timing (s): singleton=0.00, orient=0.00, contract=0.00, aggregate=0.00
+#> Dropped 2 edges leading to singleton nodes in 2 peeling steps
+#> Oriented 3430 undirected intermediate edges
+#> Contracted 5077 intermediate nodes
+#> Aggregated 11339 edges down to 6251 edges
+#> Timing (s): singleton=0.00, orient=0.02, contract=0.00, aggregate=0.00
 #> Oriented 2 undirected intermediate edges
-#> Contracted 3 intermediate nodes
-#> Aggregated 6224 edges down to 6221 edges
+#> Contracted 9 intermediate nodes
+#> Aggregated 6251 edges down to 6242 edges
 #> Timing (s): singleton=0.00, orient=0.00, contract=0.00, aggregate=0.00
 #> No nodes to contract, returning graph
 #> 
-#> Consolidated undirected graph graph_seg from 11385 edges to 6221 edges (54.6%)
+#> Consolidated undirected graph graph_seg from 11385 edges to 6242 edges (54.8%)
 #> Final node degrees:
 #>    1    2    3    4    5    6    7    8 
-#>  114  236 3246  392   84   18    2    1
+#>  123  225 3252  401   83   19    2    1
 
 cat("After consolidation:", nrow(graph_cons), "\n")
-#> After consolidation: 6221
+#> After consolidation: 6242
 ```
 
-The use of `keep` here indicates node IDs to preserve (city/port closest
-nodes).
+The use of `keep.nodes` here indicates node IDs to preserve (city/port
+closest nodes).
+
+### Directed Networks
+
+In a directed graph, every direction in which a link can be traversed is
+its own row: a two-way road is given as two reciprocal arcs (`a -> b`
+and `b -> a`), a one-way road as a single arc.
+`consolidate_graph(directed = TRUE)` contracts one-way chains as well as
+two-way roads given as reciprocal arcs, each direction separately: the
+chain `a <-> v <-> b` becomes the arcs `a -> b` and `b -> a`, each
+aggregating only the arcs of its own direction. To illustrate, we give
+every segment as two arcs and consolidate the directed graph:
+
+``` r
+
+# Every segment as two reciprocal arcs (swapping nodes and coordinates)
+arcs_seg <- rowbind(graph_seg,
+  fmutate(graph_seg, from = graph_seg$to, to = graph_seg$from,
+          FX = graph_seg$TX, FY = graph_seg$TY, TX = graph_seg$FX, TY = graph_seg$FY))
+
+arcs_cons <- consolidate_graph(arcs_seg, directed = TRUE,
+                               keep.nodes = nearest_nodes_seg, w = ~ .length)
+#> Consolidating directed graph arcs_seg with 22770 edges using full recursion
+#> Initial node degrees:
+#>    2    4    6    8   10   12   14   16   18   20 
+#>  125 5293 3240  395  102   31    4    2    1    1 
+#> 
+#> Dropped 88 loop edges
+#> Dropped 4 edges leading to singleton nodes in 2 peeling steps
+#> Contracted 5077 intermediate nodes
+#> Aggregated 22678 edges down to 12478 edges
+#> Timing (s): singleton=0.00, orient=0.00, contract=0.00, aggregate=0.00
+#> Contracted 16 intermediate nodes
+#> Aggregated 12478 edges down to 12444 edges
+#> Timing (s): singleton=0.00, orient=0.00, contract=0.00, aggregate=0.00
+#> No nodes to contract, returning graph
+#> 
+#> Consolidated directed graph arcs_seg from 22770 edges to 12444 edges (54.7%)
+#> Final node degrees:
+#>    2    4    6    8   10   12   14   16 
+#>  123  230 3252  390   83   18    2    1
+
+cat("Directed arcs:", nrow(arcs_seg), "-> after consolidation:", nrow(arcs_cons), "\n")
+#> Directed arcs: 22770 -> after consolidation: 12444
+```
+
+The directed graph contracts to about twice as many arcs as the
+undirected one has edges. Directed shortest-path costs between the
+remaining nodes are unchanged by the contraction.
 
 ### Compare Original vs Consolidated Network
 
@@ -618,7 +656,7 @@ while preserving connectivity between important nodes:
 2.  **cluster**: Spatially clusters nodes using the `leaderCluster`
     algorithm and contracts the graph
 
-The two functions are complimentary, after calling
+The two functions are complementary, after calling
 [`simplify_network()`](https://sebkrantz.github.io/flownet/reference/simplify_network.md),
 [`consolidate_graph()`](https://sebkrantz.github.io/flownet/reference/consolidate_graph.md)
 could be called again to simplify the topology of the reduced network.
@@ -634,13 +672,13 @@ retains only the traversed edges:
 graph_simple <- simplify_network(graph_cons, nearest_nodes_seg,
                                  method = "shortest-paths",
                                  cost.column = ".length")
-#> Created graph with 4093 nodes and 6221 edges...
-#> Retained 5445/6221 edges traversed by shortest paths (87.5%)
+#> Created graph with 4106 nodes and 6242 edges...
+#> Retained 5455/6242 edges traversed by shortest paths (87.4%)
 
 cat("Consolidated edges:", nrow(graph_cons), "\n")
-#> Consolidated edges: 6221
+#> Consolidated edges: 6242
 cat("Simplified edges:", nrow(graph_simple), "\n")
-#> Simplified edges: 5445
+#> Simplified edges: 5455
 
 # Visualize
 tm_basemap("CartoDB.Positron", zoom = 4) +
@@ -677,14 +715,14 @@ graph_cluster <- simplify_network(graph_cons, nearest_nodes_seg,
                                   w = ~ .length) 
 #> Clustering nodes close to 'keep' nodes using a radius of 30km
 #> Clustering the remaining nodes with the leaderCluster algorithm using a radius of 27km
-#> leaderCluster algorithm converged in 9 iterations and identified 992 clusters
+#> leaderCluster algorithm converged in 7 iterations and identified 1000 clusters
 #> Clustering step completed. Identified clusters
-#> Dropped 3544 self-loop edges (following clustering)
-#> Oriented 637 undirected edges
-#> Contracting 2677 edges down to 2426 edges
+#> Dropped 3555 self-loop edges (following clustering)
+#> Oriented 924 undirected edges
+#> Contracting 2687 edges down to 2442 edges
 
 cat("Clustered edges:", nrow(graph_cluster), "\n")
-#> Clustered edges: 2426
+#> Clustered edges: 2442
 
 tm_basemap("CartoDB.Positron", zoom = 4) +
 tm_shape(linestrings_from_graph(graph_cluster)) +
@@ -714,25 +752,26 @@ od_matrix_long <- melt_od_matrix(od_mat)
 # Run Traffic Assignment with gravity-based OD matrix
 result_cl <- run_assignment(graph_cluster, od_matrix_long, cost.column = ".length",
                             method = "AoN", return.extra = "all")
-#> Created graph with 1444 nodes and 2426 edges...
-#> 455 OD-pairs have zero or non-finite flow values and will be skipped...
+#> Created graph with 1453 nodes and 2442 edges...
+#> Computing shortest paths for 205209 OD-pairs on 1 thread...
+#> Skipped 453 OD-pairs: 0 with zero or non-finite flow and 453 with no path found (destination unreachable or equal to origin)
 print(result_cl)
 #> FlowNet object
 #> Call: run_assignment(graph_df = graph_cluster, od_matrix_long = od_matrix_long,      cost.column = ".length", method = "AoN", return.extra = "all") 
 #> 
-#> Number of nodes: 1444 
-#> Number of edges: 2426 
-#> Number of simulations/OD-pairs: 204754 
+#> Number of nodes: 1453 
+#> Number of edges: 2442 
+#> Number of simulations/OD-pairs: 204756 
 #> 
-#> Average path length in edges (SD): 34.92143  (19.1385)
-#> Average number of visits per edge (SD): 2947.363  (5805.167)
-#> Average path cost (SD): 3878850  (2094879)
+#> Average path length in edges (SD): 34.49796  (18.90538)
+#> Average number of visits per edge (SD): 2892.573  (5382.335)
+#> Average path cost (SD): 3889684  (2095146)
 #> 
 #> Final flows summary statistics:
 #>      N  Ndist     Mean       SD  Min       Max  Skew   Kurt
-#>   2426   2008  2120.94  4190.57    0  41186.09  4.13  25.61
-#>   1%  5%   10%    25%     50%      75%      90%     95%       99%
-#>    0   0  0.63  64.58  473.27  2252.21  5842.42  9225.6  24624.15
+#>   2442   2019  2099.35  4025.16    0  37110.24     4  23.75
+#>   1%  5%   10%    25%     50%      75%      90%      95%       99%
+#>    0   0  0.65  62.91  515.48  2370.48  5725.83  9122.58  24581.29
 
 # Add flows to network for visualization
 graph_cluster$final_flows_log10 <- log10(result_cl$final_flows + 1)
@@ -753,7 +792,7 @@ tm_layout(frame = FALSE)
 
 The above overview showcased essential package functions. The Path-Sized
 Logit (PSL) assignment model was not used as it takes a few minutes to
-process around 200k OD-pairs with the PSL, beholding that a selection of
+process around 200k OD-pairs with the PSL, given that a selection of
 routes must be generated for each OD pair. PSL flow assignments are
 smoother/more distributed, and more realistic than the all-or-nothing
 method which assigns the entire flow to the shortest path without regard
@@ -863,6 +902,11 @@ improve performance with some graph algorithms.
 **[`distances_from_graph()`](https://sebkrantz.github.io/flownet/reference/distances_from_graph.md)**:
 Computes a distance matrix for all node pairs using the graph structure.
 
+**[`critical_link_analysis()`](https://sebkrantz.github.io/flownet/reference/critical_link_analysis.md)**:
+Computes, for every edge, the cost of the best detour if that edge is
+removed, and the ratio of detour cost to edge cost. Useful for
+identifying links whose failure would be most disruptive.
+
 ### OD Matrix Utilities
 
 **[`melt_od_matrix()`](https://sebkrantz.github.io/flownet/reference/melt_od_matrix.md)**:
@@ -887,8 +931,10 @@ The core function for traffic assignment. Key parameters:
   destination are not considered.
 - **`cost.column`**: The cost column to use for route computation. Can
   be a column name or numeric vector.
-- **`return.extra`**: Additional results to return, such as paths, edge
-  counts, or distance matrices.
+- **`return.extra`**: Additional results to return, such as paths, path
+  costs, or edge counts.
+- **`nthreads`**: Number of threads. For AoN, OpenMP threads, with
+  results that do not depend on their number; for PSL, `mirai` daemons.
 
 ### Parameter Tuning Tips
 
@@ -956,7 +1002,7 @@ Prato, C. G. (2009). Route choice modeling: Past, present and future
 research directions. *Journal of Choice Modelling, 2*(1), 65–100.
 <https://doi.org/10.1016/S1755-5345(13)70005-8>
 
-AequilibiaE Python Documentation:
+AequilibraE Python Documentation:
 <https://www.aequilibrae.com/develop/python/route_choice/path_size_logit.html>
 
 [^1]: See further theoretical and practical references at the end.

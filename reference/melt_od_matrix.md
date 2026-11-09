@@ -33,9 +33,8 @@ melt_od_matrix(od_matrix, nodes = NULL, sort = TRUE)
 
 - sort:
 
-  Sort long OD-matrix in ascending order of from and to columns. This
-  can have computational benefits, e.g., when multithreading with
-  `method = "AoN"`.
+  Logical (default: TRUE). Sort the long OD-matrix in ascending order of
+  the `from` and `to` columns.
 
 ## Value
 

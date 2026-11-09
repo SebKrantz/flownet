@@ -6,7 +6,7 @@
 
 ## Network Processing
 
-Utility functions to prepare networks graphs (represented using data
+Utility functions to prepare network graphs (represented using data
 frames) for analysis.
 
 - [`linestrings_to_graph()`](https://sebkrantz.github.io/flownet/reference/linestrings_to_graph.md)

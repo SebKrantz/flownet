@@ -12,8 +12,8 @@ distances_from_graph(graph_df, directed = FALSE, cost.column = "cost", ...)
 
 - graph_df:
 
-  A data frame representing a graph with columns: `from`, `to`, and
-  `cost`.
+  A data frame representing a graph with columns: `from`, `to`, and a
+  cost column (see `cost.column`).
 
 - directed:
 
@@ -34,20 +34,20 @@ distances_from_graph(graph_df, directed = FALSE, cost.column = "cost", ...)
 
 ## Value
 
-A matrix of distances between all node pairs, where rows and columns
-correspond to node IDs. The matrix contains the shortest path distances
-(based on the `cost` column) between all pairs of nodes.
+A matrix of shortest path distances (based on the edge costs) between
+node pairs. Rows and columns are named by node ID, in ascending order of
+node ID.
 
 ## Details
 
 This function:
 
-- Converts the graph data frame to a *igraph* graph object
+- Converts the graph data frame to an *igraph* graph object, with the
+  sorted unique node IDs as vertex names
 
-- Contracts the graph for efficient distance computation
-
-- Computes the distance matrix for all node pairs using the specified
-  algorithm
+- Computes the shortest path distances with
+  [`distances`](https://r.igraph.org/reference/distances.html)`(mode = "out")`,
+  by default for all node pairs
 
 ## Examples
 

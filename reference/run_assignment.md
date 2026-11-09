@@ -101,9 +101,10 @@ print(x, digits = 2, ...)
 - dmat.max.size:
 
   Integer (default: 1e4^2). Maximum size of distance matrices (both
-  shortest paths and geodesic) to precompute. If smaller than
-  `n_nodes^2`, then the full matrix is precomputed. Otherwise, it is
-  computed in chunks as needed, where each chunk has `dmat.max.size`
+  shortest paths and geodesic) to precompute. If
+  `dmat.max.size >= n_nodes^2` - i.e. the full matrix fits within the
+  budget - it is precomputed once. Otherwise, it is computed in chunks
+  as needed, where each chunk has approximately `dmat.max.size`
   elements. Only used for PSL method.
 
 - return.extra:
@@ -130,8 +131,10 @@ print(x, digits = 2, ...)
 
 - nthreads:
 
-  Integer (default: 1L). Number of threads (daemons) to use for parallel
-  processing with
+  Integer (default: 1L). Number of threads to use for parallel
+  processing. For AoN these are OpenMP threads over origin nodes (if the
+  package was compiled with OpenMP support), and the results do not
+  depend on their number; for PSL, daemons of
   [`mirai`](https://mirai.r-lib.org/reference/mirai.html). Should not
   exceed the number of logical processors.
 
@@ -153,7 +156,11 @@ A list of class `"flownet"` containing:
 - `final_flows` - Numeric vector of assigned flows for each edge (same
   length as `nrow(graph_df)`)
 
-- `od_pairs_used` - Indices of OD pairs with valid flows
+- `od_pairs_used` - Row indices (into `od_matrix_long`) of the OD pairs
+  that were assigned. Pairs with zero or non-finite flow, and pairs for
+  which no path was found (unreachable destination, or origin equal to
+  destination), are skipped. The per-OD-pair elements listed below are
+  aligned with this vector, not with the rows of `od_matrix_long`.
 
 - Additional elements as specified in `return.extra`:
 
@@ -191,9 +198,13 @@ overlap correction for more realistic flow distribution.
 
 A simple assignment method that assigns all flow from each OD pair to
 the single shortest path. This is much faster than PSL but does not
-consider route alternatives or overlaps. Parameters `detour.max`,
-`angle.max`, `unique.cost`, `npaths.max`, `beta`, and `dmat.max.size`
-are ignored for AoN.
+consider route alternatives or overlaps. The shortest paths are computed
+in C, one Dijkstra search per origin node, in parallel with OpenMP. The
+search mirrors the one of
+[`shortest_paths()`](https://r.igraph.org/reference/distances.html), so
+ties between equal-cost paths are resolved in the same way. Parameters
+`detour.max`, `angle.max`, `unique.cost`, `npaths.max`, `beta`, and
+`dmat.max.size` are ignored for AoN.
 
 ### Path-Sized Logit (PSL) Method
 
@@ -234,7 +245,7 @@ For each origin-destination pair, the algorithm identifies alternative
 routes as follows:
 
 1.  Compute the shortest path cost from origin to destination. If
-    `sqrt(dmat.max.size) < N.nodes`, the entire shortest-path-distance
+    `sqrt(dmat.max.size) >= N.nodes`, the entire shortest-path-distance
     matrix is precomputed.
 
 2.  For each potential intermediate node, calculate the total cost of
@@ -246,9 +257,11 @@ routes as follows:
 
 4.  If `angle.max` is specified, filter to intermediate nodes that lie
     roughly in the direction of the destination (within the specified
-    angle - see further details below). If
-    `sqrt(dmat.max.size) < N.nodes` a geodesic-distance-matrix is
-    precomputed for speedy calculations using the triangle equation.
+    angle - see further details below). The angles are computed from
+    geodesic distances using the law of cosines. Like the
+    shortest-path-distance matrix, the geodesic-distance-matrix is
+    precomputed if `sqrt(dmat.max.size) >= N.nodes`, and computed in
+    chunks otherwise.
 
 5.  If `unique.cost = TRUE`, remove duplicate routes based on total
     cost - as multiple intermediate nodes may yield exactly the same
@@ -269,11 +282,14 @@ considerably by avoiding the computation of implausible paths.
 
 When `angle.max` is specified and `graph_df` contains coordinate columns
 (`FX`, `FY`, `TX`, `TY`), the function uses geographic distance
-calculations to restrict detours. Only intermediate nodes that are (a)
-closer to the origin than the destination is, and (b) within the
-specified angle from the origin-destination line are considered. This
-improves both computational efficiency and route realism by excluding
-geographically implausible detours.
+calculations to restrict detours. With `angle.max >= 90`, only
+intermediate nodes that are (a) closer to the origin than the
+destination is, and (b) within `angle.max` degrees of the
+origin-destination line, seen from the origin, are considered. With
+`angle.max < 90`, intermediate nodes must instead lie within `angle.max`
+degrees of the origin-destination line seen from both the origin and the
+destination. This improves both computational efficiency and route
+realism by excluding geographically implausible detours.
 
 ## References
 
@@ -295,8 +311,8 @@ Prato, C. G. (2009). Route choice modeling: Past, present and future
 research directions. *Journal of Choice Modelling, 2*(1), 65-100.
 [doi:10.1016/S1755-5345(13)70005-8](https://doi.org/10.1016/S1755-5345%2813%2970005-8)
 
-AequilibiaE Python Documentation:
-https://www.aequilibrae.com/develop/python/route_choice/path_size_logit.html
+AequilibraE Python Documentation:
+<https://www.aequilibrae.com/develop/python/route_choice/path_size_logit.html>
 
 ## See also
 
@@ -307,7 +323,7 @@ https://www.aequilibrae.com/develop/python/route_choice/path_size_logit.html
 ``` r
 library(flownet)
 library(collapse)
-#> collapse 2.1.7, see ?`collapse-package` or ?`collapse-documentation`
+#> collapse 2.1.8, see ?`collapse-package` or ?`collapse-documentation`
 #> 
 #> Attaching package: ‘collapse’
 #> The following object is masked from ‘package:stats’:
@@ -334,7 +350,8 @@ od_matrix_long <- melt_od_matrix(od_mat)
 result_aon <- run_assignment(graph, od_matrix_long, cost.column = "duration",
                              method = "AoN", return.extra = "all")
 #> Created graph with 1379 nodes and 2344 edges...
-#> 495 OD-pairs have zero or non-finite flow values and will be skipped...
+#> Computing shortest paths for 205209 OD-pairs on 1 thread...
+#> Skipped 495 OD-pairs: 0 with zero or non-finite flow and 495 with no path found (destination unreachable or equal to origin)
 print(result_aon)
 #> FlowNet object
 #> Call: run_assignment(graph_df = graph, od_matrix_long = od_matrix_long,      cost.column = "duration", method = "AoN", return.extra = "all") 
@@ -360,7 +377,7 @@ result_psl <- run_assignment(graph, od_matrix_long, cost.column = "duration",
                              return.extra = c("edges", "counts", "costs", "weights"))
 #> Created graph with 1379 nodes and 2344 edges...
 #> Computed distance matrix of dimensions 1379 x 1379 ...
-#> 495 OD-pairs have zero or non-finite flow values and will be skipped...
+#> Skipped 495 OD-pairs: 0 with zero or non-finite flow and 495 with no path found (destination unreachable or equal to origin)
 print(result_psl)
 #> FlowNet object
 #> Call: run_assignment(graph_df = graph, od_matrix_long = od_matrix_long,      cost.column = "duration", method = "PSL", return.extra = c("edges",          "counts", "costs", "weights"), nthreads = 1L) 
@@ -379,7 +396,7 @@ print(result_psl)
 #>   1%    5%   10%    25%     50%      75%     90%       95%       99%
 #>    0  0.06  1.62  39.95  300.59  1678.91  7571.9  11435.33  18959.06
 
-# Visualize AoN Results
+# Visualize PSL Results
 africa_net$final_flows_log10 <- log10(result_psl$final_flows + 1)
 plot(africa_net["final_flows_log10"], main = "PSL Assignment")
 
@@ -411,6 +428,7 @@ od_matrix_trade <- trade_agg |>
 result_trade_aon <- run_assignment(graph, od_matrix_trade, cost.column = "duration",
                                    method = "AoN", return.extra = "all")
 #> Created graph with 1379 nodes and 2344 edges...
+#> Computing shortest paths for 189020 OD-pairs on 1 thread...
 print(result_trade_aon)
 #> FlowNet object
 #> Call: run_assignment(graph_df = graph, od_matrix_long = od_matrix_trade,      cost.column = "duration", method = "AoN", return.extra = "all") 
