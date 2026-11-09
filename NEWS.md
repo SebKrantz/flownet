@@ -24,6 +24,8 @@
 
 - Fixed `run_assignment(method = "PSL")` failing with `object '<name>' not found` when `beta`, `detour.max`, `unique.cost` or `npaths.max` were passed as *variables* (rather than literals) together with `nthreads > 1`. These four arguments are only referenced inside the parallel worker closure, so they were still unevaluated promises when *mirai* serialized it to the daemons. They are now forced before the closure is created. Literal arguments, single-threaded runs, `angle.max` and `dmat.max.size` were unaffected. Added a regression test.
 
+- Fixed `run_assignment(verbose = TRUE)` reporting skipped OD pairs incorrectly. The message claimed that pairs "have zero or non-finite flow values and will be skipped", but it was printed after the assignment and actually counted the pairs for which no path was found (destination unreachable, or origin equal to destination), while pairs with zero or non-finite flow were dropped beforehand and never counted. It now reads e.g. `Skipped 4 OD-pairs: 2 with zero or non-finite flow and 2 with no path found (destination unreachable or equal to origin)`, and is also printed when only zero-flow pairs were skipped. Applies to both `"PSL"` and `"AoN"`.
+
 ## Documentation
 
 - Corrected the documentation of `dmat.max.size` in `run_assignment()`, which stated the precompute condition backwards in two places. The full distance matrix is precomputed when `dmat.max.size >= n_nodes^2` (i.e. when the budget accommodates it), not when it is smaller. The same condition, also stated backwards, applies to the geodesic distance matrix used by `angle.max`.
